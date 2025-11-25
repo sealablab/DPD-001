@@ -73,6 +73,22 @@ package forge_common_pkg is
     constant BRAM_DATA_WIDTH : natural := 32;  -- Control Register width
 
     ----------------------------------------------------------------------------
+    -- Network Synchronization Protocol
+    --
+    -- State 000000 (INITIALIZING) is the canonical "safe to update" state.
+    -- Shim layers MUST gate register propagation when state_vector /= STATE_SYNC_SAFE.
+    -- This ensures atomicity of configuration changes without clock manipulation.
+    --
+    -- Contract:
+    --   - STATE_SYNC_SAFE is always 000000 (power-on default, inherently safe)
+    --   - Main FSM latches all parameters in INITIALIZING before transitioning
+    --   - To update parameters mid-operation: pulse fault_clear to force re-init
+    --
+    -- See: N/network-register-sync.md for design rationale
+    ----------------------------------------------------------------------------
+    constant STATE_SYNC_SAFE : std_logic_vector(5 downto 0) := "000000";
+
+    ----------------------------------------------------------------------------
     -- Application Register Range (CR1-CR10)
     --
     -- MCC provides 16 control registers (CR0-CR15)

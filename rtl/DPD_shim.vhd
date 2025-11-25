@@ -156,7 +156,27 @@ architecture rtl of DPD_shim is
     signal state_vector_from_main  : std_logic_vector(5 downto 0);
     signal status_vector_from_main : std_logic_vector(7 downto 0);
 
+    ----------------------------------------------------------------------------
+    -- Network Register Synchronization
+    --
+    -- Configuration parameters are only updated when main FSM is in INITIALIZING
+    -- state (STATE_SYNC_SAFE). This prevents race conditions from async network
+    -- register updates during active operation.
+    --
+    -- Lifecycle controls (arm_enable, fault_clear, etc.) always pass through
+    -- because they are real-time control signals, not configuration.
+    --
+    -- See: N/network-register-sync.md for design rationale
+    ----------------------------------------------------------------------------
+    signal sync_safe : std_logic;
+
 begin
+
+    ----------------------------------------------------------------------------
+    -- Sync-Safe Detection
+    -- Configuration updates only allowed when main FSM is in INITIALIZING state
+    ----------------------------------------------------------------------------
+    sync_safe <= '1' when state_vector_from_main = STATE_SYNC_SAFE else '0';
 
     ----------------------------------------------------------------------------
     -- Global Enable Computation
@@ -172,7 +192,14 @@ begin
     ----------------------------------------------------------------------------
     -- Register Synchronization: Control Registers → app_reg_* signals
     --
-    -- Synchronizes register updates on each clock cycle
+    -- IMPORTANT: Implements Network Synchronization Protocol
+    --   - Lifecycle controls (CR1): Always updated (real-time control signals)
+    --   - Configuration params (CR2-CR10): Only updated when sync_safe='1'
+    --
+    -- This prevents race conditions from async network register updates.
+    -- Configuration changes only take effect when FSM is in INITIALIZING state.
+    --
+    -- See: N/network-register-sync.md for design rationale
     ----------------------------------------------------------------------------
     REGISTER_SYNC: process(Clk, Reset)
     begin
@@ -198,47 +225,57 @@ begin
             app_reg_monitor_window_duration   <= to_unsigned(625000, 32); -- 5μs @ 125MHz
 
         elsif rising_edge(Clk) then
-            -- Latch new register values on each clock cycle
 
-            -- CR1: Lifecycle control bits
+            ----------------------------------------------------------------
+            -- LIFECYCLE CONTROLS (CR1): Always updated
+            -- These are real-time control signals that must work in any state
+            ----------------------------------------------------------------
             app_reg_arm_enable        <= app_reg_1(0);
             app_reg_sw_trigger        <= app_reg_1(1);
             app_reg_auto_rearm_enable <= app_reg_1(2);
             app_reg_fault_clear       <= app_reg_1(3);
 
-            -- Edge detection for software trigger
+            -- Edge detection for software trigger (always active)
             sw_trigger_prev <= app_reg_sw_trigger;
 
-            -- CR2: Input trigger threshold [31:16] + Trigger output voltage [15:0]
-            app_reg_input_trigger_threshold_high <= signed(app_reg_2(31 downto 16));
-            app_reg_input_trigger_threshold_low  <= signed(app_reg_2(31 downto 16)) - to_signed(50, 16);  -- 50mV hysteresis
-            app_reg_trig_out_voltage  <= signed(app_reg_2(15 downto 0));
+            ----------------------------------------------------------------
+            -- CONFIGURATION PARAMETERS (CR2-CR10): Only when sync_safe='1'
+            -- Gated to prevent mid-operation parameter changes
+            ----------------------------------------------------------------
+            if sync_safe = '1' then
+                -- CR2: Input trigger threshold [31:16] + Trigger output voltage [15:0]
+                app_reg_input_trigger_threshold_high <= signed(app_reg_2(31 downto 16));
+                app_reg_input_trigger_threshold_low  <= signed(app_reg_2(31 downto 16)) - to_signed(50, 16);  -- 50mV hysteresis
+                app_reg_trig_out_voltage  <= signed(app_reg_2(15 downto 0));
 
-            -- CR3: Intensity output voltage
-            app_reg_intensity_voltage <= signed(app_reg_3(15 downto 0));
+                -- CR3: Intensity output voltage
+                app_reg_intensity_voltage <= signed(app_reg_3(15 downto 0));
 
-            -- CR4: Trigger pulse duration (clock cycles)
-            app_reg_trig_out_duration <= unsigned(app_reg_4);
+                -- CR4: Trigger pulse duration (clock cycles)
+                app_reg_trig_out_duration <= unsigned(app_reg_4);
 
-            -- CR5: Intensity pulse duration (clock cycles)
-            app_reg_intensity_duration <= unsigned(app_reg_5);
+                -- CR5: Intensity pulse duration (clock cycles)
+                app_reg_intensity_duration <= unsigned(app_reg_5);
 
-            -- CR6: Trigger wait timeout (clock cycles)
-            app_reg_trigger_wait_timeout <= unsigned(app_reg_6);
+                -- CR6: Trigger wait timeout (clock cycles)
+                app_reg_trigger_wait_timeout <= unsigned(app_reg_6);
 
-            -- CR7: Cooldown interval (clock cycles)
-            app_reg_cooldown_interval <= unsigned(app_reg_7);
+                -- CR7: Cooldown interval (clock cycles)
+                app_reg_cooldown_interval <= unsigned(app_reg_7);
 
-            -- CR8: Monitor control and threshold
-            app_reg_monitor_enable          <= app_reg_8(0);
-            app_reg_monitor_expect_negative <= app_reg_8(1);
-            app_reg_monitor_threshold_voltage <= signed(app_reg_8(31 downto 16));
+                -- CR8: Monitor control and threshold
+                app_reg_monitor_enable          <= app_reg_8(0);
+                app_reg_monitor_expect_negative <= app_reg_8(1);
+                app_reg_monitor_threshold_voltage <= signed(app_reg_8(31 downto 16));
 
-            -- CR9: Monitor window start delay (clock cycles)
-            app_reg_monitor_window_start <= unsigned(app_reg_9);
+                -- CR9: Monitor window start delay (clock cycles)
+                app_reg_monitor_window_start <= unsigned(app_reg_9);
 
-            -- CR10: Monitor window duration (clock cycles)
-            app_reg_monitor_window_duration <= unsigned(app_reg_10);
+                -- CR10: Monitor window duration (clock cycles)
+                app_reg_monitor_window_duration <= unsigned(app_reg_10);
+            end if;
+            -- When sync_safe='0', configuration params hold their previous values
+
         end if;
     end process;
 

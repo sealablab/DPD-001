@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------------
 -- File: DPD_main.vhd
 -- Author: Moku Instrument Forge Team
--- Date: 2025-11-05
+-- Date: 2025-11-25
 -- Version: 2.0 (Layer 3 - MCC-agnostic refactor)
 --
 -- Description:
@@ -20,15 +20,20 @@
 --   FAULT        (111111) - Sticky fault state (requires fault_clear)
 --
 -- Layer 3 of 3-Layer Forge Architecture:
---   Layer 1: MCC_TOP_forge_loader.vhd (static, shared)
---   Layer 2: DPD_forge_shim.vhd (generated, register mapping)
+--   Layer 1: DPD.vhd (implements MCC CustomWrapper entity)
+--   Layer 2: DPD_shim.vhd (RTL / register mapping. #TODO NetworkSyncProtocol
 --   Layer 3: DPD_main.vhd (THIS FILE - application logic)
 --
 -- References:
---   - DPD_forge_shim.vhd (shim layer)
+--   - DPD_shim.vhd (shim layer)
 --   - forge_common_pkg.vhd (FORGE_READY control scheme)
---   - libs/forge-vhdl/CLAUDE.md (coding standards)
 --------------------------------------------------------------------------------
+--
+-- Network Register Synchronization:
+--   Resolved via STATE_SYNC_SAFE protocol. Configuration parameters are gated
+--   at the shim layer (sync_safe signal) and latched atomically here in
+--   INITIALIZING state. See: N/network-register-sync.md
+--
 
 library IEEE;
 use IEEE.std_logic_1164.all;
