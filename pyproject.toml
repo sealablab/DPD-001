@@ -1,0 +1,19 @@
+[project]
+name = "DPD-001"
+version = "0.1.0"
+description = "Demo Probe Driver"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "moku>=4.0.3.1",
+    "textual>=6.6.0",
+    "pyyaml>=6.0.0",
+    "pydantic>=2.0.0",
+    "textual-slider>=0.2.0",
+    "loguru>=0.7.0",
+]
+
+[dependency-groups]
+dev = [
+    "ipython>=9.7.0",
+]
