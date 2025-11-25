@@ -28,18 +28,19 @@ def decode_fsm_state(voltage: float, tolerance: float = STATE_VOLTAGE_TOLERANCE)
     HVS Encoding: 3277 digital units per state step (0.5V per state)
     Voltage = (digital_units / 32768) * 5V
     State voltages:
-      - IDLE (0):      0 units    → 0.0V
-      - ARMED (1):     3277 units → 0.5V
-      - FIRING (2):    6554 units → 1.0V
-      - COOLDOWN (3):  9831 units → 1.5V
-      - FAULT:         negative voltage
+      - INITIALIZING (0): 0 units     → 0.0V (transient)
+      - IDLE (1):         3277 units  → 0.5V
+      - ARMED (2):        6554 units  → 1.0V
+      - FIRING (3):       9831 units  → 1.5V
+      - COOLDOWN (4):     13108 units → 2.0V
+      - FAULT:            negative voltage (STATUS[7]=1)
 
     Args:
         voltage: Voltage reading from oscilloscope (V)
         tolerance: Allowed deviation from expected state voltage (V)
 
     Returns:
-        State name string (IDLE, ARMED, FIRING, COOLDOWN, FAULT, or UNKNOWN)
+        State name string (INITIALIZING, IDLE, ARMED, FIRING, COOLDOWN, FAULT, or UNKNOWN)
     """
     # Check for FAULT first (any negative voltage)
     if voltage < -tolerance:

@@ -10,6 +10,7 @@ Date: 2025-11-18
 import cocotb
 from cocotb.triggers import ClockCycles
 from dpd_wrapper_tests.dpd_wrapper_constants import (
+    HVS_DIGITAL_INITIALIZING,
     HVS_DIGITAL_IDLE,
     HVS_DIGITAL_ARMED,
     HVS_DIGITAL_FIRING,

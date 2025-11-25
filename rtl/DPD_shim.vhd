@@ -17,7 +17,8 @@
 --   CR1[1]     : sw_trigger - Software trigger (edge-detected, ARMED → FIRING)
 --   CR1[2]     : auto_rearm_enable - Re-arm after cooldown
 --   CR1[3]     : fault_clear - Clear fault state (edge-detected)
---   CR1[31:4]  : Reserved
+--   CR1[4]     : hw_trigger_enable - Enable hardware voltage trigger (default: disabled)
+--   CR1[31:5]  : Reserved
 --   CR2[31:16] : Input trigger voltage threshold (mV, signed)
 --   CR2[15:0]  : Trigger output voltage (mV)
 --   CR3[15:0]  : Intensity output voltage (mV)
@@ -103,9 +104,10 @@ architecture rtl of DPD_shim is
 
     -- Lifecycle control
     signal app_reg_arm_enable           : std_logic;  -- Arm FSM (IDLE→ARMED transition)
-    signal app_reg_sw_trigger           : std_logic;  -- Software trigger input (CR1[4])
+    signal app_reg_sw_trigger           : std_logic;  -- Software trigger input (CR1[1])
     signal app_reg_auto_rearm_enable    : std_logic;  -- Re-arm after cooldown
     signal app_reg_fault_clear          : std_logic;  -- Clear fault state
+    signal app_reg_hw_trigger_enable    : std_logic;  -- Enable hardware voltage trigger (CR1[4])
 
     -- Input trigger control
     signal app_reg_input_trigger_threshold_high : signed(15 downto 0);  -- Threshold high (mV)
@@ -142,6 +144,7 @@ architecture rtl of DPD_shim is
     signal hw_trigger_out : std_logic;  -- Pulse from voltage threshold trigger
     signal hw_trigger_above_threshold : std_logic;  -- Level indicator
     signal hw_trigger_crossing_count : unsigned(15 downto 0);  -- Diagnostic counter
+    signal hw_trigger_enable_gated : std_logic;  -- Combined enable (global_enable AND CR1[4])
 
     ----------------------------------------------------------------------------
     -- Software Trigger Edge Detection
@@ -209,6 +212,7 @@ begin
             app_reg_sw_trigger           <= '0';
             app_reg_auto_rearm_enable    <= '0';
             app_reg_fault_clear          <= '0';
+            app_reg_hw_trigger_enable    <= '0';  -- Hardware trigger disabled by default (safety)
             sw_trigger_prev              <= '0';
             app_reg_input_trigger_threshold_high <= to_signed(950, 16);   -- Default 950mV
             app_reg_input_trigger_threshold_low  <= to_signed(900, 16);   -- Default 900mV (50mV hysteresis)
@@ -234,6 +238,7 @@ begin
             app_reg_sw_trigger        <= app_reg_1(1);
             app_reg_auto_rearm_enable <= app_reg_1(2);
             app_reg_fault_clear       <= app_reg_1(3);
+            app_reg_hw_trigger_enable <= app_reg_1(4);
 
             -- Edge detection for software trigger (always active)
             sw_trigger_prev <= app_reg_sw_trigger;
@@ -294,6 +299,14 @@ begin
     combined_trigger <= hw_trigger_out or sw_trigger_edge;
 
     ----------------------------------------------------------------------------
+    -- Hardware Trigger Enable Gate
+    --
+    -- CR1[4] must be set to enable hardware voltage triggering.
+    -- This allows tests to use software-only triggering without spurious fires.
+    ----------------------------------------------------------------------------
+    hw_trigger_enable_gated <= global_enable and app_reg_hw_trigger_enable;
+
+    ----------------------------------------------------------------------------
     -- Instantiate Hardware Trigger Core
     --
     -- Generates 1-cycle pulse when InputA crosses voltage threshold
@@ -305,7 +318,7 @@ begin
             voltage_in       => InputA,
             threshold_high   => app_reg_input_trigger_threshold_high,
             threshold_low    => app_reg_input_trigger_threshold_low,
-            enable           => global_enable,
+            enable           => hw_trigger_enable_gated,  -- CR1[4] gates HW trigger
             mode             => '0',  -- Rising edge mode
             trigger_out      => hw_trigger_out,
             above_threshold  => hw_trigger_above_threshold,

@@ -11,6 +11,7 @@ dependencies = [
     "pydantic>=2.0.0",
     "textual-slider>=0.2.0",
     "loguru>=0.7.0",
+    "cocotb-test>=0.2.6",
 ]
 
 [dependency-groups]

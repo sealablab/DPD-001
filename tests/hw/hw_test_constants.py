@@ -2,10 +2,24 @@
 Hardware Test Constants for Demo Probe Driver (DPD)
 
 Defines timing configurations, state mappings, and test values for hardware testing.
-Adapted from cocotb_tests/dpd_wrapper_tests/dpd_wrapper_constants.py
+
+FSM State Encoding (from DPD_main.vhd):
+    INITIALIZING = 000000 (0)  - Register latch/validation (sync-safe)
+    IDLE         = 000001 (1)  - Waiting for arm_enable
+    ARMED        = 000010 (2)  - Waiting for trigger
+    FIRING       = 000011 (3)  - Driving outputs
+    COOLDOWN     = 000100 (4)  - Thermal safety delay
+    FAULT        = 111111 (63) - Sticky fault state
+
+HVS Encoding (3277 digital units per state = 500mV at +/-5V full scale):
+    INITIALIZING: 0 * 3277 = 0      -> 0.0V
+    IDLE:         1 * 3277 = 3277   -> 0.5V
+    ARMED:        2 * 3277 = 6554   -> 1.0V
+    FIRING:       3 * 3277 = 9831   -> 1.5V
+    COOLDOWN:     4 * 3277 = 13108  -> 2.0V
 
 Author: Moku Instrument Forge Team
-Date: 2025-01-18
+Date: 2025-11-25 (updated for correct state encoding)
 """
 
 from pathlib import Path
@@ -19,15 +33,15 @@ CLK_FREQ_HZ = 125_000_000
 
 # FSM State Constants (voltage-based encoding observed on oscilloscope)
 # Based on HVS (Hierarchical Voltage Encoding) on OutputC
-# Updated 2025-01-18: 3277 digital units/state = 0.5V/state @ ±5V full scale
+# 3277 digital units/state = 0.5V/state @ ±5V full scale
 # Note: HVS encoding includes status bits which add ±0.015V offset
 STATE_VOLTAGE_MAP = {
-    "IDLE": 0.0,        # State 0: 0V
-    "ARMED": 0.5,       # State 1: 0.5V
-    "FIRING": 1.0,      # State 2: 1.0V
-    "COOLDOWN": 1.5,    # State 3: 1.5V (note: was "COOLING" in debug_fsm_states.py)
-    "STATE_4": 2.0,     # State 4: 2.0V (debugging - may indicate uninitialized or unexpected state)
-    "FAULT": -0.5,      # Negative voltage = fault condition
+    "INITIALIZING": 0.0,  # State 0: 0V (transient - FSM quickly transitions to IDLE)
+    "IDLE": 0.5,          # State 1: 0.5V
+    "ARMED": 1.0,         # State 2: 1.0V
+    "FIRING": 1.5,        # State 3: 1.5V
+    "COOLDOWN": 2.0,      # State 4: 2.0V
+    "FAULT": -0.5,        # Negative voltage = fault condition (STATUS[7]=1)
 }
 
 # Reverse lookup for state names
