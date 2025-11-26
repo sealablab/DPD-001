@@ -13,6 +13,34 @@ Last updated: 2025-11-25
 """
 
 # ==============================================================================
+# CR0 - FORGE Control Scheme (Bits 31:29)
+# ==============================================================================
+
+class CR0:
+    """Control Register 0 - FORGE Control Scheme.
+
+    CR0[31:29] must all be set (0xE0000000) for safe operation:
+    - Bit 31: forge_ready (set by MCC loader after deployment)
+    - Bit 30: user_enable (user control enable/disable)
+    - Bit 29: clk_enable (clock gating enable)
+
+    The FSM should only operate when all three bits are set.
+    """
+    # Bit positions
+    FORGE_READY = 31   # Set by MCC after deployment
+    USER_ENABLE = 30   # User control enable/disable
+    CLK_ENABLE = 29    # Clock gating enable
+
+    # Pre-computed register values
+    FORGE_READY_MASK = 1 << FORGE_READY   # 0x80000000
+    USER_ENABLE_MASK = 1 << USER_ENABLE   # 0x40000000
+    CLK_ENABLE_MASK = 1 << CLK_ENABLE     # 0x20000000
+
+    # All enabled - required for normal operation
+    ALL_ENABLED = FORGE_READY_MASK | USER_ENABLE_MASK | CLK_ENABLE_MASK  # 0xE0000000
+
+
+# ==============================================================================
 # CR1 - Control Register 1 Bit Positions
 # ==============================================================================
 
@@ -55,7 +83,20 @@ class FSMState:
 # ==============================================================================
 
 class HVS:
-    """HVS encoding parameters for OutputC (oscilloscope debug)"""
+    """HVS encoding parameters for OutputC (oscilloscope debug).
+
+    Hierarchical Voltage Scaling encodes FSM state as analog voltage
+    for oscilloscope debugging without recompilation.
+
+    Voltage Range: ±5V (Moku:Go DAC range)
+    Digital Range: ±32768 (16-bit signed)
+    State Step: 0.5V per state (3277 digital units)
+    """
+
+    # Platform constants
+    V_MAX = 5.0           # ±5V range
+    V_MAX_MV = 5000       # ±5000mV range
+    DIGITAL_MAX = 32768   # 16-bit signed max
 
     # Digital units per FSM state
     DIGITAL_UNITS_PER_STATE = 3277  # ~0.5V per state @ ±5V full scale
@@ -70,20 +111,139 @@ class HVS:
     VOLTAGE_FIRING       = 9831   # 1.5V
     VOLTAGE_COOLDOWN     = 13108  # 2.0V
 
+    # State-to-voltage map (for oscilloscope observation)
+    STATE_VOLTAGE_MAP = {
+        "INITIALIZING": 0.0,   # State 0: 0V (transient)
+        "IDLE": 0.5,           # State 1: 0.5V
+        "ARMED": 1.0,          # State 2: 1.0V
+        "FIRING": 1.5,         # State 3: 1.5V
+        "COOLDOWN": 2.0,       # State 4: 2.0V
+        "FAULT": -0.5,         # Negative voltage indicates fault
+    }
+
+    # State-to-digital map (for direct digital comparison)
+    STATE_DIGITAL_MAP = {
+        "INITIALIZING": VOLTAGE_INITIALIZING,
+        "IDLE": VOLTAGE_IDLE,
+        "ARMED": VOLTAGE_ARMED,
+        "FIRING": VOLTAGE_FIRING,
+        "COOLDOWN": VOLTAGE_COOLDOWN,
+    }
+
     @staticmethod
     def digital_to_volts(digital_units: int) -> float:
-        """Convert digital units to voltage (V)"""
+        """Convert digital units to voltage (V).
+
+        Args:
+            digital_units: 16-bit signed digital value (±32768)
+
+        Returns:
+            Voltage in V (±5V range)
+        """
         return (digital_units / 32768.0) * 5.0
 
     @staticmethod
     def volts_to_digital(voltage: float) -> int:
-        """Convert voltage (V) to digital units"""
+        """Convert voltage (V) to digital units.
+
+        Args:
+            voltage: Voltage in V (±5V range)
+
+        Returns:
+            16-bit signed digital value (±32768)
+        """
         return int((voltage / 5.0) * 32768.0)
 
     @staticmethod
+    def mv_to_digital(millivolts: float) -> int:
+        """Convert millivolts to 16-bit signed digital value.
+
+        Args:
+            millivolts: Voltage in mV (±5000mV range)
+
+        Returns:
+            Digital value (±32768 range)
+
+        Example:
+            >>> HVS.mv_to_digital(0)
+            0
+            >>> HVS.mv_to_digital(950)  # Default threshold
+            6225
+            >>> HVS.mv_to_digital(1500)  # Test trigger voltage
+            9830
+        """
+        return int((millivolts / HVS.V_MAX_MV) * HVS.DIGITAL_MAX)
+
+    @staticmethod
+    def digital_to_mv(digital: int) -> float:
+        """Convert 16-bit signed digital value to millivolts.
+
+        Args:
+            digital: Digital value (±32768 range)
+
+        Returns:
+            Voltage in mV (±5000mV range)
+        """
+        return (digital / HVS.DIGITAL_MAX) * HVS.V_MAX_MV
+
+    @staticmethod
     def state_to_digital(state: int, status_offset: int = 0) -> int:
-        """Convert FSM state + status offset to digital units"""
+        """Convert FSM state + status offset to digital units.
+
+        Args:
+            state: FSM state value (0-4 for normal states)
+            status_offset: Fine-grained status offset (±100 typical)
+
+        Returns:
+            Digital value for OutputC
+        """
         return (state * HVS.DIGITAL_UNITS_PER_STATE) + status_offset
+
+    @staticmethod
+    def decode_state_from_digital(digital: int, tolerance: int = 200) -> str:
+        """Decode FSM state name from digital value.
+
+        Args:
+            digital: Digital value from OutputC
+            tolerance: Allowed deviation in digital units (default ±200)
+
+        Returns:
+            State name (INITIALIZING, IDLE, ARMED, FIRING, COOLDOWN, FAULT, or UNKNOWN)
+        """
+        # Check for fault (negative value beyond tolerance)
+        if digital < -tolerance:
+            return "FAULT"
+
+        # Check each state
+        for state_name, expected_digital in HVS.STATE_DIGITAL_MAP.items():
+            if abs(digital - expected_digital) <= tolerance:
+                return state_name
+
+        return f"UNKNOWN({digital})"
+
+    @staticmethod
+    def decode_state_from_voltage(voltage: float, tolerance: float = 0.30) -> str:
+        """Decode FSM state name from voltage reading.
+
+        Args:
+            voltage: Voltage in V from OutputC
+            tolerance: Allowed deviation in V (default ±0.30V)
+
+        Returns:
+            State name (INITIALIZING, IDLE, ARMED, FIRING, COOLDOWN, FAULT, or UNKNOWN)
+        """
+        # Check for fault (any significant negative voltage)
+        if voltage < -tolerance:
+            return "FAULT"
+
+        # Check each state
+        for state_name, expected_voltage in HVS.STATE_VOLTAGE_MAP.items():
+            if state_name == "FAULT":
+                continue  # Skip fault in normal lookup
+            if abs(voltage - expected_voltage) < tolerance:
+                return state_name
+
+        return f"UNKNOWN({voltage:.3f}V)"
 
 
 # ==============================================================================

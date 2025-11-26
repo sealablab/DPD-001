@@ -1,9 +1,14 @@
 """
-Shared Test Constants - Single Source of Truth
-===============================================
+Shared Test Constants
+=====================
 
 This file imports hardware constants from py_tools/dpd_constants.py
-(the authoritative source) and adds test-specific values.
+(the authoritative source) and adds TEST-SPECIFIC values only.
+
+Dependency Direction:
+    py_tools/dpd_constants.py  ← AUTHORITATIVE (hardware truth)
+             ↑
+    tests/shared/constants.py  ← TEST LAYER (this file)
 
 Both simulation (CocoTB) and hardware (Moku) tests should import from
 this module to ensure consistency.
@@ -23,6 +28,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "py_tools"))
 # Re-export from py_tools/dpd_constants.py (authoritative source)
 # =============================================================================
 from dpd_constants import (
+    CR0,
     CR1,
     FSMState,
     HVS,
@@ -32,79 +38,39 @@ from dpd_constants import (
     cr1_extract,
 )
 
+# Re-export from py_tools/clk_utils.py (authoritative source)
+from clk_utils import (
+    us_to_cycles,
+    cycles_to_us,
+    ns_to_cycles,
+    cycles_to_ns,
+    s_to_cycles,
+    cycles_to_s,
+)
+
 # =============================================================================
 # FORGE Control Scheme Constants (CR0[31:29])
+# Backward-compatible aliases - use CR0 class for new code
 # =============================================================================
-FORGE_READY_BIT = 31  # Set by MCC after deployment
-USER_ENABLE_BIT = 30  # User control enable/disable
-CLK_ENABLE_BIT = 29   # Clock gating enable
+FORGE_READY_BIT = CR0.FORGE_READY  # 31
+USER_ENABLE_BIT = CR0.USER_ENABLE  # 30
+CLK_ENABLE_BIT = CR0.CLK_ENABLE    # 29
 
-MCC_CR0_FORGE_READY = 1 << FORGE_READY_BIT  # 0x80000000
-MCC_CR0_USER_ENABLE = 1 << USER_ENABLE_BIT  # 0x40000000
-MCC_CR0_CLK_ENABLE = 1 << CLK_ENABLE_BIT    # 0x20000000
-MCC_CR0_ALL_ENABLED = MCC_CR0_FORGE_READY | MCC_CR0_USER_ENABLE | MCC_CR0_CLK_ENABLE  # 0xE0000000
+MCC_CR0_FORGE_READY = CR0.FORGE_READY_MASK  # 0x80000000
+MCC_CR0_USER_ENABLE = CR0.USER_ENABLE_MASK  # 0x40000000
+MCC_CR0_CLK_ENABLE = CR0.CLK_ENABLE_MASK    # 0x20000000
+MCC_CR0_ALL_ENABLED = CR0.ALL_ENABLED       # 0xE0000000
 
 # =============================================================================
 # Voltage Conversion Utilities
+# Backward-compatible aliases - use HVS class methods for new code
 # =============================================================================
-V_MAX_MV = 5000      # +/-5V range in millivolts
-DIGITAL_MAX = 32768  # 16-bit signed max
+V_MAX_MV = HVS.V_MAX_MV      # 5000 (+/-5V range in millivolts)
+DIGITAL_MAX = HVS.DIGITAL_MAX  # 32768 (16-bit signed max)
 
-
-def mv_to_digital(millivolts: float) -> int:
-    """Convert millivolts to 16-bit signed digital value.
-
-    Args:
-        millivolts: Voltage in mV (+/-5000mV range)
-
-    Returns:
-        Digital value (+/-32768 range)
-
-    Example:
-        >>> mv_to_digital(0)
-        0
-        >>> mv_to_digital(950)  # Default threshold
-        6225
-        >>> mv_to_digital(1500)  # Test trigger voltage
-        9830
-    """
-    return int((millivolts / V_MAX_MV) * DIGITAL_MAX)
-
-
-def digital_to_mv(digital: int) -> float:
-    """Convert 16-bit signed digital value to millivolts.
-
-    Args:
-        digital: Digital value (+/-32768 range)
-
-    Returns:
-        Voltage in mV (+/-5000mV range)
-    """
-    return (digital / DIGITAL_MAX) * V_MAX_MV
-
-
-def us_to_cycles(microseconds: float) -> int:
-    """Convert microseconds to clock cycles @ 125MHz.
-
-    Args:
-        microseconds: Time in microseconds
-
-    Returns:
-        Number of clock cycles
-    """
-    return int(microseconds * Platform.CLK_FREQ_HZ / 1e6)
-
-
-def cycles_to_us(cycles: int) -> float:
-    """Convert clock cycles to microseconds @ 125MHz.
-
-    Args:
-        cycles: Number of clock cycles
-
-    Returns:
-        Time in microseconds
-    """
-    return cycles * 1e6 / Platform.CLK_FREQ_HZ
+# Alias functions to HVS class methods
+mv_to_digital = HVS.mv_to_digital
+digital_to_mv = HVS.digital_to_mv
 
 
 # =============================================================================
@@ -183,15 +149,9 @@ HW_HVS_TOLERANCE_DIGITAL = mv_to_digital(HW_HVS_TOLERANCE_V * 1000)
 
 # =============================================================================
 # State Voltage Map (for hardware tests observing via oscilloscope)
+# Backward-compatible alias - use HVS.STATE_VOLTAGE_MAP for new code
 # =============================================================================
-STATE_VOLTAGE_MAP = {
-    "INITIALIZING": 0.0,   # State 0: 0V (transient)
-    "IDLE": 0.5,           # State 1: 0.5V
-    "ARMED": 1.0,          # State 2: 1.0V
-    "FIRING": 1.5,         # State 3: 1.5V
-    "COOLDOWN": 2.0,       # State 4: 2.0V
-    "FAULT": -0.5,         # Negative voltage indicates fault
-}
+STATE_VOLTAGE_MAP = HVS.STATE_VOLTAGE_MAP
 
 # Reverse lookup for state names
 VOLTAGE_STATE_MAP = {v: k for k, v in STATE_VOLTAGE_MAP.items()}

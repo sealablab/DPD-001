@@ -14,12 +14,6 @@ from typing import Tuple, Optional
 
 from .constants import (
     HVS,
-    HVS_DIGITAL_INITIALIZING,
-    HVS_DIGITAL_IDLE,
-    HVS_DIGITAL_ARMED,
-    HVS_DIGITAL_FIRING,
-    HVS_DIGITAL_COOLDOWN,
-    STATE_VOLTAGE_MAP,
     SIM_HVS_TOLERANCE,
     HW_HVS_TOLERANCE_V,
 )
@@ -62,24 +56,8 @@ class FSMStateReader(ABC):
         Returns:
             State name (INITIALIZING, IDLE, ARMED, FIRING, COOLDOWN, FAULT, UNKNOWN)
         """
-        state_map = {
-            "INITIALIZING": HVS_DIGITAL_INITIALIZING,
-            "IDLE": HVS_DIGITAL_IDLE,
-            "ARMED": HVS_DIGITAL_ARMED,
-            "FIRING": HVS_DIGITAL_FIRING,
-            "COOLDOWN": HVS_DIGITAL_COOLDOWN,
-        }
-
-        # Check for fault (negative value beyond tolerance)
-        if digital < -tolerance:
-            return "FAULT"
-
-        # Check each state
-        for state_name, expected_digital in state_map.items():
-            if abs(digital - expected_digital) <= tolerance:
-                return state_name
-
-        return f"UNKNOWN({digital})"
+        # Delegate to HVS class method (authoritative implementation)
+        return HVS.decode_state_from_digital(digital, tolerance)
 
     def decode_state_from_voltage(self, voltage: float,
                                    tolerance: float = HW_HVS_TOLERANCE_V) -> str:
@@ -92,16 +70,8 @@ class FSMStateReader(ABC):
         Returns:
             State name (INITIALIZING, IDLE, ARMED, FIRING, COOLDOWN, FAULT, UNKNOWN)
         """
-        # Check for fault (any negative voltage)
-        if voltage < -tolerance:
-            return "FAULT"
-
-        # Check each state
-        for state_name, expected_voltage in STATE_VOLTAGE_MAP.items():
-            if abs(voltage - expected_voltage) < tolerance:
-                return state_name
-
-        return f"UNKNOWN({voltage:.3f}V)"
+        # Delegate to HVS class method (authoritative implementation)
+        return HVS.decode_state_from_voltage(voltage, tolerance)
 
     def get_state(self) -> Tuple[str, int]:
         """Get current FSM state.
