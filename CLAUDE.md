@@ -363,23 +363,29 @@ DPD-001/
 │   └── DPD-RTL.yaml                    # Register specification
 ├── py_tools/                           # Python utilities
 │   ├── clk_utils.py                    # Clock cycle conversion utilities
-│   └── dpd_config.py                   # Configuration dataclass
+│   ├── dpd_config.py                   # Configuration dataclass
+│   └── dpd_constants.py                # Hardware constants (CR0, CR1, FSMState, HVS)
 ├── tests/
+│   ├── shared/                         # Shared test infrastructure
+│   │   ├── constants.py                # Unified test constants (imports py_tools)
+│   │   ├── control_interface.py        # CocoTBControl / MokuControl abstraction
+│   │   └── test_base_common.py         # Common test patterns
 │   ├── sim/                            # CocoTB simulation tests
 │   │   ├── run.py                      # Test runner
 │   │   ├── conftest.py                 # CocoTB fixtures
 │   │   ├── test_base.py                # Base test class
-│   │   └── dpd_wrapper_tests/          # Test package
-│   │       ├── dpd_wrapper_constants.py # Test constants
-│   │       ├── dpd_helpers.py          # FSM control helpers
-│   │       └── P1_dpd_wrapper_basic.py # P1 test suite
+│   │   └── dpd/                         # DPD test package
+│   │       ├── constants.py             # Sim-specific constants
+│   │       ├── helpers.py               # FSM control helpers
+│   │       └── P1_basic.py              # P1 test suite
 │   └── hw/                             # Real hardware tests
 │       ├── run_hw_tests.py             # Hardware test runner
 │       ├── hw_test_base.py             # Hardware test base class
-│       ├── hw_test_constants.py        # Hardware test constants
-│       ├── hw_test_helpers.py          # FSM control + oscilloscope helpers
-│       ├── P1_hw_basic.py              # P1 hardware test suite
-│       └── P2_hw_intermediate.py       # P2 stub
+│       └── dpd/                         # DPD hardware tests
+│           ├── constants.py             # HW-specific constants
+│           ├── helpers.py               # FSM control + oscilloscope helpers
+│           ├── P1_basic.py              # P1 hardware test suite
+│           └── P2_intermediate.py       # P2 stub
 ├── docs/                               # Documentation
 │   ├── hvs.md                          # HVS encoding documentation
 │   ├── hardware-debug-checklist.md     # Debugging guide
@@ -395,5 +401,4 @@ DPD-001/
 - **Moku API**: https://apis.liquidinstruments.com/
 - **CocoTB**: https://docs.cocotb.org/
 - **GHDL**: https://github.com/ghdl/ghdl
-- **Documentation**: See `docs/` directory for comprehensive guides
 - **Documentation**: See `docs/` directory for comprehensive guides
