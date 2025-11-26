@@ -23,23 +23,19 @@ from cocotb.triggers import ClockCycles
 import sys
 from pathlib import Path
 
-# Add paths
+# Add tests/ to path
 TESTS_PATH = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(TESTS_PATH))
 
-from shared.async_adapter import (
-    CocoTBAsyncHarness,
-    _cr1_build,
-)
-
-from dpd.constants import (
-    HVS_DIGITAL_IDLE,
-    HVS_DIGITAL_ARMED,
-    HVS_DIGITAL_TOLERANCE,
-    MCC_CR0_ALL_ENABLED,
-    P1TestValues,
+# Use new unified imports
+from adapters import CocoTBAsyncHarness
+from lib import (
+    P1Timing,
     DEFAULT_TRIGGER_WAIT_TIMEOUT,
 )
+
+# Backward compat alias
+P1TestValues = P1Timing
 
 
 async def basic_setup(dut):
