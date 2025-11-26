@@ -47,8 +47,11 @@ from dpd.constants import (
     HVS_DIGITAL_COOLDOWN,
     HVS_DIGITAL_TOLERANCE,
     MCC_CR0_ALL_ENABLED,
+    MCC_CR0_USER_ENABLE,
+    MCC_CR0_FORGE_READY,
     P1TestValues,
     DEFAULT_TRIGGER_WAIT_TIMEOUT,
+    cr1_build,
 )
 
 from dpd.helpers import (
@@ -137,8 +140,8 @@ class DPDWrapperBasicTests(TestBase):
 
         # Test: Partial FORGE enable (missing clk_enable) - FSM should NOT arm
         await mcc_set_regs(self.dut, {
-            0: 0xC0000000,  # forge_ready=1, user_enable=1, clk_enable=0 (WRONG!)
-            1: 0x00000001,  # arm_enable=1
+            0: MCC_CR0_FORGE_READY | MCC_CR0_USER_ENABLE,  # Missing clk_enable!
+            1: cr1_build(arm_enable=True),
         }, set_forge_ready=False)  # Don't auto-set FORGE bits - test partial enable
         await ClockCycles(self.dut.Clk, 20)
 
@@ -151,7 +154,7 @@ class DPDWrapperBasicTests(TestBase):
         assert in_init or in_idle, f"FSM should be in INITIALIZING or IDLE with partial FORGE, got OutputC={output_c}"
 
         # CRITICAL: Clear CR1 before reset to prevent state leakage between test phases
-        await mcc_set_regs(self.dut, {1: 0x00000000}, set_forge_ready=False)
+        await mcc_set_regs(self.dut, {1: cr1_build()}, set_forge_ready=False)
         await ClockCycles(self.dut.Clk, 2)
 
         # Reset again to get clean state for complete FORGE test
@@ -174,14 +177,14 @@ class DPDWrapperBasicTests(TestBase):
         # Test: Complete FORGE enable (all 3 bits) - FSM should arm
         await mcc_set_regs(self.dut, {
             0: MCC_CR0_ALL_ENABLED,  # forge_ready=1, user_enable=1, clk_enable=1
-            1: 0x00000001,  # arm_enable=1, trigger enables=0 (safety)
+            1: cr1_build(arm_enable=True),  # arm_enable=1, trigger enables=0 (safety)
         })
 
         # Wait for ARMED state (IDLE→ARMED transition)
         await wait_for_state(self.dut, HVS_DIGITAL_ARMED, timeout_us=100)
 
         # Cleanup: Clear CR1 and reset for next test
-        await mcc_set_regs(self.dut, {1: 0x00000000}, set_forge_ready=False)
+        await mcc_set_regs(self.dut, {1: cr1_build()}, set_forge_ready=False)
         await ClockCycles(self.dut.Clk, 2)
 
         # Apply reset
@@ -216,16 +219,16 @@ class DPDWrapperBasicTests(TestBase):
         assert_state(self.dut, HVS_DIGITAL_IDLE, context="test start")
 
         # Arm FSM (CR1[0] = arm_enable)
-        await mcc_set_regs(self.dut, {1: 0x00000001}, set_forge_ready=False)
+        await mcc_set_regs(self.dut, {1: cr1_build(arm_enable=True)}, set_forge_ready=False)
         await ClockCycles(self.dut.Clk, 5)
 
         # FSM should be ARMED
         assert_state(self.dut, HVS_DIGITAL_ARMED, context="after arm")
 
         # Software trigger via CR1[5] (sw_trigger) gated by CR1[3] (sw_trigger_enable)
-        # CR1 layout: [0]=arm_enable, [1]=auto_rearm, [2]=fault_clear, [3]=sw_trigger_enable, [4]=hw_trigger_enable, [5]=sw_trigger
-        # Value: 0x29 = bits 0 + 3 + 5 = arm_enable + sw_trigger_enable + sw_trigger
-        await mcc_set_regs(self.dut, {1: 0x00000029}, set_forge_ready=False)
+        await mcc_set_regs(self.dut, {
+            1: cr1_build(arm_enable=True, sw_trigger_enable=True, sw_trigger=True)
+        }, set_forge_ready=False)
         await ClockCycles(self.dut.Clk, 10)  # Wait for trigger to take effect
 
         # FSM should have left ARMED state (either FIRING or COOLDOWN)
@@ -276,11 +279,13 @@ class DPDWrapperBasicTests(TestBase):
         await ClockCycles(self.dut.Clk, 5)
 
         # Clear CR1 completely (removes any leftover sw_trigger bits from T3)
-        await mcc_set_regs(self.dut, {1: 0x00000000}, set_forge_ready=False)
+        await mcc_set_regs(self.dut, {1: cr1_build()}, set_forge_ready=False)
         await ClockCycles(self.dut.Clk, 5)
 
-        # Arm FSM with hardware trigger enabled (CR1[0]=arm_enable, CR1[4]=hw_trigger_enable)
-        await mcc_set_regs(self.dut, {1: 0x00000011}, set_forge_ready=False)  # arm + hw_trigger_enable
+        # Arm FSM with hardware trigger enabled
+        await mcc_set_regs(self.dut, {
+            1: cr1_build(arm_enable=True, hw_trigger_enable=True)
+        }, set_forge_ready=False)
         await ClockCycles(self.dut.Clk, 5)
 
         # FSM should be ARMED
@@ -329,7 +334,7 @@ class DPDWrapperBasicTests(TestBase):
 
         # Clear CR1 and arm with non-zero output voltages
         await mcc_set_regs(self.dut, {
-            1: 0x00000000,  # Clear CR1
+            1: cr1_build(),  # Clear CR1
             2: (950 << 16) | 2000,  # CR2: threshold=950mV, trig_voltage=2000mV
             3: 1500,  # CR3: intensity_voltage=1500mV
         }, set_forge_ready=False)
@@ -342,7 +347,9 @@ class DPDWrapperBasicTests(TestBase):
         )
 
         # Trigger via software
-        await mcc_set_regs(self.dut, {1: 0x00000003}, set_forge_ready=False)  # arm_enable=1, sw_trigger=1
+        await mcc_set_regs(self.dut, {
+            1: cr1_build(arm_enable=True, sw_trigger_enable=True, sw_trigger=True)
+        }, set_forge_ready=False)
         await ClockCycles(self.dut.Clk, 20)  # Wait for trigger and outputs to activate
 
         # Check outputs are non-zero (should be in FIRING or just after)

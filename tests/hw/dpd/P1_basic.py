@@ -37,11 +37,14 @@ from dpd.helpers import (
 )
 from dpd.constants import (
     MCC_CR0_ALL_ENABLED,
+    MCC_CR0_FORGE_READY,
+    MCC_CR0_USER_ENABLE,
     P2TestValues,  # Use P2 timing for visibility (P1 timing too fast for OSC)
     TEST_RESET_TIMEOUT_MS,
     TEST_ARM_TIMEOUT_MS,
     TEST_TRIGGER_TIMEOUT_MS,
     TEST_FSM_CYCLE_TIMEOUT_MS,
+    cr1_build,
 )
 
 
@@ -140,8 +143,8 @@ class P1_HardwareBasicTests(HardwareTestBase):
 
         # Test 1: Partial FORGE enable (missing clk_enable) - FSM should NOT arm
         self.log("Test partial FORGE enable (should stay IDLE)...", VerbosityLevel.VERBOSE)
-        self.mcc.set_control(0, 0xC0000000)  # forge_ready=1, user_enable=1, clk_enable=0
-        self.mcc.set_control(1, 0x00000001)  # arm_enable=1
+        self.mcc.set_control(0, MCC_CR0_FORGE_READY | MCC_CR0_USER_ENABLE)  # Missing clk_enable!
+        self.mcc.set_control(1, cr1_build(arm_enable=True))
         time.sleep(0.3)
 
         state, _ = self.read_state()
@@ -152,7 +155,7 @@ class P1_HardwareBasicTests(HardwareTestBase):
         self.log("Test complete FORGE enable (should ARM)...", VerbosityLevel.VERBOSE)
 
         # Clear CR1 from previous partial test (arm_enable was set but ineffective)
-        self.mcc.set_control(1, 0x00000000)
+        self.mcc.set_control(1, cr1_build())
         time.sleep(0.1)
 
         self.mcc.set_control(0, MCC_CR0_ALL_ENABLED)  # All 3 bits set

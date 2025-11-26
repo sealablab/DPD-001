@@ -31,6 +31,7 @@ from shared.constants import (
     us_to_cycles,
     Timeouts,
     P2Timing,
+    cr1_build,
 )
 from shared.control_interface import MokuControl
 
@@ -183,7 +184,7 @@ def clear_forge_ready(mcc):
     Args:
         mcc: CloudCompile instrument instance
     """
-    mcc.set_control(0, 0x00000000)
+    mcc.set_control(0, 0)  # CR0 = 0 disables FORGE
     time.sleep(0.1)
 
 
@@ -221,7 +222,7 @@ def arm_probe(mcc, trig_duration_us: float, intensity_duration_us: float,
     time.sleep(0.2)
 
     # Enable arming (CR1[0] = arm_enable)
-    mcc.set_control(1, 0x00000001)
+    mcc.set_control(1, cr1_build(arm_enable=True))
 
     time.sleep(0.1)  # Allow FSM to transition to ARMED
 
@@ -234,12 +235,12 @@ def software_trigger(mcc):
     Args:
         mcc: CloudCompile instrument instance
     """
-    # Set arm_enable=1, sw_trigger_enable=1, sw_trigger=1 (CR1 = 0x29)
-    mcc.set_control(1, 0x00000029)
+    # Set arm_enable + sw_trigger_enable + sw_trigger
+    mcc.set_control(1, cr1_build(arm_enable=True, sw_trigger_enable=True, sw_trigger=True))
     time.sleep(0.05)
 
     # Clear sw_trigger (edge detected), keep arm_enable and sw_trigger_enable
-    mcc.set_control(1, 0x00000009)
+    mcc.set_control(1, cr1_build(arm_enable=True, sw_trigger_enable=True))
     time.sleep(0.05)
 
 
@@ -249,7 +250,7 @@ def disarm_probe(mcc):
     Args:
         mcc: CloudCompile instrument instance
     """
-    mcc.set_control(1, 0x00000000)
+    mcc.set_control(1, cr1_build())  # All bits cleared
     time.sleep(0.1)
 
 
@@ -260,9 +261,9 @@ def clear_fault(mcc):
         mcc: CloudCompile instrument instance
     """
     # Pulse fault_clear (CR1[2])
-    mcc.set_control(1, 0x00000004)
+    mcc.set_control(1, cr1_build(fault_clear=True))
     time.sleep(0.05)
-    mcc.set_control(1, 0x00000000)
+    mcc.set_control(1, cr1_build())  # Clear all bits
     time.sleep(0.1)
 
 
