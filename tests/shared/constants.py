@@ -76,7 +76,22 @@ digital_to_mv = HVS.digital_to_mv
 # =============================================================================
 # Test Timing Configurations
 # =============================================================================
-class P1Timing:
+class _TestTimingBase:
+    """Base class with shared trigger/voltage values for all test timing levels."""
+    # Trigger threshold (shared across all test levels)
+    TRIGGER_THRESHOLD_MV = 950       # Default trigger threshold
+    TRIGGER_TEST_VOLTAGE_MV = 1500   # Voltage above threshold for testing
+
+    # Trigger threshold as digital values (computed at class definition time)
+    TRIGGER_THRESHOLD_DIGITAL = mv_to_digital(950)
+    TRIGGER_TEST_VOLTAGE_DIGITAL = mv_to_digital(1500)
+
+    # Output voltages (mV) - same for all test levels
+    TRIG_OUT_VOLTAGE_MV = 2000    # 2V trigger output
+    INTENSITY_VOLTAGE_MV = 1500  # 1.5V intensity output
+
+
+class P1Timing(_TestTimingBase):
     """Fast timing for P1 (BASIC) simulation tests.
 
     Optimized for fast test execution in CocoTB simulations.
@@ -97,7 +112,7 @@ class P1Timing:
     TOTAL_US = cycles_to_us(TOTAL_CYCLES)                       # 28us
 
 
-class P2Timing:
+class P2Timing(_TestTimingBase):
     """Observable timing for P2 (INTERMEDIATE) hardware tests.
 
     Slower timing that's easier to observe on oscilloscopes.

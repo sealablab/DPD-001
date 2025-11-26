@@ -98,66 +98,24 @@ TEST_FSM_CYCLE_TIMEOUT_MS = Timeouts.HW_FSM_CYCLE_MS
 
 
 # =============================================================================
-# P1TestValues Class (backward compatibility)
+# Backward-Compatible Aliases for P1TestValues/P2TestValues
 # =============================================================================
-class P1TestValues:
-    """Test values from CocoTB P1 (BASIC) level - very fast execution.
+# These aliases allow old code using P1TestValues.X to continue working
+# New code should import P1Timing/P2Timing directly from shared.constants
 
-    Note: P1 timing may be too fast for hardware observation.
-    Use P2TestValues for hardware tests.
-    """
-    TRIGGER_THRESHOLD_MV = TRIGGER_THRESHOLD_MV
-    TRIGGER_TEST_VOLTAGE_MV = TRIGGER_TEST_VOLTAGE_MV
-    TRIGGER_THRESHOLD_DIGITAL = TRIGGER_THRESHOLD_DIGITAL
-    TRIGGER_TEST_VOLTAGE_DIGITAL = TRIGGER_TEST_VOLTAGE_DIGITAL
+# P1TestValues is now an alias for P1Timing
+P1TestValues = P1Timing
 
-    TRIG_OUT_DURATION_CYCLES = P1Timing.TRIG_OUT_DURATION
-    INTENSITY_DURATION_CYCLES = P1Timing.INTENSITY_DURATION
-    COOLDOWN_INTERVAL_CYCLES = P1Timing.COOLDOWN_INTERVAL
-
-    TRIG_OUT_DURATION_US = P1Timing.TRIG_OUT_DURATION_US
-    INTENSITY_DURATION_US = P1Timing.INTENSITY_DURATION_US
-    COOLDOWN_INTERVAL_US = P1Timing.COOLDOWN_INTERVAL_US
-
-    TOTAL_FSM_CYCLES = P1Timing.TOTAL_CYCLES
-    TOTAL_FSM_US = P1Timing.TOTAL_US
-
-    TRIG_OUT_VOLTAGE_MV = 2000
-    INTENSITY_VOLTAGE_MV = 1500
-
-
-class P2TestValues:
-    """Test values for P2 (INTERMEDIATE) level - realistic timing.
-
-    RECOMMENDED for hardware tests - timing visible on oscilloscope.
-    """
-    TRIGGER_THRESHOLD_MV = TRIGGER_THRESHOLD_MV
-    TRIGGER_TEST_VOLTAGE_MV = TRIGGER_TEST_VOLTAGE_MV
-    TRIGGER_THRESHOLD_DIGITAL = TRIGGER_THRESHOLD_DIGITAL
-    TRIGGER_TEST_VOLTAGE_DIGITAL = TRIGGER_TEST_VOLTAGE_DIGITAL
-
-    TRIG_OUT_DURATION_CYCLES = P2Timing.TRIG_OUT_DURATION
-    INTENSITY_DURATION_CYCLES = P2Timing.INTENSITY_DURATION
-    COOLDOWN_INTERVAL_CYCLES = P2Timing.COOLDOWN_INTERVAL
-
-    TRIG_OUT_DURATION_US = P2Timing.TRIG_OUT_DURATION_US
-    INTENSITY_DURATION_US = P2Timing.INTENSITY_DURATION_US
-    COOLDOWN_INTERVAL_US = P2Timing.COOLDOWN_INTERVAL_US
-
-    TOTAL_FSM_CYCLES = P2Timing.TOTAL_CYCLES
-    TOTAL_FSM_US = P2Timing.TOTAL_US
-
-    TRIG_OUT_VOLTAGE_MV = 2000
-    INTENSITY_VOLTAGE_MV = 1500
-
+# P2TestValues is now an alias for P2Timing (recommended for hardware tests)
+P2TestValues = P2Timing
 
 # =============================================================================
 # Default timing configuration (use P2 for visibility)
 # =============================================================================
-DEFAULT_TRIG_OUT_DURATION_US = P2TestValues.TRIG_OUT_DURATION_US
-DEFAULT_INTENSITY_DURATION_US = P2TestValues.INTENSITY_DURATION_US
-DEFAULT_COOLDOWN_INTERVAL_US = P2TestValues.COOLDOWN_INTERVAL_US
-DEFAULT_TRIGGER_THRESHOLD_MV = P2TestValues.TRIGGER_THRESHOLD_MV
-DEFAULT_TRIGGER_TEST_VOLTAGE_MV = P2TestValues.TRIGGER_TEST_VOLTAGE_MV
-DEFAULT_TRIG_OUT_VOLTAGE_MV = P2TestValues.TRIG_OUT_VOLTAGE_MV
-DEFAULT_INTENSITY_VOLTAGE_MV = P2TestValues.INTENSITY_VOLTAGE_MV
+DEFAULT_TRIG_OUT_DURATION_US = P2Timing.TRIG_OUT_DURATION_US
+DEFAULT_INTENSITY_DURATION_US = P2Timing.INTENSITY_DURATION_US
+DEFAULT_COOLDOWN_INTERVAL_US = P2Timing.COOLDOWN_INTERVAL_US
+DEFAULT_TRIGGER_THRESHOLD_MV = P2Timing.TRIGGER_THRESHOLD_MV
+DEFAULT_TRIGGER_TEST_VOLTAGE_MV = P2Timing.TRIGGER_TEST_VOLTAGE_MV
+DEFAULT_TRIG_OUT_VOLTAGE_MV = P2Timing.TRIG_OUT_VOLTAGE_MV
+DEFAULT_INTENSITY_VOLTAGE_MV = P2Timing.INTENSITY_VOLTAGE_MV

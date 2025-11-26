@@ -113,50 +113,16 @@ DEFAULT_COOLDOWN_INTERVAL = DefaultTiming.COOLDOWN_INTERVAL
 DEFAULT_TRIGGER_WAIT_TIMEOUT = DefaultTiming.TRIGGER_WAIT_TIMEOUT
 
 # =============================================================================
-# P1TestValues Class (backward compatibility)
+# Backward-Compatible Aliases for P1TestValues/P2TestValues
 # =============================================================================
-class P1TestValues:
-    """Test values optimized for P1 (BASIC) level - fast execution.
+# These aliases allow old code using P1TestValues.X to continue working
+# New code should import P1Timing/P2Timing directly from shared.constants
 
-    This class wraps P1Timing for backward compatibility.
-    """
-    # Trigger voltages (in mV)
-    TRIGGER_THRESHOLD_MV = TRIGGER_THRESHOLD_MV
-    TRIGGER_TEST_VOLTAGE_MV = TRIGGER_TEST_VOLTAGE_MV
+# P1TestValues is now an alias for P1Timing (with trigger constants available at module level)
+P1TestValues = P1Timing
 
-    # Trigger voltages as digital values
-    TRIGGER_THRESHOLD_DIGITAL = TRIGGER_THRESHOLD_DIGITAL
-    TRIGGER_TEST_VOLTAGE_DIGITAL = TRIGGER_TEST_VOLTAGE_DIGITAL
-
-    # Timing (from P1Timing)
-    TRIG_OUT_DURATION = P1Timing.TRIG_OUT_DURATION
-    INTENSITY_DURATION = P1Timing.INTENSITY_DURATION
-    COOLDOWN_INTERVAL = P1Timing.COOLDOWN_INTERVAL
-    TOTAL_FSM_CYCLES = P1Timing.TOTAL_CYCLES
-
-    # Timeout values
-    STATE_TRANSITION_TIMEOUT_US = Timeouts.SIM_STATE_TRANSITION_US
-    FSM_CYCLE_TIMEOUT_US = Timeouts.SIM_FSM_CYCLE_US
-
-
-class P2TestValues:
-    """Test values for P2 (INTERMEDIATE) level - realistic timing.
-
-    This class wraps P2Timing for backward compatibility.
-    """
-    TRIGGER_THRESHOLD_MV = TRIGGER_THRESHOLD_MV
-    TRIGGER_TEST_VOLTAGE_MV = TRIGGER_TEST_VOLTAGE_MV
-    TRIGGER_THRESHOLD_DIGITAL = TRIGGER_THRESHOLD_DIGITAL
-    TRIGGER_TEST_VOLTAGE_DIGITAL = TRIGGER_TEST_VOLTAGE_DIGITAL
-
-    TRIG_OUT_DURATION = P2Timing.TRIG_OUT_DURATION
-    INTENSITY_DURATION = P2Timing.INTENSITY_DURATION
-    COOLDOWN_INTERVAL = P2Timing.COOLDOWN_INTERVAL
-    TOTAL_FSM_CYCLES = P2Timing.TOTAL_CYCLES
-
-    STATE_TRANSITION_TIMEOUT_US = 200
-    FSM_CYCLE_TIMEOUT_US = 1000
-
+# P2TestValues is now an alias for P2Timing
+P2TestValues = P2Timing
 
 # =============================================================================
 # Module-level convenience exports
