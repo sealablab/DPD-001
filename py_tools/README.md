@@ -6,13 +6,13 @@ This package provides Python utilities for configuring and controlling the Demo 
 
 The DPD utilities consist of three main components:
 
-1. **`py_tools/clk_utils.py`** - Clock cycle conversion utilities
-2. **`py_tools/dpd_config.py`** - Configuration dataclass and control register interface
+1. **`clk_utils.py`** - Clock cycle conversion utilities
+2. **`dpd_config.py`** - Configuration dataclass and control register interface
 3. This README - Documentation and examples
 
 ## Files
 
-### `py_tools/clk_utils.py`
+### `clk_utils.py`
 
 Provides bidirectional conversion between human-friendly time units and FPGA clock cycles.
 
@@ -30,7 +30,7 @@ Provides bidirectional conversion between human-friendly time units and FPGA clo
 - `clk_freq_hz`: Clock frequency in Hz (default: 125 MHz for Moku Go)
 - `round_direction`: "up" or "down" for fractional cycles (forward conversions only)
 
-### `py_tools/dpd_config.py`
+### `dpd_config.py`
 
 Provides the `DPDConfig` dataclass for managing DPD control register state.
 
@@ -68,7 +68,7 @@ Provides the `DPDConfig` dataclass for managing DPD control register state.
 | CR9 | [31:0] | Monitor window start delay | clock cycles |
 | CR10 | [31:0] | Monitor window duration | clock cycles |
 
-**Note**: Configuration registers (CR2-CR10) are only propagated when FSM is in INITIALIZING state. See `N/network-register-sync.md` for details.
+**Note**: Configuration registers (CR2-CR10) are only propagated when FSM is in INITIALIZING state. See `docs/network-register-sync.md` for details.
 
 ## Quick Start
 
@@ -236,3 +236,15 @@ python py_tools/dpd_config.py
 - CR8 packing: bits [1:0] for control, bits [31:16] for threshold, bits [15:2] reserved
 - Voltage values are in millivolts to match Moku API conventions
 - **Configuration registers only update in INITIALIZING state** - use `fault_clear` to force re-initialization
+
+## See Also
+
+- [Network Register Sync](../docs/network-register-sync.md) - Configuration update protocol
+- [Hardware Debug Checklist](../docs/hardware-debug-checklist.md) - Step-by-step hardware debugging
+- [Custom Wrapper](../docs/custom-wrapper.md) - Control register details
+- [DPD-RTL.yaml](../rtl/DPD-RTL.yaml) - Complete register specification
+
+---
+
+**Last Updated:** 2025-01-28  
+**Status:** Migrated from review_me/dpd_utils_README.md

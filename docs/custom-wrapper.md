@@ -176,7 +176,7 @@ HVS_ENCODER_INST: entity WORK.forge_hierarchical_encoder
   - COOLDOWN (state 4): 13108 units → 2.0V
   - FAULT (status[7]=1): Negative voltage (sign flip)
 
-**See:** [HVS Documentation](../N/HVS.md) and [Test Architecture](test-architecture/forge_hierarchical_encoder_test_design.md) for details.
+**See:** [HVS Documentation](hvs.md) and [Test Architecture](test-architecture/forge_hierarchical_encoder_test_design.md) for details.
 
 ---
 

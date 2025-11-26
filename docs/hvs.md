@@ -1,5 +1,11 @@
-# HVS
-**Hierarchical Voltage Encoding Scheme**
+# HVS (Hierarchical Voltage Encoding Scheme)
+
+**Last Updated:** 2025-01-28 (migrated from review_me)  
+**Maintainer:** Moku Instrument Forge Team
+
+---
+
+## Visual Representation
 
 ```
   Visual on Oscilloscope (500mV/div recommended)
@@ -34,6 +40,7 @@
 The **Hierarchical Voltage Encoding Scheme** packs 14 bits of FSM information (6-bit state + 8-bit app status) into a single oscilloscope channel using a clever two-level voltage encoding:
 
 ### **Level 1: Major State Transitions (500mV steps)**
+
 Each FSM state increments the base voltage by 500mV, creating visually distinct "stairsteps":
 
 | State | Binary | Value | Digital Units | Voltage |
@@ -48,6 +55,7 @@ Each FSM state increments the base voltage by 500mV, creating visually distinct 
 This gives you clear state visibility on any oscilloscope at 500mV/div.
 
 ### **Level 2: Status "Noise" (±15mV fine detail)**
+
 Around each base voltage, the 8-bit application status creates fine-grained variation:
 - 7 bits of payload: counter values, error codes, flags
 - 1 bit (STATUS[7]): fault indicator
@@ -55,6 +63,7 @@ Around each base voltage, the 8-bit application status creates fine-grained vari
 Status bits 6:0 encode 0-127 values as 0-100 digital units offset (~15mV max), appearing as subtle "fuzzy" voltage around each state level.
 
 ### **Fault Detection: Sign Flip**
+
 When STATUS[7]=1 (fault detected), the entire voltage goes **negative**:
 - Normal: State 2 + status 0x12 → +1.014V
 - Fault: State 2 + status 0x92 → **-1.014V**
@@ -62,6 +71,7 @@ When STATUS[7]=1 (fault detected), the entire voltage goes **negative**:
 The magnitude preserves the last known state, so you can debug "we were in state 2 when the fault occurred."
 
 ### **Decoding Example**
+
 ```python
 voltage = 1.014  # Read from oscilloscope
 
@@ -72,6 +82,7 @@ fault = voltage < 0                 # -> False
 ```
 
 ### **Digital Unit Conversion**
+
 ```python
 # Moku:Go: ±5V full scale = ±32768 digital units
 # HVS scaling: 3277 digital units per state = 500mV per state
@@ -91,6 +102,7 @@ def digital_to_voltage(digital_units):
 ```
 
 ### **Why This Works**
+
 - **Human-readable**: 500mV steps are obvious on scope at 500mV/div (no decoder needed for states)
 - **Machine-decodable**: Simple arithmetic extracts full 14-bit payload
 - **Zero LUTs**: Pure arithmetic in VHDL (no lookup tables)
@@ -98,6 +110,7 @@ def digital_to_voltage(digital_units):
 - **Fault diagnosis**: Negative voltage is unmistakable error indication
 
 ### **FORGE Standard**
+
 All FORGE applications **must** export:
 - `state_vector[5:0]` - FSM state (linear encoding 0-63)
 - `status_vector[7:0]` - App-specific status (bit 7 = fault)
@@ -128,9 +141,13 @@ else
 end if;
 ```
 
+**See:** [Test Architecture](test-architecture/forge_hierarchical_encoder_test_design.md) for comprehensive test design.
+
 ---
 
 ## Test Constants
+
+### CocoTB Simulation Tests
 
 For CocoTB simulation tests (`tests/sim/dpd_wrapper_tests/dpd_wrapper_constants.py`):
 
@@ -143,6 +160,8 @@ HVS_DIGITAL_FIRING = 3 * HVS_DIGITAL_UNITS_PER_STATE        # 9831
 HVS_DIGITAL_COOLDOWN = 4 * HVS_DIGITAL_UNITS_PER_STATE      # 13108
 HVS_DIGITAL_TOLERANCE = 200  # ±200 digital units (~30mV)
 ```
+
+### Hardware Tests
 
 For hardware tests (`tests/hw/hw_test_constants.py`):
 
@@ -163,5 +182,13 @@ STATE_VOLTAGE_TOLERANCE = 0.30  # ±300mV (accounts for ADC noise)
 ## Related Documents
 
 - `rtl/forge_hierarchical_encoder.vhd` - VHDL implementation
-- `N/network-register-sync.md` - Why INITIALIZING is state 0
-- `N/hardware_debug_checklist.md` - Debugging with HVS voltages
+- [Network Register Sync](network-register-sync.md) - Why INITIALIZING is state 0
+- [Hardware Debug Checklist](hardware-debug-checklist.md) - Debugging with HVS voltages
+- [Test Architecture](test-architecture/forge_hierarchical_encoder_test_design.md) - Comprehensive test design
+- [Custom Wrapper](custom-wrapper.md) - HVS integration in CustomWrapper
+
+---
+
+**Last Updated:** 2025-01-28  
+**Status:** Migrated from review_me, integrated into docs/
+

@@ -1,5 +1,9 @@
 # DPD Hardware Debug Checklist
-**Minimal bit-flipping sequence to generate observable outputs on real hardware**
+
+**Last Updated:** 2025-01-28 (migrated from review_me)  
+**Maintainer:** Moku Instrument Forge Team
+
+> **Purpose:** Minimal bit-flipping sequence to generate observable outputs on real hardware
 
 Starting from all registers = 0, this checklist provides a step-by-step sequence to verify hardware functionality.
 
@@ -21,6 +25,7 @@ Starting from all registers = 0, this checklist provides a step-by-step sequence
 ---
 
 ## Prerequisites
+
 - Moku:Go connected and accessible
 - DPD bitstream loaded in slot 2
 - Oscilloscope or external scope connected to Output1 (FSM debug signal)
@@ -30,6 +35,7 @@ Starting from all registers = 0, this checklist provides a step-by-step sequence
 ---
 
 ## Step 0: Baseline (All zeros)
+
 **Expected behavior:** Nothing. FSM stuck, no outputs.
 
 ```python
@@ -55,6 +61,7 @@ cc.set_control(10, 0x00000000) # CR10
 ---
 
 ## Step 1: Enable FORGE_READY (CR0[31:29] = 0b111)
+
 **Purpose:** Initialize FPGA clocking and user enable bits
 
 ```python
@@ -75,6 +82,7 @@ cc.set_control(0, 0xE0000000)  # CR0[31:29] = 0b111
 ---
 
 ## Step 2: Arm the FSM (CR1[0] = 1)
+
 **Purpose:** Transition IDLE → ARMED
 
 ```python
@@ -95,6 +103,7 @@ cc.set_control(1, 0x00000001)  # CR1[0] = arm_enable = 1
 ---
 
 ## Step 3: Set voltage for OutputA (CR2[15:0])
+
 **Purpose:** Define non-zero trigger output voltage
 
 ```python
@@ -116,6 +125,7 @@ cc.set_control(2, 0x000007D0)  # CR2[15:0] = 0x07D0 = 2000 decimal
 ---
 
 ## Step 4: Set duration for OutputA (CR4)
+
 **Purpose:** Define how long the trigger pulse lasts
 
 ```python
@@ -136,6 +146,7 @@ cc.set_control(4, 0x000030D4)  # 12500 decimal = 0x30D4
 ---
 
 ## Step 5: Set voltage for OutputB (CR3[15:0])
+
 **Purpose:** Define non-zero intensity output voltage
 
 ```python
@@ -156,6 +167,7 @@ cc.set_control(3, 0x00000BB8)  # CR3[15:0] = 0x0BB8 = 3000 decimal
 ---
 
 ## Step 6: Set duration for OutputB (CR5)
+
 **Purpose:** Define how long the intensity pulse lasts
 
 ```python
@@ -176,6 +188,7 @@ cc.set_control(5, 0x000061A8)  # 25000 decimal = 0x61A8
 ---
 
 ## Step 7: Set cooldown interval (CR7)
+
 **Purpose:** Define cooldown period after firing
 
 ```python
@@ -196,6 +209,7 @@ cc.set_control(7, 0x000004E2)  # 1250 decimal = 0x4E2
 ---
 
 ## Step 8: **FIRE!** Software trigger (CR1[1] = 1)
+
 **Purpose:** Trigger the FSM to fire outputs
 
 ```python
@@ -221,6 +235,7 @@ cc.set_control(1, 0x00000003)  # CR1[1:0] = 0b11 (sw_trigger + arm_enable)
 ---
 
 ## Step 9: Clear to return to IDLE (CR1[3] = 1)
+
 **Purpose:** Reset FSM back to IDLE state via fault_clear
 
 ```python
@@ -353,3 +368,18 @@ m.relinquish_ownership()
 5. **Config register gotcha:** CR2-CR10 only propagate in INITIALIZING state. To apply new config mid-operation, pulse fault_clear first!
 
 6. **The magic bit sequence is:** CR0 → CR1[0] → CR2-7 (config) → CR1[1] (fire!)
+
+---
+
+## Related Documents
+
+- [HVS Encoding](hvs.md) - Understanding OutputC voltage encoding
+- [Network Register Sync](network-register-sync.md) - Why config only updates in INITIALIZING
+- [Custom Wrapper](custom-wrapper.md) - Control register details
+- [Hardware Tests](../tests/hw/) - Automated hardware test suite
+
+---
+
+**Last Updated:** 2025-01-28  
+**Status:** Migrated from review_me, integrated into docs/
+
