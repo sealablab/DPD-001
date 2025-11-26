@@ -34,11 +34,12 @@
 #   1. Hardware trigger: InputA voltage crosses threshold (CR2[31:16])
 #      - MUST be enabled via CR1[4] hw_trigger_enable (default: disabled)
 #      - 50mV hysteresis prevents noise re-triggering
-#   2. Software trigger: CR1[1] edge detection (0→1)
+#   2. Software trigger: CR1[5] edge detection (0→1)
 #      - Network-controllable via Control1 register
-#      - Auto-clears after 1-cycle pulse
+#      - Auto-clears after edge is detected
+#      - MUST be enabled via CR1[3] sw_trigger_enable (default: disabled)
 #      - Independent of hardware trigger (both can work simultaneously)
-#      - GUI-friendly: Just set CR1[0:1]=0b11 for immediate firing
+#      - GUI workflow: CR1=0x29 (arm_enable + sw_trigger_enable + sw_trigger)
 ###############################################################################
 
 app_name: demo_probe_driver
@@ -235,7 +236,7 @@ datatypes:
     description: Length of monitoring window (supports long settling tails).
     default_value: 625000
     units: clock_cycles
-    units_human: "5μs @ 125MHz"
+    units_human: "5ms @ 125MHz"
     control_register: CR10
     bit_range: "[31:0]"
 

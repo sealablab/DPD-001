@@ -267,13 +267,17 @@ def clear_fault(mcc):
 
 
 def reset_fsm_to_idle(mcc, osc, timeout_ms: float = Timeouts.HW_STATE_DEFAULT_MS) -> bool:
-    """Reset FSM to IDLE state by clearing application control registers.
+    """Reset FSM to IDLE state with valid configuration.
 
     Strategy:
-    1. Enable FORGE control (global_enable=1) to allow FSM transitions
-    2. Wait for undefined states to auto-transition to FAULT
-    3. Clear fault to transition FAULT -> IDLE
-    4. Clear all application registers
+    1. Disable FORGE to freeze FSM
+    2. Set valid timing configuration (FSM requires non-zero timing to reach IDLE)
+    3. Clear CR1 (no arm, no trigger)
+    4. Enable FORGE - FSM validates config in INITIALIZING → IDLE
+    5. If in FAULT, clear fault and retry
+
+    IMPORTANT: The FSM validates timing registers in INITIALIZING state.
+    If timing values are zero, FSM goes to FAULT instead of IDLE.
 
     Args:
         mcc: CloudCompile instrument instance
@@ -283,36 +287,33 @@ def reset_fsm_to_idle(mcc, osc, timeout_ms: float = Timeouts.HW_STATE_DEFAULT_MS
     Returns:
         True if FSM reached IDLE, False on timeout
     """
-    # Step 1: Ensure FORGE control is enabled
-    init_forge_ready(mcc)
+    ctrl = create_control(mcc)
+
+    # Step 1: Disable FORGE to freeze FSM
+    ctrl.disable_forge()
     time.sleep(0.1)
 
-    # Step 2: Read current state
-    current_state, voltage = read_fsm_state(osc, poll_count=5)
-
-    # Step 3: If in undefined state or FAULT, handle it
-    if current_state in ["STATE_4", "UNKNOWN", "FAULT"] or current_state.startswith("UNKNOWN"):
-        time.sleep(0.3)
-        clear_fault(mcc)
-        time.sleep(0.2)
-
-    # Step 4: Clear all application control registers (CR1-CR15), but NOT CR0
-    for i in range(1, 16):
-        try:
-            mcc.set_control(i, 0)
-        except Exception:
-            pass
-
+    # Step 2: Set valid timing configuration (required for FSM to reach IDLE)
+    # Use P2 timing defaults - FSM will FAULT if timing registers are zero
+    idle_config = p2_timing_config(arm_enable=False)  # Valid timing, not armed
+    ctrl.apply_config(idle_config)
     time.sleep(0.2)
 
-    # Step 5: Wait for IDLE state
+    # Step 3: Enable FORGE - FSM will validate config and transition to IDLE
+    ctrl.enable_forge()
+    time.sleep(0.2)
+
+    # Step 4: Wait for IDLE state
     success = wait_for_state(osc, "IDLE", timeout_ms=timeout_ms)
 
-    # Step 6: If still not IDLE, try fault clear one more time
+    # Step 5: If not IDLE (probably FAULT), clear fault and retry
     if not success:
-        clear_fault(mcc)
-        time.sleep(0.2)
-        success = wait_for_state(osc, "IDLE", timeout_ms=500)
+        current_state, _ = read_fsm_state(osc, poll_count=3)
+        if current_state == "FAULT" or current_state.startswith("UNKNOWN"):
+            # Clear fault - FSM goes to INITIALIZING, re-validates, → IDLE
+            clear_fault(mcc)
+            time.sleep(0.2)
+            success = wait_for_state(osc, "IDLE", timeout_ms=500)
 
     return success
 
@@ -402,6 +403,9 @@ def configure_and_arm_hw(mcc, osc, config: DPDConfig,
 
     This is the recommended way to set up the FSM for hardware tests.
 
+    IMPORTANT: Config is applied BEFORE enabling FORGE to ensure the FSM
+    validates with correct timing values (not zeros) in INITIALIZING state.
+
     Args:
         mcc: CloudCompile instrument instance
         osc: Oscilloscope instrument instance
@@ -421,11 +425,16 @@ def configure_and_arm_hw(mcc, osc, config: DPDConfig,
         success = configure_and_arm_hw(mcc, osc, config)
     """
     ctrl = create_control(mcc)
-    ctrl.enable_forge()
-    time.sleep(0.1)
 
+    # CRITICAL: Apply config FIRST (before enabling FORGE)
+    # The FSM validates timing registers in INITIALIZING state.
+    # If FORGE is enabled before config is set, FSM sees zeros → FAULT
     ctrl.apply_config(config)
     time.sleep(0.2)  # Allow registers to propagate through network stack
+
+    # NOW enable FORGE - FSM will validate with correct config values
+    ctrl.enable_forge()
+    time.sleep(0.1)
 
     if config.arm_enable:
         return wait_for_state(osc, "ARMED", timeout_ms=timeout_ms)
