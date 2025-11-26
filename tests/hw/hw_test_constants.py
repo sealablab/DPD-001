@@ -1,187 +1,159 @@
 """
 Hardware Test Constants for Demo Probe Driver (DPD)
+====================================================
 
-Defines timing configurations, state mappings, and test values for hardware testing.
-
-FSM State Encoding (from DPD_main.vhd):
-    INITIALIZING = 000000 (0)  - Register latch/validation (sync-safe)
-    IDLE         = 000001 (1)  - Waiting for arm_enable
-    ARMED        = 000010 (2)  - Waiting for trigger
-    FIRING       = 000011 (3)  - Driving outputs
-    COOLDOWN     = 000100 (4)  - Thermal safety delay
-    FAULT        = 111111 (63) - Sticky fault state
-
-HVS Encoding (3277 digital units per state = 500mV at +/-5V full scale):
-    INITIALIZING: 0 * 3277 = 0      -> 0.0V
-    IDLE:         1 * 3277 = 3277   -> 0.5V
-    ARMED:        2 * 3277 = 6554   -> 1.0V
-    FIRING:       3 * 3277 = 9831   -> 1.5V
-    COOLDOWN:     4 * 3277 = 13108  -> 2.0V
+Hardware-specific constants that extend the shared test infrastructure.
+Imports from tests/shared/constants.py for common values.
 
 Author: Moku Instrument Forge Team
-Date: 2025-11-25 (updated for correct state encoding)
+Date: 2025-11-26 (refactored to use shared infrastructure)
 """
 
+import sys
 from pathlib import Path
+
+# Add shared module to path
+TESTS_PATH = Path(__file__).parent.parent
+sys.path.insert(0, str(TESTS_PATH))
+
+# =============================================================================
+# Re-export from shared constants (single source of truth)
+# =============================================================================
+from shared.constants import (
+    # Hardware constants from py_tools
+    CR1,
+    FSMState,
+    HVS,
+    Platform,
+    DefaultTiming,
+    cr1_build,
+    cr1_extract,
+    # FORGE control
+    MCC_CR0_ALL_ENABLED,
+    MCC_CR0_FORGE_READY,
+    MCC_CR0_USER_ENABLE,
+    MCC_CR0_CLK_ENABLE,
+    FORGE_READY_BIT,
+    USER_ENABLE_BIT,
+    CLK_ENABLE_BIT,
+    # Voltage conversion
+    mv_to_digital,
+    digital_to_mv,
+    us_to_cycles,
+    cycles_to_us,
+    V_MAX_MV,
+    DIGITAL_MAX,
+    # Test timing
+    P1Timing,
+    P2Timing,
+    # Trigger values
+    TRIGGER_THRESHOLD_MV,
+    TRIGGER_TEST_VOLTAGE_MV,
+    TRIGGER_THRESHOLD_DIGITAL,
+    TRIGGER_TEST_VOLTAGE_DIGITAL,
+    # HVS state values
+    HVS_DIGITAL_INITIALIZING,
+    HVS_DIGITAL_IDLE,
+    HVS_DIGITAL_ARMED,
+    HVS_DIGITAL_FIRING,
+    HVS_DIGITAL_COOLDOWN,
+    # Tolerances
+    HW_HVS_TOLERANCE_V,
+    HW_HVS_TOLERANCE_DIGITAL,
+    # State voltage map
+    STATE_VOLTAGE_MAP,
+    VOLTAGE_STATE_MAP,
+    # Timeouts
+    Timeouts,
+)
+
+# =============================================================================
+# Hardware-Specific Constants
+# =============================================================================
 
 # Module identification
 MODULE_NAME = "dpd_hardware"
 
-# Clock configuration (Moku:Go = 125MHz = 8ns period)
-CLK_PERIOD_NS = 8
-CLK_FREQ_HZ = 125_000_000
+# Clock configuration (convenience aliases)
+CLK_PERIOD_NS = Platform.CLK_PERIOD_NS
+CLK_FREQ_HZ = Platform.CLK_FREQ_HZ
 
-# FSM State Constants (voltage-based encoding observed on oscilloscope)
-# Based on HVS (Hierarchical Voltage Encoding) on OutputC
-# 3277 digital units/state = 0.5V/state @ ±5V full scale
-# Note: HVS encoding includes status bits which add ±0.015V offset
-STATE_VOLTAGE_MAP = {
-    "INITIALIZING": 0.0,  # State 0: 0V (transient - FSM quickly transitions to IDLE)
-    "IDLE": 0.5,          # State 1: 0.5V
-    "ARMED": 1.0,         # State 2: 1.0V
-    "FIRING": 1.5,        # State 3: 1.5V
-    "COOLDOWN": 2.0,      # State 4: 2.0V
-    "FAULT": -0.5,        # Negative voltage = fault condition (STATUS[7]=1)
-}
+# Hardware voltage tolerance (wider than simulation)
+STATE_VOLTAGE_TOLERANCE = HW_HVS_TOLERANCE_V  # +/-300mV
 
-# Reverse lookup for state names
-VOLTAGE_STATE_MAP = {v: k for k, v in STATE_VOLTAGE_MAP.items()}
+# =============================================================================
+# Backward-Compatible Aliases
+# =============================================================================
 
-# Voltage tolerance for state detection (±300mV, accounting for noise + HVS status bits)
-# More forgiving than CocoTB's ±30mV due to real-world ADC noise
-# HVS status bits can add up to ±100 digital units (±15mV)
-# Increased to ±300mV to account for potential bitstream/encoding mismatches
-STATE_VOLTAGE_TOLERANCE = 0.30  # ±300mV (was 0.15)
+# Oscilloscope polling configuration
+OSC_POLL_COUNT_DEFAULT = Timeouts.OSC_POLL_COUNT
+OSC_POLL_INTERVAL_MS = Timeouts.OSC_POLL_INTERVAL_MS
+OSC_STATE_TIMEOUT_MS = Timeouts.HW_STATE_DEFAULT_MS
 
-# FORGE Control Scheme Constants (CR0[31:29])
-FORGE_READY_BIT = 31  # Set by MCC after deployment
-USER_ENABLE_BIT = 30  # User control enable/disable
-CLK_ENABLE_BIT = 29   # Clock gating enable
-
-# Combined FORGE control value (all 3 bits set)
-MCC_CR0_FORGE_READY = 1 << FORGE_READY_BIT  # 0x80000000
-MCC_CR0_USER_ENABLE = 1 << USER_ENABLE_BIT  # 0x40000000
-MCC_CR0_CLK_ENABLE = 1 << CLK_ENABLE_BIT    # 0x20000000
-MCC_CR0_ALL_ENABLED = MCC_CR0_FORGE_READY | MCC_CR0_USER_ENABLE | MCC_CR0_CLK_ENABLE  # 0xE0000000
-
-# Voltage conversion (Moku ADC/DAC: ±5V = ±32768 digital, 16-bit signed)
-V_MAX_MV = 5000  # ±5V range
-DIGITAL_MAX = 32768  # 16-bit signed max
+# Test timeouts (conservative for real hardware)
+TEST_RESET_TIMEOUT_MS = Timeouts.HW_RESET_MS
+TEST_ARM_TIMEOUT_MS = Timeouts.HW_ARM_MS
+TEST_TRIGGER_TIMEOUT_MS = Timeouts.HW_TRIGGER_MS
+TEST_FSM_CYCLE_TIMEOUT_MS = Timeouts.HW_FSM_CYCLE_MS
 
 
-def mv_to_digital(millivolts: float) -> int:
-    """Convert millivolts to 16-bit signed digital value.
-
-    Args:
-        millivolts: Voltage in mV (±5000mV range)
-
-    Returns:
-        Digital value (±32768 range)
-
-    Example:
-        >>> mv_to_digital(0)
-        0
-        >>> mv_to_digital(950)  # Default threshold
-        6225
-        >>> mv_to_digital(1500)  # Test trigger voltage
-        9830
-    """
-    return int((millivolts / V_MAX_MV) * DIGITAL_MAX)
-
-
-def digital_to_mv(digital: int) -> float:
-    """Convert 16-bit signed digital value to millivolts.
-
-    Args:
-        digital: Digital value (±32768 range)
-
-    Returns:
-        Voltage in mV (±5000mV range)
-    """
-    return (digital / DIGITAL_MAX) * V_MAX_MV
-
-
-def us_to_cycles(microseconds: float) -> int:
-    """Convert microseconds to clock cycles @ 125MHz.
-
-    Args:
-        microseconds: Time in microseconds
-
-    Returns:
-        Number of clock cycles
-    """
-    return int(microseconds * CLK_FREQ_HZ / 1e6)
-
-
-def cycles_to_us(cycles: int) -> float:
-    """Convert clock cycles to microseconds @ 125MHz.
-
-    Args:
-        cycles: Number of clock cycles
-
-    Returns:
-        Time in microseconds
-    """
-    return cycles * 1e6 / CLK_FREQ_HZ
-
-
-# P1 Test Values (fast CocoTB timing - may be too fast for hardware observation)
+# =============================================================================
+# P1TestValues Class (backward compatibility)
+# =============================================================================
 class P1TestValues:
-    """Test values from CocoTB P1 (BASIC) level - very fast execution."""
+    """Test values from CocoTB P1 (BASIC) level - very fast execution.
 
-    # Trigger voltages (in mV)
-    TRIGGER_THRESHOLD_MV = 950  # Default threshold
-    TRIGGER_TEST_VOLTAGE_MV = 1500  # Above threshold
+    Note: P1 timing may be too fast for hardware observation.
+    Use P2TestValues for hardware tests.
+    """
+    TRIGGER_THRESHOLD_MV = TRIGGER_THRESHOLD_MV
+    TRIGGER_TEST_VOLTAGE_MV = TRIGGER_TEST_VOLTAGE_MV
+    TRIGGER_THRESHOLD_DIGITAL = TRIGGER_THRESHOLD_DIGITAL
+    TRIGGER_TEST_VOLTAGE_DIGITAL = TRIGGER_TEST_VOLTAGE_DIGITAL
 
-    # Trigger voltages as digital values
-    TRIGGER_THRESHOLD_DIGITAL = mv_to_digital(TRIGGER_THRESHOLD_MV)  # ~6225
-    TRIGGER_TEST_VOLTAGE_DIGITAL = mv_to_digital(TRIGGER_TEST_VOLTAGE_MV)  # ~9830
+    TRIG_OUT_DURATION_CYCLES = P1Timing.TRIG_OUT_DURATION
+    INTENSITY_DURATION_CYCLES = P1Timing.INTENSITY_DURATION
+    COOLDOWN_INTERVAL_CYCLES = P1Timing.COOLDOWN_INTERVAL
 
-    # Timing (reduced for fast P1 tests - may be too fast for oscilloscope polling)
-    TRIG_OUT_DURATION_CYCLES = 1000  # 8μs @ 125MHz
-    INTENSITY_DURATION_CYCLES = 2000  # 16μs @ 125MHz
-    COOLDOWN_INTERVAL_CYCLES = 500   # 4μs @ 125MHz
+    TRIG_OUT_DURATION_US = P1Timing.TRIG_OUT_DURATION_US
+    INTENSITY_DURATION_US = P1Timing.INTENSITY_DURATION_US
+    COOLDOWN_INTERVAL_US = P1Timing.COOLDOWN_INTERVAL_US
 
-    # Convert to microseconds for readability
-    TRIG_OUT_DURATION_US = cycles_to_us(TRIG_OUT_DURATION_CYCLES)      # 8μs
-    INTENSITY_DURATION_US = cycles_to_us(INTENSITY_DURATION_CYCLES)    # 16μs
-    COOLDOWN_INTERVAL_US = cycles_to_us(COOLDOWN_INTERVAL_CYCLES)      # 4μs
-
-    # Total FSM cycle time
-    TOTAL_FSM_CYCLES = TRIG_OUT_DURATION_CYCLES + INTENSITY_DURATION_CYCLES + COOLDOWN_INTERVAL_CYCLES
-    TOTAL_FSM_US = cycles_to_us(TOTAL_FSM_CYCLES)  # ~28μs
-
-    # Output voltages (for pulse verification)
-    TRIG_OUT_VOLTAGE_MV = 2000      # OutputA voltage during trigger pulse
-    INTENSITY_VOLTAGE_MV = 1500     # OutputB voltage during intensity pulse
-
-
-# P2 Test Values (realistic, human-observable timing - RECOMMENDED for hardware)
-class P2TestValues:
-    """Test values for P2 (INTERMEDIATE) level - realistic timing, easier to observe."""
-
-    TRIGGER_THRESHOLD_MV = 950
-    TRIGGER_TEST_VOLTAGE_MV = 1500
-    TRIGGER_THRESHOLD_DIGITAL = mv_to_digital(TRIGGER_THRESHOLD_MV)
-    TRIGGER_TEST_VOLTAGE_DIGITAL = mv_to_digital(TRIGGER_TEST_VOLTAGE_MV)
-
-    # Production-like timing (easier to observe on oscilloscope)
-    TRIG_OUT_DURATION_CYCLES = 12500   # 100μs @ 125MHz
-    INTENSITY_DURATION_CYCLES = 25000  # 200μs @ 125MHz
-    COOLDOWN_INTERVAL_CYCLES = 1250    # 10μs @ 125MHz
-
-    TRIG_OUT_DURATION_US = cycles_to_us(TRIG_OUT_DURATION_CYCLES)      # 100μs
-    INTENSITY_DURATION_US = cycles_to_us(INTENSITY_DURATION_CYCLES)    # 200μs
-    COOLDOWN_INTERVAL_US = cycles_to_us(COOLDOWN_INTERVAL_CYCLES)      # 10μs
-
-    TOTAL_FSM_CYCLES = TRIG_OUT_DURATION_CYCLES + INTENSITY_DURATION_CYCLES + COOLDOWN_INTERVAL_CYCLES
-    TOTAL_FSM_US = cycles_to_us(TOTAL_FSM_CYCLES)  # ~310μs
+    TOTAL_FSM_CYCLES = P1Timing.TOTAL_CYCLES
+    TOTAL_FSM_US = P1Timing.TOTAL_US
 
     TRIG_OUT_VOLTAGE_MV = 2000
     INTENSITY_VOLTAGE_MV = 1500
 
 
-# Default timing configuration for hardware tests (use P2 for visibility)
+class P2TestValues:
+    """Test values for P2 (INTERMEDIATE) level - realistic timing.
+
+    RECOMMENDED for hardware tests - timing visible on oscilloscope.
+    """
+    TRIGGER_THRESHOLD_MV = TRIGGER_THRESHOLD_MV
+    TRIGGER_TEST_VOLTAGE_MV = TRIGGER_TEST_VOLTAGE_MV
+    TRIGGER_THRESHOLD_DIGITAL = TRIGGER_THRESHOLD_DIGITAL
+    TRIGGER_TEST_VOLTAGE_DIGITAL = TRIGGER_TEST_VOLTAGE_DIGITAL
+
+    TRIG_OUT_DURATION_CYCLES = P2Timing.TRIG_OUT_DURATION
+    INTENSITY_DURATION_CYCLES = P2Timing.INTENSITY_DURATION
+    COOLDOWN_INTERVAL_CYCLES = P2Timing.COOLDOWN_INTERVAL
+
+    TRIG_OUT_DURATION_US = P2Timing.TRIG_OUT_DURATION_US
+    INTENSITY_DURATION_US = P2Timing.INTENSITY_DURATION_US
+    COOLDOWN_INTERVAL_US = P2Timing.COOLDOWN_INTERVAL_US
+
+    TOTAL_FSM_CYCLES = P2Timing.TOTAL_CYCLES
+    TOTAL_FSM_US = P2Timing.TOTAL_US
+
+    TRIG_OUT_VOLTAGE_MV = 2000
+    INTENSITY_VOLTAGE_MV = 1500
+
+
+# =============================================================================
+# Default timing configuration (use P2 for visibility)
+# =============================================================================
 DEFAULT_TRIG_OUT_DURATION_US = P2TestValues.TRIG_OUT_DURATION_US
 DEFAULT_INTENSITY_DURATION_US = P2TestValues.INTENSITY_DURATION_US
 DEFAULT_COOLDOWN_INTERVAL_US = P2TestValues.COOLDOWN_INTERVAL_US
@@ -189,14 +161,3 @@ DEFAULT_TRIGGER_THRESHOLD_MV = P2TestValues.TRIGGER_THRESHOLD_MV
 DEFAULT_TRIGGER_TEST_VOLTAGE_MV = P2TestValues.TRIGGER_TEST_VOLTAGE_MV
 DEFAULT_TRIG_OUT_VOLTAGE_MV = P2TestValues.TRIG_OUT_VOLTAGE_MV
 DEFAULT_INTENSITY_VOLTAGE_MV = P2TestValues.INTENSITY_VOLTAGE_MV
-
-# Oscilloscope polling configuration
-OSC_POLL_COUNT_DEFAULT = 5          # Number of samples to average for state reading
-OSC_POLL_INTERVAL_MS = 20           # Milliseconds between oscilloscope polls
-OSC_STATE_TIMEOUT_MS = 2000         # Default timeout for state transitions (2 seconds)
-
-# Test timeouts (conservative for real hardware)
-TEST_RESET_TIMEOUT_MS = 500
-TEST_ARM_TIMEOUT_MS = 1000
-TEST_TRIGGER_TIMEOUT_MS = 1000
-TEST_FSM_CYCLE_TIMEOUT_MS = 3000    # Must be > TOTAL_FSM_US + margin

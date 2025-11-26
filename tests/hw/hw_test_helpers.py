@@ -1,38 +1,43 @@
 """
 Hardware Test Helper Functions for Demo Probe Driver (DPD)
+==========================================================
 
 Utilities for FSM control, state reading, and oscilloscope interaction.
-Adapted from debug_oscilloscope.py and debug_fsm_states.py
+Uses shared constants from tests/shared/constants.py.
 
 Author: Moku Instrument Forge Team
-Date: 2025-01-18
+Date: 2025-11-26 (refactored to use shared infrastructure)
 """
 
 import time
+import sys
+from pathlib import Path
 from typing import Tuple, Optional
 
-from hw_test_constants import (
+# Add shared module to path
+TESTS_PATH = Path(__file__).parent.parent
+sys.path.insert(0, str(TESTS_PATH))
+
+from shared.constants import (
     STATE_VOLTAGE_MAP,
-    STATE_VOLTAGE_TOLERANCE,
+    HW_HVS_TOLERANCE_V,
     MCC_CR0_ALL_ENABLED,
     us_to_cycles,
-    OSC_POLL_COUNT_DEFAULT,
-    OSC_POLL_INTERVAL_MS,
+    Timeouts,
 )
 
 
-def decode_fsm_state(voltage: float, tolerance: float = STATE_VOLTAGE_TOLERANCE) -> str:
-    """
-    Decode FSM state from voltage reading.
+def decode_fsm_state(voltage: float, tolerance: float = HW_HVS_TOLERANCE_V) -> str:
+    """Decode FSM state from voltage reading.
 
     HVS Encoding: 3277 digital units per state step (0.5V per state)
     Voltage = (digital_units / 32768) * 5V
     State voltages:
-      - INITIALIZING (0): 0 units     → 0.0V (transient)
-      - IDLE (1):         3277 units  → 0.5V
-      - ARMED (2):        6554 units  → 1.0V
-      - FIRING (3):       9831 units  → 1.5V
-      - COOLDOWN (4):     13108 units → 2.0V
+      - INITIALIZING (0): 0 units     -> 0.0V (transient)
+      - IDLE (1):         3277 units  -> 0.5V
+      - ARMED (2):        6554 units  -> 1.0V
+      - FIRING (3):       9831 units  -> 1.5V
+      - COOLDOWN (4):     13108 units -> 2.0V
       - FAULT:            negative voltage (STATUS[7]=1)
 
     Args:
@@ -55,10 +60,9 @@ def decode_fsm_state(voltage: float, tolerance: float = STATE_VOLTAGE_TOLERANCE)
     return f"UNKNOWN({voltage:.3f}V)"
 
 
-def read_oscilloscope_voltage(osc, poll_count: int = OSC_POLL_COUNT_DEFAULT,
-                               poll_interval_ms: float = OSC_POLL_INTERVAL_MS) -> float:
-    """
-    Read voltage from oscilloscope Ch1 with averaging.
+def read_oscilloscope_voltage(osc, poll_count: int = Timeouts.OSC_POLL_COUNT,
+                               poll_interval_ms: float = Timeouts.OSC_POLL_INTERVAL_MS) -> float:
+    """Read voltage from oscilloscope Ch1 with averaging.
 
     Args:
         osc: Oscilloscope instrument instance
@@ -83,10 +87,9 @@ def read_oscilloscope_voltage(osc, poll_count: int = OSC_POLL_COUNT_DEFAULT,
     return sum(voltages) / len(voltages)
 
 
-def read_fsm_state(osc, poll_count: int = OSC_POLL_COUNT_DEFAULT,
-                   poll_interval_ms: float = OSC_POLL_INTERVAL_MS) -> Tuple[str, float]:
-    """
-    Read current FSM state from oscilloscope Ch1 (monitoring OutputC).
+def read_fsm_state(osc, poll_count: int = Timeouts.OSC_POLL_COUNT,
+                   poll_interval_ms: float = Timeouts.OSC_POLL_INTERVAL_MS) -> Tuple[str, float]:
+    """Read current FSM state from oscilloscope Ch1 (monitoring OutputC).
 
     Args:
         osc: Oscilloscope instrument instance
@@ -101,10 +104,9 @@ def read_fsm_state(osc, poll_count: int = OSC_POLL_COUNT_DEFAULT,
     return state, voltage
 
 
-def wait_for_state(osc, expected_state: str, timeout_ms: float = 2000,
+def wait_for_state(osc, expected_state: str, timeout_ms: float = Timeouts.HW_STATE_DEFAULT_MS,
                    poll_count: int = 3, poll_interval_ms: float = 50) -> bool:
-    """
-    Poll oscilloscope until expected FSM state is reached or timeout.
+    """Poll oscilloscope until expected FSM state is reached or timeout.
 
     Args:
         osc: Oscilloscope instrument instance
@@ -128,9 +130,8 @@ def wait_for_state(osc, expected_state: str, timeout_ms: float = 2000,
 
 
 def wait_for_state_with_retry(osc, expected_state: str, retries: int = 2,
-                               timeout_ms: float = 2000) -> bool:
-    """
-    Wait for FSM state with automatic retry on timeout.
+                               timeout_ms: float = Timeouts.HW_STATE_DEFAULT_MS) -> bool:
+    """Wait for FSM state with automatic retry on timeout.
 
     Useful for handling transient oscilloscope read failures.
 
@@ -153,8 +154,7 @@ def wait_for_state_with_retry(osc, expected_state: str, retries: int = 2,
 
 
 def init_forge_ready(mcc):
-    """
-    Initialize FORGE_READY bits in CR0[31:29].
+    """Initialize FORGE_READY bits in CR0[31:29].
 
     Sets forge_ready=1, user_enable=1, clk_enable=1.
     This is REQUIRED for all FORGE modules to operate.
@@ -167,8 +167,7 @@ def init_forge_ready(mcc):
 
 
 def clear_forge_ready(mcc):
-    """
-    Clear FORGE_READY bits (disable module).
+    """Clear FORGE_READY bits (disable module).
 
     Args:
         mcc: CloudCompile instrument instance
@@ -180,8 +179,7 @@ def clear_forge_ready(mcc):
 def arm_probe(mcc, trig_duration_us: float, intensity_duration_us: float,
               cooldown_us: float, trigger_threshold_mv: int = 950,
               trig_voltage_mv: int = 2000, intensity_voltage_mv: int = 1500):
-    """
-    Arm the DPD FSM with timing and voltage parameters.
+    """Arm the DPD FSM with timing and voltage parameters.
 
     Sets Control Registers to configure FSM timing and output voltages.
 
@@ -209,8 +207,6 @@ def arm_probe(mcc, trig_duration_us: float, intensity_duration_us: float,
     mcc.set_control(3, intensity_voltage_mv & 0xFFFF)  # CR3
 
     # CRITICAL: Allow timing/voltage registers to propagate before enabling arm
-    # Network register updates are asynchronous - FSM must not see arm_enable=1
-    # before timing registers are valid, or it will try to arm with zero/undefined values
     time.sleep(0.2)
 
     # Enable arming (CR1[0] = arm_enable)
@@ -220,26 +216,24 @@ def arm_probe(mcc, trig_duration_us: float, intensity_duration_us: float,
 
 
 def software_trigger(mcc):
-    """
-    Trigger FSM via software trigger (CR1[1]).
+    """Trigger FSM via software trigger (CR1[5]).
 
-    Uses edge detection - sets bit high then low.
+    Uses edge detection - sets sw_trigger_enable and sw_trigger, then clears.
 
     Args:
         mcc: CloudCompile instrument instance
     """
-    # Set sw_trigger=1, arm_enable=1 (CR1[1:0] = 0b11)
-    mcc.set_control(1, 0x00000003)
+    # Set arm_enable=1, sw_trigger_enable=1, sw_trigger=1 (CR1 = 0x29)
+    mcc.set_control(1, 0x00000029)
     time.sleep(0.05)
 
-    # Clear sw_trigger (edge detected), keep arm_enable
-    mcc.set_control(1, 0x00000001)
+    # Clear sw_trigger (edge detected), keep arm_enable and sw_trigger_enable
+    mcc.set_control(1, 0x00000009)
     time.sleep(0.05)
 
 
 def disarm_probe(mcc):
-    """
-    Disarm the probe (clear arm_enable).
+    """Disarm the probe (clear arm_enable).
 
     Args:
         mcc: CloudCompile instrument instance
@@ -249,31 +243,26 @@ def disarm_probe(mcc):
 
 
 def clear_fault(mcc):
-    """
-    Clear fault state using CR1[3] fault_clear edge detection.
+    """Clear fault state using CR1[2] fault_clear edge detection.
 
     Args:
         mcc: CloudCompile instrument instance
     """
-    # Pulse fault_clear (CR1[3])
-    mcc.set_control(1, 0x00000008)
+    # Pulse fault_clear (CR1[2])
+    mcc.set_control(1, 0x00000004)
     time.sleep(0.05)
     mcc.set_control(1, 0x00000000)
     time.sleep(0.1)
 
 
-def reset_fsm_to_idle(mcc, osc, timeout_ms: float = 2000) -> bool:
-    """
-    Reset FSM to IDLE state by clearing application control registers.
+def reset_fsm_to_idle(mcc, osc, timeout_ms: float = Timeouts.HW_STATE_DEFAULT_MS) -> bool:
+    """Reset FSM to IDLE state by clearing application control registers.
 
     Strategy:
     1. Enable FORGE control (global_enable=1) to allow FSM transitions
-    2. Wait for undefined states (e.g. STATE_4) to auto-transition to FAULT
-    3. Clear fault to transition FAULT → IDLE
+    2. Wait for undefined states to auto-transition to FAULT
+    3. Clear fault to transition FAULT -> IDLE
     4. Clear all application registers
-
-    CRITICAL: We must keep FORGE control (CR0) enabled throughout reset,
-    otherwise the FSM cannot transition (global_enable=0 blocks FSM state changes).
 
     Args:
         mcc: CloudCompile instrument instance
@@ -283,36 +272,32 @@ def reset_fsm_to_idle(mcc, osc, timeout_ms: float = 2000) -> bool:
     Returns:
         True if FSM reached IDLE, False on timeout
     """
-    # Step 1: Ensure FORGE control is enabled (allows FSM transitions)
+    # Step 1: Ensure FORGE control is enabled
     init_forge_ready(mcc)
     time.sleep(0.1)
 
     # Step 2: Read current state
     current_state, voltage = read_fsm_state(osc, poll_count=5)
 
-    # Step 3: If in undefined state (STATE_4) or FAULT, wait for auto-transition to FAULT
+    # Step 3: If in undefined state or FAULT, handle it
     if current_state in ["STATE_4", "UNKNOWN", "FAULT"] or current_state.startswith("UNKNOWN"):
-        # FSM should auto-transition undefined states → FAULT via "when others"
-        # Give it time to transition with global_enable=1
         time.sleep(0.3)
-
-        # Step 4: Clear fault to transition FAULT → IDLE
         clear_fault(mcc)
         time.sleep(0.2)
 
-    # Step 5: Clear all application control registers (CR1-CR15), but NOT CR0 (FORGE control)
+    # Step 4: Clear all application control registers (CR1-CR15), but NOT CR0
     for i in range(1, 16):
         try:
             mcc.set_control(i, 0)
-        except:
-            pass  # Some registers may not exist
+        except Exception:
+            pass
 
     time.sleep(0.2)
 
-    # Step 6: Wait for IDLE state
+    # Step 5: Wait for IDLE state
     success = wait_for_state(osc, "IDLE", timeout_ms=timeout_ms)
 
-    # Step 7: If still not IDLE, try fault clear one more time
+    # Step 6: If still not IDLE, try fault clear one more time
     if not success:
         clear_fault(mcc)
         time.sleep(0.2)
@@ -322,11 +307,10 @@ def reset_fsm_to_idle(mcc, osc, timeout_ms: float = 2000) -> bool:
 
 
 def validate_routing(moku, osc_slot: int = 1, cc_slot: int = 2) -> bool:
-    """
-    Validate that routing is configured correctly for tests.
+    """Validate that routing is configured correctly for tests.
 
     Expected routing:
-    - Slot{cc_slot}OutC → Slot{osc_slot}InA (FSM state observation)
+    - Slot{cc_slot}OutC -> Slot{osc_slot}InA (FSM state observation)
 
     Args:
         moku: MultiInstrument instance
@@ -339,7 +323,6 @@ def validate_routing(moku, osc_slot: int = 1, cc_slot: int = 2) -> bool:
     try:
         connections = moku.get_connections()
 
-        # Check for OutputC → OscInA connection
         required_connection = {
             'source': f'Slot{cc_slot}OutC',
             'destination': f'Slot{osc_slot}InA'
@@ -356,14 +339,13 @@ def validate_routing(moku, osc_slot: int = 1, cc_slot: int = 2) -> bool:
 
 
 def setup_routing(moku, osc_slot: int = 1, cc_slot: int = 2):
-    """
-    Set up routing for DPD hardware tests.
+    """Set up routing for DPD hardware tests.
 
     Routing configuration:
-    - Input1 → Slot{cc_slot}InA (external trigger input)
-    - Slot{cc_slot}OutB → Output2 (intensity output, visible on physical port)
-    - Slot{cc_slot}OutC → Output1 (FSM debug, for external scope observation)
-    - Slot{cc_slot}OutC → Slot{osc_slot}InA (FSM state monitoring for tests)
+    - Input1 -> Slot{cc_slot}InA (external trigger input)
+    - Slot{cc_slot}OutB -> Output2 (intensity output, visible on physical port)
+    - Slot{cc_slot}OutC -> Output1 (FSM debug, for external scope observation)
+    - Slot{cc_slot}OutC -> Slot{osc_slot}InA (FSM state monitoring for tests)
 
     Args:
         moku: MultiInstrument instance
@@ -371,9 +353,9 @@ def setup_routing(moku, osc_slot: int = 1, cc_slot: int = 2):
         cc_slot: CloudCompile slot number
     """
     moku.set_connections(connections=[
-        {'source': 'Input1', 'destination': f'Slot{cc_slot}InA'},         # External trigger
-        {'source': f'Slot{cc_slot}OutB', 'destination': 'Output2'},       # Intensity output
-        {'source': f'Slot{cc_slot}OutC', 'destination': 'Output1'},       # FSM debug (physical)
-        {'source': f'Slot{cc_slot}OutC', 'destination': f'Slot{osc_slot}InA'},  # FSM state (for tests)
+        {'source': 'Input1', 'destination': f'Slot{cc_slot}InA'},
+        {'source': f'Slot{cc_slot}OutB', 'destination': 'Output2'},
+        {'source': f'Slot{cc_slot}OutC', 'destination': 'Output1'},
+        {'source': f'Slot{cc_slot}OutC', 'destination': f'Slot{osc_slot}InA'},
     ])
-    time.sleep(0.2)  # Allow routing to settle
+    time.sleep(0.2)
