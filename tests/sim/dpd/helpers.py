@@ -20,7 +20,7 @@ from cocotb.triggers import ClockCycles
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "py_tools"))
 
-from dpd_wrapper_tests.dpd_wrapper_constants import (
+from dpd.constants import (
     HVS_DIGITAL_INITIALIZING,
     HVS_DIGITAL_IDLE,
     HVS_DIGITAL_ARMED,
@@ -211,7 +211,7 @@ async def hardware_trigger(dut, voltage_mv: int, threshold_mv: int = 950):
         AssertionError: If FSM doesn't reach FIRING state
     """
     from conftest import create_control
-    from dpd_wrapper_tests.dpd_wrapper_constants import mv_to_digital
+    from dpd.constants import mv_to_digital
 
     # Create config with hardware trigger enabled
     config = DPDConfig(

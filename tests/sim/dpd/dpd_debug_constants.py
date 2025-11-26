@@ -8,7 +8,7 @@ Author: Moku Instrument Forge Team
 Date: 2025-11-25
 """
 
-from dpd_wrapper_tests.dpd_wrapper_constants import (
+from dpd.constants import (
     HVS_DIGITAL_ARMED,
     HVS_DIGITAL_FIRING,
     HVS_DIGITAL_TOLERANCE,

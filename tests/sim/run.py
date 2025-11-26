@@ -14,13 +14,13 @@ Usage:
     GHDL_FILTER=none python run.py          # Disable GHDL output filtering
     
     # Debug tests (for FSM trigger investigation)
-    TEST_MODULE=dpd_wrapper_tests.P1_dpd_trigger_debug python run.py
-    WAVES=true TEST_MODULE=dpd_wrapper_tests.P1_dpd_trigger_debug python run.py
+    TEST_MODULE=dpd.P1_dpd_trigger_debug python run.py
+    WAVES=true TEST_MODULE=dpd.P1_dpd_trigger_debug python run.py
 
 Environment Variables:
     COCOTB_VERBOSITY: Test output level (MINIMAL, NORMAL, VERBOSE, DEBUG)
     TEST_LEVEL: Test suite level (P1_BASIC, P2_INTERMEDIATE, etc.)
-    TEST_MODULE: Test module to run (default: dpd_wrapper_tests.P1_dpd_wrapper_basic)
+    TEST_MODULE: Test module to run (default: dpd.P1_basic)
     WAVES: Enable waveform capture (true/false, default: false)
     GHDL_FILTER: GHDL output filter level (aggressive, normal, minimal, none)
                  Default: auto-selected based on COCOTB_VERBOSITY
@@ -39,7 +39,7 @@ from contextlib import contextmanager
 os.chdir(Path(__file__).parent)
 
 # Import constants for HDL sources
-from dpd_wrapper_tests.dpd_wrapper_constants import (
+from dpd.constants import (
     HDL_SOURCES,
     HDL_TOPLEVEL,
     MODULE_NAME,
@@ -163,7 +163,7 @@ def main():
     waves = os.environ.get("WAVES", "false").lower() == "true"
 
     # Test module selection (default to basic tests, can override for debug)
-    test_module = os.environ.get("TEST_MODULE", "dpd_wrapper_tests.P1_dpd_wrapper_basic")
+    test_module = os.environ.get("TEST_MODULE", "dpd.P1_basic")
 
     print(f"=" * 70)
     print(f"Running {MODULE_NAME} tests")

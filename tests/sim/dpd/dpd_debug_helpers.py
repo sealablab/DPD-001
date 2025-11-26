@@ -11,7 +11,7 @@ Date: 2025-11-25
 import cocotb
 from cocotb.triggers import RisingEdge, ClockCycles
 from typing import Dict, List, Optional, Any
-from dpd_wrapper_tests.dpd_debug_constants import HIERARCHICAL_SIGNAL_PATHS
+from dpd.dpd_debug_constants import HIERARCHICAL_SIGNAL_PATHS
 
 
 class SignalMonitor:
@@ -212,7 +212,7 @@ def check_signal_accessibility(dut) -> Dict[str, bool]:
     Returns:
         Dictionary mapping signal names to accessibility status
     """
-    from dpd_wrapper_tests.dpd_debug_constants import TRIGGER_SIGNALS
+    from dpd.dpd_debug_constants import TRIGGER_SIGNALS
 
     accessibility = {}
     monitor = SignalMonitor(dut, TRIGGER_SIGNALS)

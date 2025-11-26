@@ -35,23 +35,23 @@ from conftest import (
     init_mcc_inputs,
     mcc_set_regs,
 )
-from dpd_wrapper_tests.dpd_wrapper_constants import (
+from dpd.constants import (
     HVS_DIGITAL_ARMED,
     HVS_DIGITAL_FIRING,
     HVS_DIGITAL_TOLERANCE,
     MCC_CR0_ALL_ENABLED,
 )
-from dpd_wrapper_tests.dpd_helpers import (
+from dpd.helpers import (
     read_output_c,
     wait_for_state,
 )
-from dpd_wrapper_tests.dpd_debug_constants import (
+from dpd.dpd_debug_constants import (
     TRIGGER_SIGNALS,
     FAILING_TEST_CR0,
     FAILING_TEST_CR1,
     MONITOR_WINDOW_CYCLES,
 )
-from dpd_wrapper_tests.dpd_debug_helpers import (
+from dpd.dpd_debug_helpers import (
     SignalMonitor,
     capture_trigger_path_state,
     check_signal_accessibility,

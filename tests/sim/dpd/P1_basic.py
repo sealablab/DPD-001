@@ -39,7 +39,7 @@ from conftest import (
     forge_cr0,
 )
 
-from dpd_wrapper_tests.dpd_wrapper_constants import (
+from dpd.constants import (
     HVS_DIGITAL_INITIALIZING,
     HVS_DIGITAL_IDLE,
     HVS_DIGITAL_ARMED,
@@ -51,7 +51,7 @@ from dpd_wrapper_tests.dpd_wrapper_constants import (
     DEFAULT_TRIGGER_WAIT_TIMEOUT,
 )
 
-from dpd_wrapper_tests.dpd_helpers import (
+from dpd.helpers import (
     read_output_c,
     assert_state,
     wait_for_state,
