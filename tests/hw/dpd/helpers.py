@@ -227,21 +227,73 @@ def arm_probe(mcc, trig_duration_us: float, intensity_duration_us: float,
     time.sleep(0.1)  # Allow FSM to transition to ARMED
 
 
-def software_trigger(mcc):
+def _get_control_value(mcc, reg_num: int) -> int:
+    """Get control register value, handling different Moku API return types.
+
+    The Moku API can return:
+    - int: Direct value
+    - list: [value, ...]
+    - dict: {'value': value, ...}
+
+    Args:
+        mcc: CloudCompile instrument instance
+        reg_num: Register number to read
+
+    Returns:
+        32-bit register value as integer
+    """
+    result = mcc.get_control(reg_num)
+    if isinstance(result, list):
+        return result[0] if result else 0
+    elif isinstance(result, dict):
+        return result.get('value', result.get('id', 0))
+    return result
+
+
+def software_trigger(mcc, debug: bool = False):
     """Trigger FSM via software trigger (CR1[5]).
 
     Uses edge detection - sets sw_trigger_enable and sw_trigger, then clears.
 
+    IMPORTANT: The sw_trigger edge must be detected by the FPGA. If the Moku
+    API batches writes, the edge may be missed. This function uses longer
+    delays and optional readback verification to ensure reliable triggering.
+
     Args:
         mcc: CloudCompile instrument instance
+        debug: If True, read back CR1 values for verification
     """
-    # Set arm_enable + sw_trigger_enable + sw_trigger
-    mcc.set_control(1, cr1_build(arm_enable=True, sw_trigger_enable=True, sw_trigger=True))
+    # Build CR1 values
+    cr1_trigger = cr1_build(arm_enable=True, sw_trigger_enable=True, sw_trigger=True)  # 0x29
+    cr1_hold = cr1_build(arm_enable=True, sw_trigger_enable=True)  # 0x09
+
+    if debug:
+        cr1_before = _get_control_value(mcc, 1)
+        print(f"  [DEBUG] CR1 before trigger: 0x{cr1_before:08X}")
+
+    # Step 1: Set sw_trigger_enable + sw_trigger (CR1 = 0x29)
+    # This creates the rising edge that the VHDL edge detector looks for
+    mcc.set_control(1, cr1_trigger)
+
+    if debug:
+        time.sleep(0.02)  # Brief delay to let write complete
+        cr1_after_set = _get_control_value(mcc, 1)
+        print(f"  [DEBUG] CR1 after set trigger: 0x{cr1_after_set:08X} (expected 0x{cr1_trigger:08X})")
+
+    # Step 2: Wait for the edge to be detected by the FPGA
+    # The VHDL edge detector needs at least 1 clock cycle to see the 0->1 transition
+    # Use longer delay (100ms) to ensure network propagation
+    time.sleep(0.1)
+
+    # Step 3: Clear sw_trigger (CR1 = 0x09)
+    # This is not strictly necessary - the edge has already been detected
+    # But we clear it to prepare for the next trigger
+    mcc.set_control(1, cr1_hold)
     time.sleep(0.05)
 
-    # Clear sw_trigger (edge detected), keep arm_enable and sw_trigger_enable
-    mcc.set_control(1, cr1_build(arm_enable=True, sw_trigger_enable=True))
-    time.sleep(0.05)
+    if debug:
+        cr1_final = _get_control_value(mcc, 1)
+        print(f"  [DEBUG] CR1 after clear: 0x{cr1_final:08X} (expected 0x{cr1_hold:08X})")
 
 
 def disarm_probe(mcc):
