@@ -20,15 +20,22 @@ Date: 2025-01-18
 
 import time
 
+import sys
+from pathlib import Path
+
+# Add parent hw/ directory to path for hw_test_base import
+HW_PATH = Path(__file__).parent.parent
+sys.path.insert(0, str(HW_PATH))
+
 from hw_test_base import HardwareTestBase, VerbosityLevel
-from hw_test_helpers import (
+from dpd.helpers import (
     arm_probe,
     software_trigger,
     disarm_probe,
     clear_fault,
     reset_fsm_to_idle,
 )
-from hw_test_constants import (
+from dpd.constants import (
     MCC_CR0_ALL_ENABLED,
     P2TestValues,  # Use P2 timing for visibility (P1 timing too fast for OSC)
     TEST_RESET_TIMEOUT_MS,
@@ -169,6 +176,7 @@ class P1_HardwareBasicTests(HardwareTestBase):
         # Clean up - reset to IDLE
         reset_fsm_to_idle(self.mcc, self.osc, timeout_ms=TEST_RESET_TIMEOUT_MS)
 
+    # @JC: This is 'T5: FSM cycle (software trigger)' and it has some issues..
     def test_fsm_software_trigger(self):
         """Verify FSM responds to software trigger."""
         self.log("Testing software trigger...", VerbosityLevel.VERBOSE)
@@ -209,7 +217,7 @@ class P1_HardwareBasicTests(HardwareTestBase):
         # Clean up
         time.sleep(0.5)  # Let FSM cycle complete
         reset_fsm_to_idle(self.mcc, self.osc, timeout_ms=TEST_RESET_TIMEOUT_MS)
-
+    # @JC: This is 'T6: FSM cycle complete'
     def test_fsm_complete_cycle(self):
         """Verify FSM completes full state cycle (IDLE → ARMED → FIRING → COOLDOWN → IDLE)."""
         self.log("Testing complete FSM cycle...", VerbosityLevel.VERBOSE)

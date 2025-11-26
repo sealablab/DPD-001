@@ -49,9 +49,9 @@ except ImportError:
     sys.exit(1)
 
 from hw_test_base import TestLevel, VerbosityLevel
-from P1_hw_basic import P1_HardwareBasicTests
-from P2_hw_intermediate import P2_HardwareIntermediateTests
-from P3_hw_comprehensive import P3_HardwareComprehensiveTests
+from dpd.P1_basic import P1_HardwareBasicTests
+from dpd.P2_intermediate import P2_HardwareIntermediateTests
+from dpd.P3_comprehensive import P3_HardwareComprehensiveTests
 
 # Import shared utilities from project root
 from moku_cli_common import connect_to_device, parse_platform_id, setup_moku_debug_logging

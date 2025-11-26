@@ -38,7 +38,7 @@ from shared.test_base_common import (
     TestRunnerMixin,
 )
 
-from hw_test_helpers import (
+from dpd.helpers import (
     read_fsm_state,
     wait_for_state,
     init_forge_ready,

@@ -18,6 +18,13 @@ Author: Moku Instrument Forge Team
 Date: 2025-01-18
 """
 
+import sys
+from pathlib import Path
+
+# Add parent hw/ directory to path for hw_test_base import
+HW_PATH = Path(__file__).parent.parent
+sys.path.insert(0, str(HW_PATH))
+
 from hw_test_base import HardwareTestBase, VerbosityLevel
 
 
