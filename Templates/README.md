@@ -1,28 +1,11 @@
----
-publish: "true"
-type: reference
-created: <% tp.file.creation_date("YYYY-MM-DD") %>
-modified: <% tp.file.last_modified_date("YYYY-MM-DD") %>
-tags: []
----
-# <% tp.file.title %>
+# Templates
 
-[Brief description of this directory/module]
+This directory contains **Templater** style templates for use with Obsidian.
 
-## module_name
-**Module:** `path/to/module.py` ([source](https://github.com/sealablab/DPD-001/blob/main/path/to/module.py))
+## Templates
 
-[Description of what this module does]
-
-## another_module
-**Module:** `path/to/another.py` ([source](https://github.com/sealablab/DPD-001/blob/main/path/to/another.py))
-
-[Description of what this module does]
+- **base.md** - General documentation template for guides, articles, handoffs
+- **module-index.md** - Template for README-style module/directory indexes
 
 ## See Also
-
----
-**View this document:**
-- 📖 [Obsidian Publish](https://publish.obsidian.md/dpd-001/<% tp.file.path(true).replace(/\.md$/, '').replace(/ /g, '%20') %>)
-- 💻 [GitHub](https://github.com/sealablab/DPD-001/blob/main/<% tp.file.path(true).replace(/ /g, '%20') %>)
-- ✏️ [Edit on GitHub](https://github.com/sealablab/DPD-001/edit/main/<% tp.file.path(true).replace(/ /g, '%20') %>)
+- [Templater Documentation](https://silentvoid13.github.io/Templater/)

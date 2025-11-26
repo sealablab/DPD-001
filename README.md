@@ -1,13 +1,19 @@
-# DPD-001
+# [DPD-001](https://publish.obsidian.md/dpd-001)
 
-Digital Probe Driver (DPD) project for Moku platform.
+**Demo Probe Driver** - FPGA-based probe controller for Moku:Go platforms
+
+## [Github](https://github.com/sealablab/DPD-001)
 
 ## Documentation
 
-- **[CocoTB Test Generation Agents](docs/AGENTS.md)** - Guide for using specialized agents to generate and manage CocoTB test suites
-- **[Architecture Overview](CLAUDE.md)** - Project architecture and design patterns
+### Project Documentation
+- **[CLAUDE.md](CLAUDE.md)** - Project overview, build commands, architecture guide (for AI assistants and developers)
 
-## Quick Links
+### API Reference
+- **[MOKU_API.md](MOKU_API.md)** - Moku Python API quick reference and navigation guide
+- **[moku_md/](moku_md/)** - Complete Moku Python API documentation (classes, methods, instruments)
 
-- **Agents:** `.claude/agents/` - Specialized AI agents for VHDL development
-- **Shared Docs:** `.claude/shared/` - Workflow and context management documentation
+### Guides & Templates
+- **[Templates/](Templates/)** - Obsidian Templater templates for documentation
+
+# See Also
