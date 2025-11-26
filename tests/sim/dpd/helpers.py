@@ -186,9 +186,9 @@ async def software_trigger(dut):
     )
 
     # Apply only CR1 (don't touch timing registers)
+    # Note: set_control is async with built-in propagation jitter
     ctrl = create_control(dut)
-    ctrl.set_control(1, config._build_cr1())
-    await ClockCycles(dut.Clk, 5)
+    await ctrl.set_control(1, config._build_cr1())
 
     # Wait for FIRING state (should be quick)
     await wait_for_state(dut, HVS_DIGITAL_FIRING, timeout_us=50)
@@ -220,10 +220,10 @@ async def hardware_trigger(dut, voltage_mv: int, threshold_mv: int = 950):
     )
 
     # Apply CR1 and CR2 (threshold is in CR2)
+    # Note: set_control is async with built-in propagation jitter
     ctrl = create_control(dut)
-    ctrl.set_control(1, config._build_cr1())
-    ctrl.set_control(2, config._build_cr2())
-    await ClockCycles(dut.Clk, 5)
+    await ctrl.set_control(1, config._build_cr1())
+    await ctrl.set_control(2, config._build_cr2())
 
     # Apply voltage to InputA
     digital_value = mv_to_digital(voltage_mv)
@@ -308,14 +308,14 @@ async def trigger_and_wait_cycle(dut, config: DPDConfig):
     from conftest import create_control
 
     # Send software trigger
+    # Note: set_control is async with built-in propagation jitter
     trigger_config = DPDConfig(
         arm_enable=True,
         sw_trigger_enable=True,
         sw_trigger=True,
     )
     ctrl = create_control(dut)
-    ctrl.set_control(1, trigger_config._build_cr1())
-    await ClockCycles(dut.Clk, 5)
+    await ctrl.set_control(1, trigger_config._build_cr1())
 
     # Wait for cycle to complete
     firing_cycles = config.trig_out_duration + config.intensity_duration

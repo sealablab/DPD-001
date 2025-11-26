@@ -14,16 +14,25 @@ Architecture:
     FORGE Layer (CR0):     enable_forge() / disable_forge()
     Application Layer:     set_controls() with DPDConfig.to_app_regs_list()
 
+Propagation Model:
+    Control register writes are NOT cycle-synchronous. In CocoTB simulation,
+    set_control() is async and includes random jitter (10-50 cycles) to model
+    the fundamental reality that network writes have variable latency.
+
+    This prevents tests from depending on cycle-exact timing - such tests
+    would pass in simulation but fail on real hardware.
+
+    Hardware uses shadow registers since CloudCompile.get_control() returns
+    None (firmware doesn't support register readback).
+
 Usage:
-    # Simulation
+    # Simulation (async, includes mandatory propagation jitter)
     ctrl = CocoTBControl(dut)
+    await ctrl.set_control(1, value)  # MUST await
 
-    # Hardware
+    # Hardware (sync, blocks on network I/O, uses shadow registers)
     ctrl = MokuControl(mcc)
-
-    # Both use identical pattern:
-    ctrl.enable_forge()
-    ctrl.set_controls(config.to_app_regs_list())
+    ctrl.set_control(1, value)  # Blocks ~100ms
 
 Author: Moku Instrument Forge Team
 Date: 2025-11-26
@@ -32,6 +41,8 @@ Date: 2025-11-26
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional, TYPE_CHECKING
 import sys
+import time
+import random
 from pathlib import Path
 
 # Add py_tools to path for DPDConfig
@@ -182,7 +193,15 @@ class CocoTBControl(ControlInterface):
     """Control interface for CocoTB simulation.
 
     Wraps a CocoTB DUT object and provides CloudCompile-compatible API.
+
+    IMPORTANT: set_control() is async and includes random jitter (10-50 cycles)
+    to model network propagation delay. This prevents tests from depending on
+    cycle-exact timing that doesn't exist in hardware.
     """
+
+    # Propagation jitter range (cycles at 125MHz)
+    JITTER_MIN_CYCLES = 10   # 80ns minimum
+    JITTER_MAX_CYCLES = 50   # 400ns maximum
 
     def __init__(self, dut):
         """Initialize with CocoTB DUT.
@@ -191,20 +210,65 @@ class CocoTBControl(ControlInterface):
             dut: CocoTB Device Under Test object
         """
         self.dut = dut
+        self._shadow_regs = {}  # Track writes for get_control()
 
-    def set_control(self, idx: int, value: int):
-        """Set control register on DUT."""
+    async def set_control(self, idx: int, value: int):
+        """Set control register on DUT with propagation jitter.
+
+        This is async and MUST be awaited. Includes random jitter to prevent
+        tests from depending on cycle-exact timing.
+
+        Args:
+            idx: Register index (0-15)
+            value: 32-bit register value
+        """
+        from cocotb.triggers import ClockCycles
+
+        # Write the value immediately
         getattr(self.dut, f"Control{idx}").value = value
+        self._shadow_regs[idx] = value
+
+        # Add random jitter to model network propagation
+        jitter = random.randint(self.JITTER_MIN_CYCLES, self.JITTER_MAX_CYCLES)
+        await ClockCycles(self.dut.Clk, jitter)
 
     def get_control(self, idx: int) -> int:
-        """Read control register from DUT."""
+        """Read control register from shadow (matches hardware behavior).
+
+        Returns the last value written via set_control(). This matches
+        hardware behavior where get_control() returns None from the API
+        but we track writes in shadow registers.
+
+        Args:
+            idx: Register index (0-15)
+
+        Returns:
+            Last written value, or 0 if never written
+        """
+        return self._shadow_regs.get(idx, 0)
+
+    def get_control_direct(self, idx: int) -> int:
+        """Read control register directly from DUT (simulation only).
+
+        Bypasses shadow registers to read actual DUT signal value.
+        Useful for debugging but not available on hardware.
+
+        Args:
+            idx: Register index (0-15)
+
+        Returns:
+            Current DUT signal value
+        """
         return int(getattr(self.dut, f"Control{idx}").value)
 
 
 class MokuControl(ControlInterface):
     """Control interface wrapping CloudCompile instrument.
 
-    Thin adapter that delegates to the CloudCompile API.
+    Uses shadow registers because CloudCompile.get_control() returns None -
+    the firmware doesn't support register readback for custom instruments.
+
+    set_control() is synchronous and blocks on network I/O (~100ms typical).
     """
 
     def __init__(self, mcc):
@@ -214,18 +278,45 @@ class MokuControl(ControlInterface):
             mcc: CloudCompile instrument instance
         """
         self.mcc = mcc
+        self._shadow_regs = {}  # Track writes (hardware can't read back)
 
     def set_control(self, idx: int, value: int):
-        """Set control register via CloudCompile API."""
+        """Set control register via CloudCompile API.
+
+        Blocks on network I/O. Value is tracked in shadow registers
+        since hardware readback is not supported.
+
+        Args:
+            idx: Register index (0-15)
+            value: 32-bit register value
+        """
         self.mcc.set_control(idx, value)
+        self._shadow_regs[idx] = value
 
     def get_control(self, idx: int) -> int:
-        """Read control register via CloudCompile API."""
-        return self.mcc.get_control(idx)
+        """Read control register from shadow registers.
+
+        CloudCompile.get_control() returns None (firmware limitation),
+        so we return the last value written via set_control().
+
+        Args:
+            idx: Register index (0-15)
+
+        Returns:
+            Last written value, or 0 if never written
+        """
+        return self._shadow_regs.get(idx, 0)
 
     def set_controls(self, controls: List[Dict[str, int]]):
         """Set multiple registers via CloudCompile batch API.
 
         Overrides base implementation to use native batch API for efficiency.
+        Also updates shadow registers.
+
+        Args:
+            controls: List of {"idx": N, "value": V} dicts
         """
         self.mcc.set_controls(controls)
+        # Update shadow registers
+        for ctrl in controls:
+            self._shadow_regs[ctrl["idx"]] = ctrl["value"]

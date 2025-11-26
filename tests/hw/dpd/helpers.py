@@ -227,30 +227,32 @@ def arm_probe(mcc, trig_duration_us: float, intensity_duration_us: float,
     time.sleep(0.1)  # Allow FSM to transition to ARMED
 
 
-def _get_control_value(mcc, reg_num: int) -> int:
-    """Get control register value, handling different Moku API return types.
+def _get_control_value(ctrl_or_mcc, reg_num: int) -> int:
+    """Get control register value from shadow registers.
 
-    The Moku API can return:
-    - int: Direct value
-    - list: [value, ...]
-    - dict: {'value': value, ...}
+    CloudCompile.get_control() returns None (firmware doesn't support readback).
+    This function uses MokuControl's shadow registers to return the last
+    written value.
 
     Args:
-        mcc: CloudCompile instrument instance
+        ctrl_or_mcc: MokuControl instance (preferred) or CloudCompile instance
         reg_num: Register number to read
 
     Returns:
-        32-bit register value as integer
+        32-bit register value (from shadow, or 0 if unknown)
     """
-    result = mcc.get_control(reg_num)
-    if isinstance(result, list):
-        return result[0] if result else 0
-    elif isinstance(result, dict):
-        return result.get('value', result.get('id', 0))
-    return result
+    # If passed a MokuControl, use its shadow registers
+    if hasattr(ctrl_or_mcc, '_shadow_regs'):
+        return ctrl_or_mcc.get_control(reg_num)
+
+    # Legacy path: wrap in MokuControl (but shadow will be empty)
+    # This will return 0 for unknown registers
+    from shared.control_interface import MokuControl
+    ctrl = MokuControl(ctrl_or_mcc)
+    return ctrl.get_control(reg_num)
 
 
-def software_trigger(mcc, debug: bool = False):
+def software_trigger(mcc, debug: bool = False, ctrl: "MokuControl" = None):
     """Trigger FSM via software trigger (CR1[5]).
 
     Uses edge detection - sets sw_trigger_enable and sw_trigger, then clears.
@@ -261,24 +263,28 @@ def software_trigger(mcc, debug: bool = False):
 
     Args:
         mcc: CloudCompile instrument instance
-        debug: If True, read back CR1 values for verification
+        debug: If True, log CR1 values being written
+        ctrl: Optional MokuControl for shadow register tracking
     """
     # Build CR1 values
     cr1_trigger = cr1_build(arm_enable=True, sw_trigger_enable=True, sw_trigger=True)  # 0x29
     cr1_hold = cr1_build(arm_enable=True, sw_trigger_enable=True)  # 0x09
 
+    # Use MokuControl if provided (for shadow register tracking)
+    if ctrl is None:
+        ctrl = MokuControl(mcc)
+
     if debug:
-        cr1_before = _get_control_value(mcc, 1)
-        print(f"  [DEBUG] CR1 before trigger: 0x{cr1_before:08X}")
+        # Note: Shows shadow register value (what we last wrote), not HW readback
+        cr1_before = ctrl.get_control(1)
+        print(f"  [DEBUG] CR1 shadow before: 0x{cr1_before:08X}")
 
     # Step 1: Set sw_trigger_enable + sw_trigger (CR1 = 0x29)
     # This creates the rising edge that the VHDL edge detector looks for
-    mcc.set_control(1, cr1_trigger)
+    ctrl.set_control(1, cr1_trigger)
 
     if debug:
-        time.sleep(0.02)  # Brief delay to let write complete
-        cr1_after_set = _get_control_value(mcc, 1)
-        print(f"  [DEBUG] CR1 after set trigger: 0x{cr1_after_set:08X} (expected 0x{cr1_trigger:08X})")
+        print(f"  [DEBUG] CR1 written: 0x{cr1_trigger:08X} (trigger edge)")
 
     # Step 2: Wait for the edge to be detected by the FPGA
     # The VHDL edge detector needs at least 1 clock cycle to see the 0->1 transition
@@ -288,12 +294,11 @@ def software_trigger(mcc, debug: bool = False):
     # Step 3: Clear sw_trigger (CR1 = 0x09)
     # This is not strictly necessary - the edge has already been detected
     # But we clear it to prepare for the next trigger
-    mcc.set_control(1, cr1_hold)
+    ctrl.set_control(1, cr1_hold)
     time.sleep(0.05)
 
     if debug:
-        cr1_final = _get_control_value(mcc, 1)
-        print(f"  [DEBUG] CR1 after clear: 0x{cr1_final:08X} (expected 0x{cr1_hold:08X})")
+        print(f"  [DEBUG] CR1 written: 0x{cr1_hold:08X} (trigger cleared)")
 
 
 def disarm_probe(mcc):

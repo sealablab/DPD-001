@@ -34,7 +34,6 @@ from dpd.helpers import (
     disarm_probe,
     clear_fault,
     reset_fsm_to_idle,
-    _get_control_value,
 )
 from dpd.constants import (
     MCC_CR0_ALL_ENABLED,
@@ -180,7 +179,6 @@ class P1_HardwareBasicTests(HardwareTestBase):
         # Clean up - reset to IDLE
         reset_fsm_to_idle(self.mcc, self.osc, timeout_ms=TEST_RESET_TIMEOUT_MS)
 
-    # @JC: This is 'T5: FSM cycle (software trigger)' and it has some issues..
     def test_fsm_software_trigger(self):
         """Verify FSM responds to software trigger."""
         self.log("Testing software trigger...", VerbosityLevel.VERBOSE)
@@ -200,11 +198,7 @@ class P1_HardwareBasicTests(HardwareTestBase):
         success = self.wait_state("ARMED", timeout_ms=TEST_ARM_TIMEOUT_MS)
         assert success, "FSM should be ARMED before trigger"
 
-        # Debug: Read CR1 before trigger to verify arm state
-        cr1_before = _get_control_value(self.mcc, 1)
-        self.log(f"CR1 before trigger: 0x{cr1_before:08X}", VerbosityLevel.VERBOSE)
-
-        # Software trigger with debug output
+        # Software trigger (debug output handled internally via shadow registers)
         self.log("Issuing software trigger...", VerbosityLevel.VERBOSE)
         software_trigger(self.mcc, debug=True)
 
@@ -215,12 +209,8 @@ class P1_HardwareBasicTests(HardwareTestBase):
         state, voltage = self.read_state()
         self.log(f"State after trigger: {state} ({voltage:.2f}V)", VerbosityLevel.VERBOSE)
 
-        # Debug: Read CR1 after trigger
-        cr1_after = _get_control_value(self.mcc, 1)
-        self.log(f"CR1 after trigger: 0x{cr1_after:08X}", VerbosityLevel.VERBOSE)
-
         assert state != "ARMED", \
-            f"FSM should leave ARMED after software trigger, stuck at {state}. CR1 before=0x{cr1_before:08X}, after=0x{cr1_after:08X}"
+            f"FSM should leave ARMED after software trigger, stuck at {state}"
 
         # Acceptable states: FIRING, COOLDOWN, or IDLE (if cycle completed fast)
         assert state in ["FIRING", "COOLDOWN", "IDLE"], \
@@ -229,7 +219,6 @@ class P1_HardwareBasicTests(HardwareTestBase):
         # Clean up
         time.sleep(0.5)  # Let FSM cycle complete
         reset_fsm_to_idle(self.mcc, self.osc, timeout_ms=TEST_RESET_TIMEOUT_MS)
-    # @JC: This is 'T6: FSM cycle complete'
     def test_fsm_complete_cycle(self):
         """Verify FSM completes full state cycle (IDLE → ARMED → FIRING → COOLDOWN → IDLE)."""
         self.log("Testing complete FSM cycle...", VerbosityLevel.VERBOSE)
@@ -251,11 +240,7 @@ class P1_HardwareBasicTests(HardwareTestBase):
         assert success, "FSM should reach ARMED"
         self.log("✓ ARMED", VerbosityLevel.VERBOSE)
 
-        # Debug: Read CR1 before trigger
-        cr1_before = _get_control_value(self.mcc, 1)
-        self.log(f"CR1 before trigger: 0x{cr1_before:08X}", VerbosityLevel.VERBOSE)
-
-        # Trigger with debug
+        # Trigger (debug output handled internally via shadow registers)
         self.log("Triggering...", VerbosityLevel.VERBOSE)
         software_trigger(self.mcc, debug=True)
 
@@ -268,11 +253,10 @@ class P1_HardwareBasicTests(HardwareTestBase):
         else:
             # Might have missed FIRING (too fast), check if we're in COOLDOWN
             state, _ = self.read_state()
-            cr1_after = _get_control_value(self.mcc, 1)
-            self.log(f"⚠️  Missed FIRING state, currently in {state}, CR1=0x{cr1_after:08X}", VerbosityLevel.VERBOSE)
+            self.log(f"⚠️  Missed FIRING state, currently in {state}", VerbosityLevel.VERBOSE)
             # Accept COOLDOWN as proof that FIRING happened
             assert state in ["COOLDOWN", "IDLE"], \
-                f"Expected FIRING/COOLDOWN/IDLE, got {state}. CR1 before=0x{cr1_before:08X}"
+                f"Expected FIRING/COOLDOWN/IDLE, got {state}"
 
         # Wait for COOLDOWN (10μs @ P2 timing)
         # Increase timeout to account for oscilloscope polling delays
