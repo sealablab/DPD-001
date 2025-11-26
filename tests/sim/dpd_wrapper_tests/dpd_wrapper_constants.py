@@ -1,27 +1,77 @@
 """
-Demo Probe Driver (DPD) Test Constants
+Demo Probe Driver (DPD) Simulation Test Constants
+==================================================
 
-Defines test configuration, HDL sources, and test values for CocoTB progressive tests.
-
-NOTE: Hardware constants (FSM states, HVS values, CR1 bits) now imported from
-      py_tools/dpd_constants.py (single source of truth).
+Simulation-specific constants that extend the shared test infrastructure.
+Imports from tests/shared/constants.py for common values.
 
 Author: Moku Instrument Forge Team
-Date: 2025-11-25 (refactored to use shared constants)
+Date: 2025-11-26 (refactored to use shared infrastructure)
 """
 
 import sys
 from pathlib import Path
 
-# Add py_tools to path so we can import shared constants
+# Add paths for imports
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent  # DPD-001/
+TESTS_PATH = Path(__file__).parent.parent.parent  # tests/
 sys.path.insert(0, str(PROJECT_ROOT / "py_tools"))
+sys.path.insert(0, str(TESTS_PATH))
 
-from dpd_constants import CR1, FSMState, HVS, Platform, DefaultTiming
+# =============================================================================
+# Re-export from shared constants (single source of truth)
+# =============================================================================
+from shared.constants import (
+    # Hardware constants from py_tools
+    CR1,
+    FSMState,
+    HVS,
+    Platform,
+    DefaultTiming,
+    cr1_build,
+    cr1_extract,
+    # FORGE control
+    MCC_CR0_ALL_ENABLED,
+    MCC_CR0_FORGE_READY,
+    MCC_CR0_USER_ENABLE,
+    MCC_CR0_CLK_ENABLE,
+    FORGE_READY_BIT,
+    USER_ENABLE_BIT,
+    CLK_ENABLE_BIT,
+    # Voltage conversion
+    mv_to_digital,
+    digital_to_mv,
+    us_to_cycles,
+    cycles_to_us,
+    V_MAX_MV,
+    DIGITAL_MAX,
+    # Test timing
+    P1Timing,
+    P2Timing,
+    # Trigger values
+    TRIGGER_THRESHOLD_MV,
+    TRIGGER_TEST_VOLTAGE_MV,
+    TRIGGER_THRESHOLD_DIGITAL,
+    TRIGGER_TEST_VOLTAGE_DIGITAL,
+    # HVS state values
+    HVS_DIGITAL_INITIALIZING,
+    HVS_DIGITAL_IDLE,
+    HVS_DIGITAL_ARMED,
+    HVS_DIGITAL_FIRING,
+    HVS_DIGITAL_COOLDOWN,
+    # Tolerances
+    SIM_HVS_TOLERANCE,
+    # Timeouts
+    Timeouts,
+)
 
-# Module identification
+# =============================================================================
+# Simulation-Specific Constants
+# =============================================================================
+
+# Module identification for CocoTB
 MODULE_NAME = "dpd_wrapper"
-HDL_TOPLEVEL = "customwrapper"  # GHDL lowercases entity names - use lowercase!
+HDL_TOPLEVEL = "customwrapper"  # GHDL lowercases entity names
 
 # HDL source files (relative to project root)
 RTL_DIR = PROJECT_ROOT / "rtl"
@@ -35,146 +85,83 @@ HDL_SOURCES = [
     RTL_DIR / "DPD.vhd",
 ]
 
-# Clock configuration (Moku:Go = 125MHz = 8ns period)
-CLK_PERIOD_NS = Platform.CLK_PERIOD_NS  # 8ns
-CLK_FREQ_HZ = Platform.CLK_FREQ_HZ      # 125 MHz
+# Clock configuration (convenience aliases)
+CLK_PERIOD_NS = Platform.CLK_PERIOD_NS
+CLK_FREQ_HZ = Platform.CLK_FREQ_HZ
 
 # =============================================================================
-# FSM State Constants (imported from dpd_constants.py)
+# Backward-Compatible Aliases
 # =============================================================================
-# Backward-compatible aliases for existing tests
-STATE_INITIALIZING = FSMState.INITIALIZING  # 0: Register latch/validation (sync-safe)
-STATE_IDLE         = FSMState.IDLE          # 1: Waiting for arm signal
-STATE_ARMED        = FSMState.ARMED         # 2: Waiting for trigger
-STATE_FIRING       = FSMState.FIRING        # 3: Driving outputs
-STATE_COOLDOWN     = FSMState.COOLDOWN      # 4: Thermal safety delay
-STATE_FAULT        = FSMState.FAULT         # 63: Sticky fault
+# These maintain compatibility with existing test code
 
-# =============================================================================
-# HVS (Hierarchical Voltage Encoding) Constants (imported from dpd_constants.py)
-# =============================================================================
-# Backward-compatible aliases for existing tests
-HVS_DIGITAL_UNITS_PER_STATE = HVS.DIGITAL_UNITS_PER_STATE  # 3277 digital units per state
+# FSM States
+STATE_INITIALIZING = FSMState.INITIALIZING
+STATE_IDLE = FSMState.IDLE
+STATE_ARMED = FSMState.ARMED
+STATE_FIRING = FSMState.FIRING
+STATE_COOLDOWN = FSMState.COOLDOWN
+STATE_FAULT = FSMState.FAULT
 
-HVS_DIGITAL_INITIALIZING = HVS.VOLTAGE_INITIALIZING  # 0 (0.0V)
-HVS_DIGITAL_IDLE         = HVS.VOLTAGE_IDLE          # 3277 (0.5V)
-HVS_DIGITAL_ARMED        = HVS.VOLTAGE_ARMED         # 6554 (1.0V)
-HVS_DIGITAL_FIRING       = HVS.VOLTAGE_FIRING        # 9831 (1.5V)
-HVS_DIGITAL_COOLDOWN     = HVS.VOLTAGE_COOLDOWN      # 13108 (2.0V)
+# HVS values (already exported above, but alias for compatibility)
+HVS_DIGITAL_UNITS_PER_STATE = HVS.DIGITAL_UNITS_PER_STATE
+HVS_DIGITAL_TOLERANCE = SIM_HVS_TOLERANCE
 
-# HVS tolerance for digital comparisons (allows status offset variation)
-HVS_DIGITAL_TOLERANCE = 200  # ±200 digital units (allows ±100 status offset range)
+# Default timing
+DEFAULT_TRIG_OUT_DURATION = DefaultTiming.TRIG_OUT_DURATION
+DEFAULT_INTENSITY_DURATION = DefaultTiming.INTENSITY_DURATION
+DEFAULT_COOLDOWN_INTERVAL = DefaultTiming.COOLDOWN_INTERVAL
+DEFAULT_TRIGGER_WAIT_TIMEOUT = DefaultTiming.TRIGGER_WAIT_TIMEOUT
 
 # =============================================================================
-# FORGE Control Scheme Constants (CR0[31:29])
-# =============================================================================
-FORGE_READY_BIT = 31  # Set by MCC after deployment
-USER_ENABLE_BIT = 30  # User control enable/disable
-CLK_ENABLE_BIT = 29   # Clock gating enable
-
-# Combined FORGE control value (all 3 bits set)
-MCC_CR0_FORGE_READY = 1 << FORGE_READY_BIT  # 0x80000000
-MCC_CR0_USER_ENABLE = 1 << USER_ENABLE_BIT  # 0x40000000
-MCC_CR0_CLK_ENABLE = 1 << CLK_ENABLE_BIT    # 0x20000000
-MCC_CR0_ALL_ENABLED = MCC_CR0_FORGE_READY | MCC_CR0_USER_ENABLE | MCC_CR0_CLK_ENABLE  # 0xE0000000
-
-# Default timing values (imported from dpd_constants.py)
-DEFAULT_TRIG_OUT_DURATION = DefaultTiming.TRIG_OUT_DURATION       # 12500 (100μs)
-DEFAULT_INTENSITY_DURATION = DefaultTiming.INTENSITY_DURATION     # 25000 (200μs)
-DEFAULT_COOLDOWN_INTERVAL = DefaultTiming.COOLDOWN_INTERVAL       # 1250 (10μs)
-DEFAULT_TRIGGER_WAIT_TIMEOUT = DefaultTiming.TRIGGER_WAIT_TIMEOUT # 250000000 (2s)
-
-# Voltage conversion (Moku ADC/DAC: ±5V = ±32768 digital, 16-bit signed)
-# Formula: digital = (voltage_mV / 5000.0) * 32768
-V_MAX_MV = 5000   # ±5V range
-DIGITAL_MAX = 32768  # 16-bit signed max
-
-
-def mv_to_digital(millivolts: float) -> int:
-    """Convert millivolts to 16-bit signed digital value.
-
-    Args:
-        millivolts: Voltage in mV (±5000mV range)
-
-    Returns:
-        Digital value (±32768 range)
-
-    Example:
-        >>> mv_to_digital(0)
-        0
-        >>> mv_to_digital(950)  # Default threshold
-        6225
-        >>> mv_to_digital(1500)  # Test trigger voltage
-        9830
-    """
-    return int((millivolts / V_MAX_MV) * DIGITAL_MAX)
-
-
-def digital_to_mv(digital: int) -> float:
-    """Convert 16-bit signed digital value to millivolts.
-
-    Args:
-        digital: Digital value (±32768 range)
-
-    Returns:
-        Voltage in mV (±5000mV range)
-    """
-    return (digital / DIGITAL_MAX) * V_MAX_MV
-
-
-# =============================================================================
-# P1 Test Values (small, fast)
+# P1TestValues Class (backward compatibility)
 # =============================================================================
 class P1TestValues:
-    """Test values optimized for P1 (BASIC) level - fast execution."""
+    """Test values optimized for P1 (BASIC) level - fast execution.
 
+    This class wraps P1Timing for backward compatibility.
+    """
     # Trigger voltages (in mV)
-    TRIGGER_THRESHOLD_MV = 950   # Default threshold
-    TRIGGER_TEST_VOLTAGE_MV = 1500  # Above threshold
+    TRIGGER_THRESHOLD_MV = TRIGGER_THRESHOLD_MV
+    TRIGGER_TEST_VOLTAGE_MV = TRIGGER_TEST_VOLTAGE_MV
 
     # Trigger voltages as digital values
-    TRIGGER_THRESHOLD_DIGITAL = mv_to_digital(TRIGGER_THRESHOLD_MV)      # ~6225
-    TRIGGER_TEST_VOLTAGE_DIGITAL = mv_to_digital(TRIGGER_TEST_VOLTAGE_MV)  # ~9830
+    TRIGGER_THRESHOLD_DIGITAL = TRIGGER_THRESHOLD_DIGITAL
+    TRIGGER_TEST_VOLTAGE_DIGITAL = TRIGGER_TEST_VOLTAGE_DIGITAL
 
-    # Timing (reduced for fast P1 tests)
-    TRIG_OUT_DURATION = 1000   # 8μs @ 125MHz (reduced from 100μs default)
-    INTENSITY_DURATION = 2000  # 16μs @ 125MHz (reduced from 200μs default)
-    COOLDOWN_INTERVAL = 500    # 4μs @ 125MHz (reduced from 10μs default)
+    # Timing (from P1Timing)
+    TRIG_OUT_DURATION = P1Timing.TRIG_OUT_DURATION
+    INTENSITY_DURATION = P1Timing.INTENSITY_DURATION
+    COOLDOWN_INTERVAL = P1Timing.COOLDOWN_INTERVAL
+    TOTAL_FSM_CYCLES = P1Timing.TOTAL_CYCLES
 
-    # Total FSM cycle time (sum of above)
-    TOTAL_FSM_CYCLES = TRIG_OUT_DURATION + INTENSITY_DURATION + COOLDOWN_INTERVAL  # ~3500 cycles
-
-    # Timeout values (conservative, allow for simulation delays)
-    STATE_TRANSITION_TIMEOUT_US = 100  # Max time to wait for state change
-    FSM_CYCLE_TIMEOUT_US = 500         # Max time for complete FSM cycle
+    # Timeout values
+    STATE_TRANSITION_TIMEOUT_US = Timeouts.SIM_STATE_TRANSITION_US
+    FSM_CYCLE_TIMEOUT_US = Timeouts.SIM_FSM_CYCLE_US
 
 
-# =============================================================================
-# P2 Test Values (realistic, closer to production)
-# =============================================================================
 class P2TestValues:
-    """Test values for P2 (INTERMEDIATE) level - realistic timing."""
+    """Test values for P2 (INTERMEDIATE) level - realistic timing.
 
-    TRIGGER_THRESHOLD_MV = 950
-    TRIGGER_TEST_VOLTAGE_MV = 1500
-    TRIGGER_THRESHOLD_DIGITAL = mv_to_digital(TRIGGER_THRESHOLD_MV)
-    TRIGGER_TEST_VOLTAGE_DIGITAL = mv_to_digital(TRIGGER_TEST_VOLTAGE_MV)
+    This class wraps P2Timing for backward compatibility.
+    """
+    TRIGGER_THRESHOLD_MV = TRIGGER_THRESHOLD_MV
+    TRIGGER_TEST_VOLTAGE_MV = TRIGGER_TEST_VOLTAGE_MV
+    TRIGGER_THRESHOLD_DIGITAL = TRIGGER_THRESHOLD_DIGITAL
+    TRIGGER_TEST_VOLTAGE_DIGITAL = TRIGGER_TEST_VOLTAGE_DIGITAL
 
-    # Production-like timing
-    TRIG_OUT_DURATION = DEFAULT_TRIG_OUT_DURATION    # 100μs
-    INTENSITY_DURATION = DEFAULT_INTENSITY_DURATION  # 200μs
-    COOLDOWN_INTERVAL = DEFAULT_COOLDOWN_INTERVAL    # 10μs
-
-    TOTAL_FSM_CYCLES = TRIG_OUT_DURATION + INTENSITY_DURATION + COOLDOWN_INTERVAL  # ~38750 cycles
+    TRIG_OUT_DURATION = P2Timing.TRIG_OUT_DURATION
+    INTENSITY_DURATION = P2Timing.INTENSITY_DURATION
+    COOLDOWN_INTERVAL = P2Timing.COOLDOWN_INTERVAL
+    TOTAL_FSM_CYCLES = P2Timing.TOTAL_CYCLES
 
     STATE_TRANSITION_TIMEOUT_US = 200
     FSM_CYCLE_TIMEOUT_US = 1000
 
 
 # =============================================================================
-# Export commonly used values at module level
+# Module-level convenience exports
 # =============================================================================
-TRIG_THRESHOLD_MV = P1TestValues.TRIGGER_THRESHOLD_MV
-TRIG_TEST_VOLTAGE_MV = P1TestValues.TRIGGER_TEST_VOLTAGE_MV
-TRIG_THRESHOLD_DIGITAL = P1TestValues.TRIGGER_THRESHOLD_DIGITAL
-TRIG_TEST_VOLTAGE_DIGITAL = P1TestValues.TRIGGER_TEST_VOLTAGE_DIGITAL
+TRIG_THRESHOLD_MV = TRIGGER_THRESHOLD_MV
+TRIG_TEST_VOLTAGE_MV = TRIGGER_TEST_VOLTAGE_MV
+TRIG_THRESHOLD_DIGITAL = TRIGGER_THRESHOLD_DIGITAL
+TRIG_TEST_VOLTAGE_DIGITAL = TRIGGER_TEST_VOLTAGE_DIGITAL
