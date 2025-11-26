@@ -29,7 +29,7 @@ def read_output_c(dut) -> int:
     Returns:
         Signed integer value from OutputC
     """
-    return int(dut.OutputC.value.signed_integer)
+    return int(dut.OutputC.value.to_signed())
 
 
 def assert_state(dut, expected_digital: int, tolerance: int = HVS_DIGITAL_TOLERANCE, context: str = ""):
@@ -127,9 +127,10 @@ async def arm_dpd(dut, trig_duration: int, intensity_duration: int, cooldown: in
         AssertionError: If FSM doesn't reach ARMED state
     """
     from conftest import mcc_set_regs
+    from dpd_wrapper_constants import CR1  # Import CR1 bit positions
 
     await mcc_set_regs(dut, {
-        1: 0x00000001,  # CR1: bit[0]=arm_enable, bit[2]=auto_rearm_enable (0=single shot)
+        1: (1 << CR1.ARM_ENABLE),  # CR1: arm_enable=1, auto_rearm=0 (single shot)
         4: trig_duration,  # CR4 = trig_out_duration
         5: intensity_duration,  # CR5 = intensity_duration
         7: cooldown,  # CR7 = cooldown_interval
@@ -140,7 +141,10 @@ async def arm_dpd(dut, trig_duration: int, intensity_duration: int, cooldown: in
 
 
 async def software_trigger(dut):
-    """Trigger FSM via sw_trigger (CR1[1]).
+    """Trigger FSM via sw_trigger (CR1[5]).
+
+    NOTE: Requires sw_trigger_enable (CR1[3]) to be set for trigger to propagate.
+          This is a safety feature to prevent spurious triggers from metavalues.
 
     Args:
         dut: Device Under Test
@@ -149,10 +153,16 @@ async def software_trigger(dut):
         AssertionError: If FSM doesn't reach FIRING state
     """
     from conftest import mcc_set_regs
+    from dpd_wrapper_constants import CR1  # Import CR1 bit positions
 
-    # Set CR1[1]=1 (sw_trigger), keep CR1[0]=1 (arm_enable)
+    # Set arm_enable=1, sw_trigger_enable=1, sw_trigger=1
+    cr1_value = (
+        (1 << CR1.ARM_ENABLE) |
+        (1 << CR1.SW_TRIGGER_ENABLE) |  # REQUIRED: Enable software trigger path
+        (1 << CR1.SW_TRIGGER)
+    )
     await mcc_set_regs(dut, {
-        1: 0x00000003  # arm_enable=1, sw_trigger=1
+        1: cr1_value
     }, set_forge_ready=False)
 
     # Wait for FIRING state (should be quick)
@@ -161,6 +171,9 @@ async def software_trigger(dut):
 
 async def hardware_trigger(dut, voltage_mv: int, threshold_mv: int = 950):
     """Trigger FSM via InputA voltage (hardware trigger path).
+
+    NOTE: Requires hw_trigger_enable (CR1[4]) to be set for trigger to propagate.
+          This is a safety feature to prevent spurious triggers from metavalues.
 
     Args:
         dut: Device Under Test
@@ -171,10 +184,12 @@ async def hardware_trigger(dut, voltage_mv: int, threshold_mv: int = 950):
         AssertionError: If FSM doesn't reach FIRING state
     """
     from conftest import mcc_set_regs
-    from dpd_wrapper_tests.dpd_wrapper_constants import mv_to_digital
+    from dpd_wrapper_tests.dpd_wrapper_constants import mv_to_digital, CR1
 
-    # Set threshold in CR2[31:16]
+    # Enable hardware trigger and set threshold in CR2[31:16]
+    cr1_value = (1 << CR1.HW_TRIGGER_ENABLE)  # REQUIRED: Enable hardware trigger path
     await mcc_set_regs(dut, {
+        1: cr1_value,  # CR1: hw_trigger_enable=1
         2: (threshold_mv & 0xFFFF) << 16  # CR2[31:16] = threshold
     }, set_forge_ready=False)
 

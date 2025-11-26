@@ -8,6 +8,7 @@ All timing values are stored in clock cycles (native format for the FPGA).
 from dataclasses import dataclass
 from typing import Dict
 from clk_utils import cycles_to_s, cycles_to_us, cycles_to_ns
+from dpd_constants import CR1, FSMState, HVS, Platform, DefaultTiming
 
 
 @dataclass
@@ -21,8 +22,13 @@ class DPDConfig:
     - Control bits: boolean
 
     Register Mapping (CR1-CR10):
-    - CR1[3:0]: Lifecycle control bits
-    - CR2[31:16]: input_trigger_voltage_threshold 
+    - CR1[0]: arm_enable
+    - CR1[1]: auto_rearm_enable
+    - CR1[2]: fault_clear
+    - CR1[3]: sw_trigger_enable (NEW - safety gate)
+    - CR1[4]: hw_trigger_enable
+    - CR1[5]: sw_trigger
+    - CR2[31:16]: input_trigger_voltage_threshold
     - CR2[15:0]: Trigger output voltage (mV)
     - CR3[15:0]: Intensity output voltage (mV)
     - CR4[31:0]: Trigger pulse duration (clock cycles)
@@ -34,11 +40,17 @@ class DPDConfig:
     - CR10[31:0]: Monitor window duration (clock cycles)
     """
 
-    # Lifecycle control (CR1)
+    # Lifecycle control (CR1[0,1,2])
     arm_enable: bool = False
-    sw_trigger: bool = False
     auto_rearm_enable: bool = False
     fault_clear: bool = False
+
+    # Trigger enable gates (CR1[3,4]) - SAFETY: default=False (disabled)
+    sw_trigger_enable: bool = False
+    hw_trigger_enable: bool = False
+
+    # Trigger signal (CR1[5])
+    sw_trigger: bool = False
 
     # Input trigger control (CR2[31:16])
     input_trigger_voltage_threshold: int = 950  # mV, 16-bit signed (default: 0.95V)
@@ -95,12 +107,15 @@ class DPDConfig:
         # CR0: FORGE_READY control scheme
         # Set bits [31:29] high: forge_ready=1, user_enable=1, clk_enable=1
         cr0 = (1 << 31) | (1 << 30) | (1 << 29)
-        # CR1: Lifecycle control bits [3:0]
+
+        # CR1: Lifecycle and trigger control bits (using constants from dpd_constants.py)
         cr1 = (
-            (1 if self.arm_enable else 0) |
-            ((1 if self.sw_trigger else 0) << 1) |
-            ((1 if self.auto_rearm_enable else 0) << 2) |
-            ((1 if self.fault_clear else 0) << 3)
+            (1 if self.arm_enable else 0) << CR1.ARM_ENABLE |
+            (1 if self.auto_rearm_enable else 0) << CR1.AUTO_REARM_ENABLE |
+            (1 if self.fault_clear else 0) << CR1.FAULT_CLEAR |
+            (1 if self.sw_trigger_enable else 0) << CR1.SW_TRIGGER_ENABLE |
+            (1 if self.hw_trigger_enable else 0) << CR1.HW_TRIGGER_ENABLE |
+            (1 if self.sw_trigger else 0) << CR1.SW_TRIGGER
         )
 
         # CR2: Input trigger threshold [31:16] + Trigger output voltage [15:0]
@@ -165,9 +180,15 @@ class DPDConfig:
             "",
             "Lifecycle Control:",
             f"  arm_enable:         {self.arm_enable}",
-            f"  sw_trigger:         {self.sw_trigger}",
             f"  auto_rearm_enable:  {self.auto_rearm_enable}",
             f"  fault_clear:        {self.fault_clear}",
+            "",
+            "Trigger Enable Gates (SAFETY):",
+            f"  sw_trigger_enable:  {self.sw_trigger_enable}",
+            f"  hw_trigger_enable:  {self.hw_trigger_enable}",
+            "",
+            "Trigger Signal:",
+            f"  sw_trigger:         {self.sw_trigger}",
             "",
             "Input Trigger:",
             f"  voltage_threshold:  {self.input_trigger_voltage_threshold} mV (hysteresis: -50mV)",

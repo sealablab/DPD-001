@@ -289,8 +289,9 @@ begin
                 if timeout_occurred = '1' then
                     -- Timeout watchdog expired
                     next_state <= STATE_FAULT;
-                elsif ext_trigger_in = '1' then
-                    -- External trigger received
+                elsif ext_trigger_in = '1' and (ext_trigger_in /= 'U' and ext_trigger_in /= 'X') then
+                    -- External trigger received (with metavalue guard)
+                    -- Only transition if ext_trigger_in is explicitly '1', not 'U' or 'X'
                     next_state <= STATE_FIRING;
                 end if;
 

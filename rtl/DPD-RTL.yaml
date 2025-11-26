@@ -63,28 +63,27 @@ datatypes:
     control_register: CR1
     bit_range: "[0]"
 
-  - name: sw_trigger
-    datatype: std_logic
-    description: |-
-      Software trigger for FSM (ARMED → FIRING transition).
-      Uses edge detection: rising edge (0→1) generates 1-cycle trigger pulse.
-      Auto-clears after edge is detected.
-      Works independently from hardware voltage trigger (InputA comparator).
-      GUI workflow: Set CR1[0]=1 to arm, then CR1[1]=1 to fire (2 bits for immediate output).
-    default_value: false
-    control_register: CR1
-    bit_range: "[1]"
-
   - name: auto_rearm_enable
     datatype: std_logic
     description: When true, FSM re-enters ARMED after cooldown instead of returning to IDLE (burst mode).
     default_value: false
     control_register: CR1
-    bit_range: "[2]"
+    bit_range: "[1]"
 
   - name: fault_clear
     datatype: std_logic
     description: Write 1 to clear fault state and return to IDLE. Uses edge detection (auto-clears).
+    default_value: false
+    control_register: CR1
+    bit_range: "[2]"
+
+  - name: sw_trigger_enable
+    datatype: std_logic
+    description: |-
+      Enable software trigger path (gates CR1[5] sw_trigger signal).
+      When false (default), software trigger is blocked (safe default).
+      When true, rising edges on CR1[5] can trigger the FSM.
+      Safety feature: disabled by default to prevent spurious triggers from metavalues during initialization.
     default_value: false
     control_register: CR1
     bit_range: "[3]"
@@ -93,12 +92,25 @@ datatypes:
     datatype: std_logic
     description: |-
       Enable hardware voltage trigger on InputA.
-      When false (default), only software trigger (CR1[1]) can fire the FSM.
-      When true, InputA voltage crossing threshold (CR2[31:16]) also triggers.
+      When false (default), hardware trigger is blocked (safe default).
+      When true, InputA voltage crossing threshold (CR2[31:16]) can trigger the FSM.
       Safety feature: disabled by default to prevent spurious triggers during initialization.
     default_value: false
     control_register: CR1
     bit_range: "[4]"
+
+  - name: sw_trigger
+    datatype: std_logic
+    description: |-
+      Software trigger signal for FSM (ARMED → FIRING transition).
+      Uses edge detection: rising edge (0→1) generates 1-cycle trigger pulse.
+      Auto-clears after edge is detected.
+      MUST have CR1[3] sw_trigger_enable=1 to be active (gated for safety).
+      Works independently from hardware voltage trigger (InputA comparator).
+      GUI workflow: Set CR1[0]=1 to arm, CR1[3]=1 to enable SW trigger, then CR1[5]=1 to fire.
+    default_value: false
+    control_register: CR1
+    bit_range: "[5]"
 
   - name: trigger_wait_timeout
     datatype: unsigned_32
@@ -234,11 +246,12 @@ datatypes:
 # CR0[28:0]  - Unused
 #
 # CR1[0]     - arm_enable
-# CR1[1]     - sw_trigger (edge-detected, software trigger)
-# CR1[2]     - auto_rearm_enable
-# CR1[3]     - fault_clear (edge-detected)
+# CR1[1]     - auto_rearm_enable
+# CR1[2]     - fault_clear (edge-detected)
+# CR1[3]     - sw_trigger_enable (gates software trigger, default: disabled)
 # CR1[4]     - hw_trigger_enable (gates hardware voltage trigger, default: disabled)
-# CR1[31:5]  - Unused
+# CR1[5]     - sw_trigger (edge-detected, software trigger signal)
+# CR1[31:6]  - Unused
 #
 # CR2[31:16] - input_trigger_voltage_threshold (mV, signed)
 # CR2[15:0]  - trig_out_voltage (mV, signed)

@@ -14,11 +14,12 @@
 --
 -- Register Mapping:
 --   CR1[0]     : arm_enable - Arm FSM (IDLE → ARMED transition)
---   CR1[1]     : sw_trigger - Software trigger (edge-detected, ARMED → FIRING)
---   CR1[2]     : auto_rearm_enable - Re-arm after cooldown
---   CR1[3]     : fault_clear - Clear fault state (edge-detected)
+--   CR1[1]     : auto_rearm_enable - Re-arm after cooldown
+--   CR1[2]     : fault_clear - Clear fault state (edge-detected)
+--   CR1[3]     : sw_trigger_enable - Enable software trigger path (default: disabled)
 --   CR1[4]     : hw_trigger_enable - Enable hardware voltage trigger (default: disabled)
---   CR1[31:5]  : Reserved
+--   CR1[5]     : sw_trigger - Software trigger signal (edge-detected, ARMED → FIRING)
+--   CR1[31:6]  : Reserved
 --   CR2[31:16] : Input trigger voltage threshold (mV, signed)
 --   CR2[15:0]  : Trigger output voltage (mV)
 --   CR3[15:0]  : Intensity output voltage (mV)
@@ -104,10 +105,11 @@ architecture rtl of DPD_shim is
 
     -- Lifecycle control
     signal app_reg_arm_enable           : std_logic;  -- Arm FSM (IDLE→ARMED transition)
-    signal app_reg_sw_trigger           : std_logic;  -- Software trigger input (CR1[1])
     signal app_reg_auto_rearm_enable    : std_logic;  -- Re-arm after cooldown
     signal app_reg_fault_clear          : std_logic;  -- Clear fault state
+    signal app_reg_sw_trigger_enable    : std_logic;  -- Enable software trigger path (CR1[3])
     signal app_reg_hw_trigger_enable    : std_logic;  -- Enable hardware voltage trigger (CR1[4])
+    signal app_reg_sw_trigger           : std_logic;  -- Software trigger signal (CR1[5])
 
     -- Input trigger control
     signal app_reg_input_trigger_threshold_high : signed(15 downto 0);  -- Threshold high (mV)
@@ -151,7 +153,8 @@ architecture rtl of DPD_shim is
     ----------------------------------------------------------------------------
     signal sw_trigger_prev : std_logic;  -- Previous state for edge detection
     signal sw_trigger_edge : std_logic;  -- Rising edge pulse (1 cycle)
-    signal combined_trigger : std_logic;  -- hw_trigger OR sw_trigger
+    signal combined_trigger : std_logic;  -- hw_trigger OR sw_trigger (combinational)
+    signal combined_trigger_reg : std_logic;  -- Registered version to prevent glitches
 
     ----------------------------------------------------------------------------
     -- Debug Signals (for HVS encoding)
@@ -209,11 +212,13 @@ begin
         if Reset = '1' then
             -- Initialize all app_reg_* signals to safe defaults
             app_reg_arm_enable           <= '0';
-            app_reg_sw_trigger           <= '0';
             app_reg_auto_rearm_enable    <= '0';
             app_reg_fault_clear          <= '0';
+            app_reg_sw_trigger_enable    <= '0';  -- Software trigger disabled by default (safety)
             app_reg_hw_trigger_enable    <= '0';  -- Hardware trigger disabled by default (safety)
+            app_reg_sw_trigger           <= '0';
             sw_trigger_prev              <= '0';
+            combined_trigger_reg         <= '0';  -- Initialize registered trigger to '0' (safety)
             app_reg_input_trigger_threshold_high <= to_signed(950, 16);   -- Default 950mV
             app_reg_input_trigger_threshold_low  <= to_signed(900, 16);   -- Default 900mV (50mV hysteresis)
             app_reg_trig_out_voltage     <= (others => '0');
@@ -235,13 +240,26 @@ begin
             -- These are real-time control signals that must work in any state
             ----------------------------------------------------------------
             app_reg_arm_enable        <= app_reg_1(0);
-            app_reg_sw_trigger        <= app_reg_1(1);
-            app_reg_auto_rearm_enable <= app_reg_1(2);
-            app_reg_fault_clear       <= app_reg_1(3);
+            app_reg_auto_rearm_enable <= app_reg_1(1);
+            app_reg_fault_clear       <= app_reg_1(2);
+            app_reg_sw_trigger_enable <= app_reg_1(3);
             app_reg_hw_trigger_enable <= app_reg_1(4);
+            app_reg_sw_trigger        <= app_reg_1(5);
 
             -- Edge detection for software trigger (always active)
-            sw_trigger_prev <= app_reg_sw_trigger;
+            -- Only update if app_reg_sw_trigger is valid (not uninitialized)
+            -- This prevents metavalue propagation when registers haven't been set yet
+            if app_reg_sw_trigger = '0' or app_reg_sw_trigger = '1' then
+                sw_trigger_prev <= app_reg_sw_trigger;
+            end if;
+
+            -- Register combined_trigger to prevent combinational glitches from reaching FSM
+            -- Only propagate if combined_trigger is valid (not metavalue)
+            if combined_trigger = '0' or combined_trigger = '1' then
+                combined_trigger_reg <= combined_trigger;
+            else
+                combined_trigger_reg <= '0';  -- Default to '0' if metavalue detected
+            end if;
 
             ----------------------------------------------------------------
             -- CONFIGURATION PARAMETERS (CR2-CR10): Only when sync_safe='1'
@@ -295,8 +313,12 @@ begin
     -- Combined Trigger Logic
     --
     -- FSM accepts triggers from EITHER hardware comparator OR software register
+    -- Both trigger sources are gated by their respective enable bits:
+    --   - hw_trigger: Gated by hw_trigger_enable_gated (global_enable AND CR1[4])
+    --   - sw_trigger: Gated by app_reg_sw_trigger_enable (CR1[3])
+    -- Guard against metavalues: only assert if signal is valid '1'
     ----------------------------------------------------------------------------
-    combined_trigger <= hw_trigger_out or sw_trigger_edge;
+    combined_trigger <= '1' when (hw_trigger_out = '1' or (sw_trigger_edge = '1' and app_reg_sw_trigger_enable = '1')) else '0';
 
     ----------------------------------------------------------------------------
     -- Hardware Trigger Enable Gate
@@ -344,7 +366,7 @@ begin
 
             -- Direct mapping: DPD_main ports ← app_reg_* signals
             arm_enable           => app_reg_arm_enable,
-            ext_trigger_in       => combined_trigger,  -- Hardware OR software trigger
+            ext_trigger_in       => combined_trigger_reg,  -- Registered trigger (prevents glitches)
             trigger_wait_timeout => app_reg_trigger_wait_timeout,
             auto_rearm_enable    => app_reg_auto_rearm_enable,
             fault_clear          => app_reg_fault_clear,
