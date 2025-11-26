@@ -3,7 +3,11 @@ Hardware Test Helper Functions for Demo Probe Driver (DPD)
 ==========================================================
 
 Utilities for FSM control, state reading, and oscilloscope interaction.
-Uses shared constants from tests/shared/constants.py.
+Uses shared infrastructure from tests/shared/.
+
+This module provides two APIs:
+1. New API (recommended): Uses DPDConfig + MokuControl for portability
+2. Legacy API (backward compat): Uses direct mcc.set_control() calls
 
 Author: Moku Instrument Forge Team
 Date: 2025-11-26 (refactored to use shared infrastructure)
@@ -14,9 +18,11 @@ import sys
 from pathlib import Path
 from typing import Tuple, Optional
 
-# Add shared module to path
+# Add paths for imports
 TESTS_PATH = Path(__file__).parent.parent
+PROJECT_ROOT = TESTS_PATH.parent
 sys.path.insert(0, str(TESTS_PATH))
+sys.path.insert(0, str(PROJECT_ROOT / "py_tools"))
 
 from shared.constants import (
     STATE_VOLTAGE_MAP,
@@ -24,7 +30,12 @@ from shared.constants import (
     MCC_CR0_ALL_ENABLED,
     us_to_cycles,
     Timeouts,
+    P2Timing,
 )
+from shared.control_interface import MokuControl
+
+# Import DPDConfig for the new API
+from dpd_config import DPDConfig
 
 
 def decode_fsm_state(voltage: float, tolerance: float = HW_HVS_TOLERANCE_V) -> str:
@@ -359,3 +370,120 @@ def setup_routing(moku, osc_slot: int = 1, cc_slot: int = 2):
         {'source': f'Slot{cc_slot}OutC', 'destination': f'Slot{osc_slot}InA'},
     ])
     time.sleep(0.2)
+
+
+# =============================================================================
+# New API: DPDConfig + MokuControl (recommended for new tests)
+# =============================================================================
+
+def create_control(mcc) -> MokuControl:
+    """Create a MokuControl interface for hardware tests.
+
+    This provides an API identical to the simulation's CocoTBControl,
+    allowing test code to be portable between sim and hardware.
+
+    Args:
+        mcc: CloudCompile instrument instance
+
+    Returns:
+        MokuControl instance
+
+    Example:
+        ctrl = create_control(mcc)
+        ctrl.enable_forge()
+        ctrl.apply_config(DPDConfig(arm_enable=True, ...))
+    """
+    return MokuControl(mcc)
+
+
+def configure_and_arm_hw(mcc, osc, config: DPDConfig,
+                         timeout_ms: float = Timeouts.HW_ARM_MS) -> bool:
+    """Configure FSM with DPDConfig and arm (hardware version).
+
+    This is the recommended way to set up the FSM for hardware tests.
+
+    Args:
+        mcc: CloudCompile instrument instance
+        osc: Oscilloscope instrument instance
+        config: DPDConfig with timing and voltage parameters
+        timeout_ms: Timeout to wait for ARMED state
+
+    Returns:
+        True if FSM reached ARMED, False on timeout
+
+    Example:
+        config = DPDConfig(
+            arm_enable=True,
+            trig_out_duration=us_to_cycles(100),
+            intensity_duration=us_to_cycles(200),
+            cooldown_interval=us_to_cycles(10),
+        )
+        success = configure_and_arm_hw(mcc, osc, config)
+    """
+    ctrl = create_control(mcc)
+    ctrl.enable_forge()
+    time.sleep(0.1)
+
+    ctrl.apply_config(config)
+    time.sleep(0.2)  # Allow registers to propagate through network stack
+
+    if config.arm_enable:
+        return wait_for_state(osc, "ARMED", timeout_ms=timeout_ms)
+    return True
+
+
+def software_trigger_hw(mcc, osc, timeout_ms: float = Timeouts.HW_TRIGGER_MS) -> bool:
+    """Trigger FSM via software trigger (hardware version).
+
+    Uses DPDConfig for consistent register packing - no magic hex values!
+
+    Args:
+        mcc: CloudCompile instrument instance
+        osc: Oscilloscope instrument instance
+        timeout_ms: Timeout to wait for FIRING state
+
+    Returns:
+        True if FSM reached FIRING, False on timeout
+    """
+    # Create config with trigger bits
+    config = DPDConfig(
+        arm_enable=True,
+        sw_trigger_enable=True,
+        sw_trigger=True,
+    )
+
+    ctrl = create_control(mcc)
+    ctrl.set_control(1, config._build_cr1())
+    time.sleep(0.05)
+
+    # Clear trigger bit (edge detected)
+    clear_config = DPDConfig(
+        arm_enable=True,
+        sw_trigger_enable=True,
+        sw_trigger=False,
+    )
+    ctrl.set_control(1, clear_config._build_cr1())
+    time.sleep(0.05)
+
+    return wait_for_state(osc, "FIRING", timeout_ms=timeout_ms)
+
+
+def p2_timing_config(**overrides) -> DPDConfig:
+    """Create DPDConfig with P2 (observable) timing for hardware tests.
+
+    Args:
+        **overrides: Fields to override (e.g., arm_enable=True)
+
+    Returns:
+        DPDConfig with P2 timing
+
+    Example:
+        config = p2_timing_config(arm_enable=True)
+    """
+    defaults = {
+        'trig_out_duration': P2Timing.TRIG_OUT_DURATION,
+        'intensity_duration': P2Timing.INTENSITY_DURATION,
+        'cooldown_interval': P2Timing.COOLDOWN_INTERVAL,
+    }
+    defaults.update(overrides)
+    return DPDConfig(**defaults)

@@ -1,14 +1,25 @@
 """
 DPD (Demo Probe Driver) Configuration Dataclass
 
-Provides a structured interface for configuring the DPD instrument's control registers.
+Provides a structured interface for configuring the DPD instrument's
+application control registers (CR1-CR10).
+
+Architecture Note:
+    CR0 (FORGE control) is intentionally NOT included here. CR0 contains
+    system-level control bits (forge_ready, user_enable, clk_enable) that
+    are managed by the FORGE infrastructure layer, not application code.
+
+    See: rtl/DPD_shim.vhd - CR0 bits are extracted at TOP layer and passed
+    as separate signals; they never reach the application as a register.
+
 All timing values are stored in clock cycles (native format for the FPGA).
 """
 
 from dataclasses import dataclass
-from typing import Dict
+import warnings
+from typing import Dict, List
 from clk_utils import cycles_to_s, cycles_to_us, cycles_to_ns
-from dpd_constants import CR1, FSMState, HVS, Platform, DefaultTiming
+from dpd_constants import CR0, CR1, FSMState, HVS, Platform, DefaultTiming
 
 
 @dataclass
@@ -89,27 +100,13 @@ class DPDConfig:
             if not (0 <= value <= 0xFFFFFFFF):
                 raise ValueError(f"{field} = {value} exceeds 32-bit unsigned range (0 to 4294967295)")
 
-    def to_control_regs_list(self) -> list:
-        """
-        Convert configuration to control register list for CloudCompile API.
+    # =========================================================================
+    # Private Register Building Methods
+    # =========================================================================
 
-        Returns:
-            List of control maps (dicts with 'id' and 'value' keys),
-            suitable for passing to CloudCompile.set_controls()
-
-            Includes CR0 with FORGE_READY control bits [31:29] set high to enable module.
-
-        Example:
-            >>> config = DPDConfig(arm_enable=True, trig_out_voltage=1000)
-            >>> regs = config.to_control_regs_list()
-            >>> cloud_compile.set_controls(regs)
-        """
-        # CR0: FORGE_READY control scheme
-        # Set bits [31:29] high: forge_ready=1, user_enable=1, clk_enable=1
-        cr0 = (1 << 31) | (1 << 30) | (1 << 29)
-
-        # CR1: Lifecycle and trigger control bits (using constants from dpd_constants.py)
-        cr1 = (
+    def _build_cr1(self) -> int:
+        """Build CR1: Lifecycle and trigger control bits."""
+        return (
             (1 if self.arm_enable else 0) << CR1.ARM_ENABLE |
             (1 if self.auto_rearm_enable else 0) << CR1.AUTO_REARM_ENABLE |
             (1 if self.fault_clear else 0) << CR1.FAULT_CLEAR |
@@ -118,54 +115,97 @@ class DPDConfig:
             (1 if self.sw_trigger else 0) << CR1.SW_TRIGGER
         )
 
-        # CR2: Input trigger threshold [31:16] + Trigger output voltage [15:0]
-        cr2 = ((self.input_trigger_voltage_threshold & 0xFFFF) << 16) | (self.trig_out_voltage & 0xFFFF)
+    def _build_cr2(self) -> int:
+        """Build CR2: Input trigger threshold [31:16] + Trigger output voltage [15:0]."""
+        return ((self.input_trigger_voltage_threshold & 0xFFFF) << 16) | (self.trig_out_voltage & 0xFFFF)
 
-        # CR3: Intensity output voltage (16-bit signed in lower 16 bits)
-        cr3 = self.intensity_voltage & 0xFFFF
+    def _build_cr3(self) -> int:
+        """Build CR3: Intensity output voltage (16-bit signed in lower 16 bits)."""
+        return self.intensity_voltage & 0xFFFF
 
-        # CR4: Trigger pulse duration (32-bit unsigned)
-        cr4 = self.trig_out_duration & 0xFFFFFFFF
+    def _build_cr4(self) -> int:
+        """Build CR4: Trigger pulse duration (32-bit unsigned)."""
+        return self.trig_out_duration & 0xFFFFFFFF
 
-        # CR5: Intensity pulse duration (32-bit unsigned)
-        cr5 = self.intensity_duration & 0xFFFFFFFF
+    def _build_cr5(self) -> int:
+        """Build CR5: Intensity pulse duration (32-bit unsigned)."""
+        return self.intensity_duration & 0xFFFFFFFF
 
-        # CR6: Trigger wait timeout (32-bit unsigned)
-        cr6 = self.trigger_wait_timeout & 0xFFFFFFFF
+    def _build_cr6(self) -> int:
+        """Build CR6: Trigger wait timeout (32-bit unsigned)."""
+        return self.trigger_wait_timeout & 0xFFFFFFFF
 
-        # CR7: Cooldown interval (32-bit unsigned)
-        cr7 = self.cooldown_interval & 0xFFFFFFFF
+    def _build_cr7(self) -> int:
+        """Build CR7: Cooldown interval (32-bit unsigned)."""
+        return self.cooldown_interval & 0xFFFFFFFF
 
-        # CR8: Monitor control + threshold (packed)
-        # [1:0] = control bits, [15:2] = reserved, [31:16] = threshold voltage
-        cr8 = (
+    def _build_cr8(self) -> int:
+        """Build CR8: Monitor control + threshold (packed).
+
+        [1:0] = control bits, [15:2] = reserved, [31:16] = threshold voltage
+        """
+        return (
             (1 if self.monitor_enable else 0) |
             ((1 if self.monitor_expect_negative else 0) << 1) |
             ((self.monitor_threshold_voltage & 0xFFFF) << 16)
         )
 
-        # CR9: Monitor window start delay (32-bit unsigned)
-        cr9 = self.monitor_window_start & 0xFFFFFFFF
+    def _build_cr9(self) -> int:
+        """Build CR9: Monitor window start delay (32-bit unsigned)."""
+        return self.monitor_window_start & 0xFFFFFFFF
 
-        # CR10: Monitor window duration (32-bit unsigned)
-        cr10 = self.monitor_window_duration & 0xFFFFFFFF
+    def _build_cr10(self) -> int:
+        """Build CR10: Monitor window duration (32-bit unsigned)."""
+        return self.monitor_window_duration & 0xFFFFFFFF
 
-        # Return as list of control maps for CloudCompile.set_controls()
-        # CR0 included with FORGE_READY bits, then app registers CR1-CR10
-        # NOTE: Key must be "idx" not "id" (discovered via diagnose_set_controls.py)
+    # =========================================================================
+    # Public API
+    # =========================================================================
+
+    def to_app_regs_list(self) -> List[Dict[str, int]]:
+        """Convert configuration to application register list (CR1-CR10).
+
+        Returns a list suitable for CloudCompile.set_controls() containing
+        only application registers. CR0 (FORGE control) is intentionally
+        excluded - it's a system concern managed separately.
+
+        Returns:
+            List of {"idx": N, "value": V} dicts for CR1-CR10
+
+        Example:
+            >>> config = DPDConfig(arm_enable=True, trig_out_voltage=1000)
+            >>> ctrl.enable_forge()  # CR0 managed separately
+            >>> ctrl.set_controls(config.to_app_regs_list())
+        """
         return [
-            {"idx": 0, "value": cr0},
-            {"idx": 1, "value": cr1},
-            {"idx": 2, "value": cr2},
-            {"idx": 3, "value": cr3},
-            {"idx": 4, "value": cr4},
-            {"idx": 5, "value": cr5},
-            {"idx": 6, "value": cr6},
-            {"idx": 7, "value": cr7},
-            {"idx": 8, "value": cr8},
-            {"idx": 9, "value": cr9},
-            {"idx": 10, "value": cr10},
+            {"idx": 1, "value": self._build_cr1()},
+            {"idx": 2, "value": self._build_cr2()},
+            {"idx": 3, "value": self._build_cr3()},
+            {"idx": 4, "value": self._build_cr4()},
+            {"idx": 5, "value": self._build_cr5()},
+            {"idx": 6, "value": self._build_cr6()},
+            {"idx": 7, "value": self._build_cr7()},
+            {"idx": 8, "value": self._build_cr8()},
+            {"idx": 9, "value": self._build_cr9()},
+            {"idx": 10, "value": self._build_cr10()},
         ]
+
+    def to_control_regs_list(self) -> List[Dict[str, int]]:
+        """DEPRECATED: Use to_app_regs_list() + separate FORGE control.
+
+        This method includes CR0 which violates the architectural separation
+        between FORGE system control and application configuration.
+
+        Returns:
+            List including CR0 (for backward compatibility)
+        """
+        warnings.warn(
+            "to_control_regs_list() is deprecated. Use to_app_regs_list() "
+            "and manage FORGE control (CR0) separately via enable_forge().",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return [{"idx": 0, "value": CR0.ALL_ENABLED}] + self.to_app_regs_list()
 
     def __str__(self) -> str:
         """
@@ -247,10 +287,14 @@ if __name__ == "__main__":
     print()
 
     print("=" * 60)
-    print("Control register list for set_controls():")
+    print("Application registers (CR1-CR10) via to_app_regs_list():")
     print()
-    regs = custom_config.to_control_regs_list()
+    print("  # FORGE control (CR0) managed separately:")
+    print(f"  CR0: 0x{CR0.ALL_ENABLED:08X}  (enable_forge())")
+    print()
+    print("  # Application configuration:")
+    regs = custom_config.to_app_regs_list()
     for reg_map in regs:
         value = reg_map["value"]
         idx = reg_map["idx"]
-        print(f"  CR{idx} (idx={idx}): 0x{value:08X} ({value})")
+        print(f"  CR{idx}: 0x{value:08X} ({value})")

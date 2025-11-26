@@ -7,13 +7,18 @@ This file provides shared test utilities that eliminate code duplication
 across all testbenches. pytest automatically loads this file.
 
 Usage in tests:
-    from conftest import setup_clock, reset_active_high, mcc_set_regs
+    from conftest import setup_clock, reset_active_high, create_control
 
     @cocotb.test()
     async def test_something(dut):
         await setup_clock(dut, clk_signal="Clk")
         await reset_active_high(dut, rst_signal="Reset")
-        # ... your test logic
+
+        # New pattern: Use ControlInterface
+        ctrl = create_control(dut)
+        ctrl.enable_forge()
+        ctrl.apply_config(DPDConfig(arm_enable=True, ...))
+        await ClockCycles(dut.Clk, 10)
 
 GHDL Output Filtering:
     The GHDL output filter is automatically enabled when running tests via run.py.
@@ -26,8 +31,18 @@ Date: 2025-11-18
 
 import cocotb
 import os
+import sys
+from pathlib import Path
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, with_timeout
+
+# Add shared module to path
+TESTS_PATH = Path(__file__).parent.parent
+sys.path.insert(0, str(TESTS_PATH))
+
+# Import shared infrastructure
+from shared.control_interface import CocoTBControl, ControlInterface
+from shared.constants import CR0
 
 
 # Default clock period for Moku:Go (125MHz = 8ns period)
@@ -94,11 +109,37 @@ async def run_with_timeout(test_coro, timeout_sec=DEFAULT_TEST_TIMEOUT_SEC, test
 # Correct pattern: 0xE0000000 (bits 31+30+29 all set)
 # =============================================================================
 
-FORGE_READY_BIT = 31  # Set by MCC after deployment
-USER_ENABLE_BIT = 30  # User-controlled enable/disable
-CLK_ENABLE_BIT = 29  # Clock gating enable
+# Use shared constants from CR0 class
+FORGE_READY_BIT = CR0.FORGE_READY   # 31
+USER_ENABLE_BIT = CR0.USER_ENABLE   # 30
+CLK_ENABLE_BIT = CR0.CLK_ENABLE     # 29
 
-FORGE_CR0_BASE = (1 << FORGE_READY_BIT) | (1 << USER_ENABLE_BIT) | (1 << CLK_ENABLE_BIT)  # 0xE0000000
+FORGE_CR0_BASE = CR0.ALL_ENABLED    # 0xE0000000
+
+
+# =============================================================================
+# ControlInterface Factory
+# =============================================================================
+
+def create_control(dut) -> CocoTBControl:
+    """Create a ControlInterface for CocoTB simulation.
+
+    This provides a CloudCompile-compatible API for setting control registers,
+    allowing test code to be portable between simulation and hardware.
+
+    Args:
+        dut: CocoTB Device Under Test
+
+    Returns:
+        CocoTBControl instance
+
+    Example:
+        ctrl = create_control(dut)
+        ctrl.enable_forge()
+        ctrl.apply_config(DPDConfig(arm_enable=True, ...))
+        await ClockCycles(dut.Clk, 10)  # Allow propagation
+    """
+    return CocoTBControl(dut)
 
 
 def validate_control0(cr0_value: int, context: str = ""):

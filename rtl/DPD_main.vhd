@@ -174,6 +174,14 @@ architecture rtl of DPD_main is
     signal fault_detected    : std_logic;  -- Safety violation flag
     signal fault_clear_prev  : std_logic;  -- Edge detection
     signal fault_clear_edge  : std_logic;  -- Rising edge of fault_clear
+    signal in_fault_state    : std_logic;  -- FSM is in FAULT state (for HVS encoding)
+
+    ----------------------------------------------------------------------------
+    -- INITIALIZING State Minimum Duration
+    -- Ensures configuration registers have time to propagate before validation
+    ----------------------------------------------------------------------------
+    signal init_cycle_count : unsigned(1 downto 0);  -- Count cycles in INITIALIZING
+    constant INIT_MIN_CYCLES : unsigned(1 downto 0) := "10";  -- Minimum 2 cycles
 
     ----------------------------------------------------------------------------
     -- Output Signals
@@ -259,25 +267,30 @@ begin
                            cooldown_complete, auto_rearm_enable,
                            fault_clear_edge, fault_detected, arm_enable,
                            ext_trigger_in, trig_out_duration, intensity_duration,
-                           trigger_wait_timeout, cooldown_interval)
+                           trigger_wait_timeout, cooldown_interval,
+                           init_cycle_count)  -- CRITICAL: include for INITIALIZING wait
     begin
         -- Default: hold current state
         next_state <= state;
 
         case state is
             when STATE_INITIALIZING =>
-                -- Validate timing registers before transitioning to IDLE
-                -- This prevents FSM from operating with zero/invalid timing values
-                if (trig_out_duration > 0 and
-                    intensity_duration > 0 and
-                    trigger_wait_timeout > 0 and
-                    cooldown_interval > 0) then
-                    -- All timing registers valid → safe to proceed
-                    next_state <= STATE_IDLE;
-                else
-                    -- Invalid configuration → fault state
-                    next_state <= STATE_FAULT;
+                -- Wait minimum cycles to allow config registers to propagate
+                -- Then validate timing registers before transitioning to IDLE
+                if init_cycle_count >= INIT_MIN_CYCLES then
+                    -- Minimum wait complete, now validate timing registers
+                    if (trig_out_duration > 0 and
+                        intensity_duration > 0 and
+                        trigger_wait_timeout > 0 and
+                        cooldown_interval > 0) then
+                        -- All timing registers valid → safe to proceed
+                        next_state <= STATE_IDLE;
+                    else
+                        -- Invalid configuration → fault state
+                        next_state <= STATE_FAULT;
+                    end if;
                 end if;
+                -- Stay in INITIALIZING until init_cycle_count >= INIT_MIN_CYCLES
 
             when STATE_IDLE =>
                 -- Transition to ARMED when arm_enable asserted
@@ -347,6 +360,7 @@ begin
                 monitor_duration_timer <= (others => '0');
                 monitor_window_open <= '0';
                 monitor_triggered <= '0';
+                init_cycle_count <= (others => '0');
                 -- Reset latched registers to safe defaults
                 latched_trig_out_voltage     <= (others => '0');
                 latched_trig_out_duration    <= (others => '0');
@@ -358,6 +372,10 @@ begin
             elsif Enable = '1' and ClkEn = '1' then
                 case state is
                     when STATE_INITIALIZING =>
+                        -- Count cycles in INITIALIZING state
+                        if init_cycle_count < INIT_MIN_CYCLES then
+                            init_cycle_count <= init_cycle_count + 1;
+                        end if;
                         -- Atomically latch all timing/voltage registers
                         -- This prevents race conditions from async network register updates
                         latched_trig_out_voltage     <= trig_out_voltage;
@@ -366,7 +384,7 @@ begin
                         latched_intensity_duration   <= intensity_duration;
                         latched_trigger_wait_timeout <= trigger_wait_timeout;
                         latched_cooldown_interval    <= cooldown_interval;
-                        -- Reset all counters
+                        -- Reset all counters (except init_cycle_count)
                         armed_timer <= (others => '0');
                         trig_out_timer <= (others => '0');
                         intensity_timer <= (others => '0');
@@ -377,7 +395,7 @@ begin
                         monitor_triggered <= '0';
 
                     when STATE_IDLE =>
-                        -- Reset all counters
+                        -- Reset all counters (including init_cycle_count for next INITIALIZING entry)
                         armed_timer <= (others => '0');
                         trig_out_timer <= (others => '0');
                         intensity_timer <= (others => '0');
@@ -386,6 +404,7 @@ begin
                         monitor_duration_timer <= (others => '0');
                         monitor_window_open <= '0';
                         monitor_triggered <= '0';
+                        init_cycle_count <= (others => '0');
 
                     when STATE_ARMED =>
                         -- Increment timeout counter
@@ -480,13 +499,17 @@ begin
     --
     -- Provides glitch-free status output for hierarchical voltage encoding
     -- Status bits follow FORGE standard:
-    --   [7] = fault_detected (MUST be fault for HVS sign flip)
+    --   [7] = fault indicator (MUST be '1' when in FAULT state for HVS sign flip)
     --   [6] = timeout_occurred
     --   [5] = monitor_triggered
     --   [4] = monitor_window_open
     --   [3] = firing_complete
     --   [2] = cooldown_complete
     --   [1:0] = reserved (set to '0')
+    --
+    -- CRITICAL: status[7] must be '1' whenever FSM is in FAULT state (not just
+    -- when fault_detected triggers). This ensures HVS encoder produces negative
+    -- voltage output for all fault conditions.
     ------------------------------------------------------------------------
     STATUS_REGISTER: process(Clk, Reset)
     begin
@@ -494,7 +517,9 @@ begin
             status_reg <= (others => '0');
         elsif rising_edge(Clk) then
             if Enable = '1' then
-                status_reg <= fault_detected &
+                -- Bit 7: Fault indicator - '1' if fault detected OR in FAULT state
+                -- This ensures HVS shows negative voltage for FAULT state
+                status_reg <= (fault_detected or in_fault_state) &
                               timeout_occurred &
                               monitor_triggered &
                               monitor_window_open &
@@ -517,6 +542,10 @@ begin
                                    and intensity_timer >= latched_intensity_duration
                                    and state = STATE_FIRING) else '0';
     cooldown_complete <= '1' when (cooldown_timer >= latched_cooldown_interval) else '0';
+
+    -- CRITICAL: in_fault_state must be '1' when FSM is in FAULT state
+    -- This drives status_vector[7] for HVS encoder sign flip (negative voltage = FAULT)
+    in_fault_state <= '1' when (state = STATE_FAULT) else '0';
 
     ------------------------------------------------------------------------
     -- Fault Detection Logic
