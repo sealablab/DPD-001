@@ -127,7 +127,7 @@ async def arm_dpd(dut, trig_duration: int, intensity_duration: int, cooldown: in
         AssertionError: If FSM doesn't reach ARMED state
     """
     from conftest import mcc_set_regs
-    from dpd_wrapper_constants import CR1  # Import CR1 bit positions
+    from dpd_wrapper_tests.dpd_wrapper_constants import CR1  # Import CR1 bit positions
 
     await mcc_set_regs(dut, {
         1: (1 << CR1.ARM_ENABLE),  # CR1: arm_enable=1, auto_rearm=0 (single shot)
@@ -153,7 +153,7 @@ async def software_trigger(dut):
         AssertionError: If FSM doesn't reach FIRING state
     """
     from conftest import mcc_set_regs
-    from dpd_wrapper_constants import CR1  # Import CR1 bit positions
+    from dpd_wrapper_tests.dpd_wrapper_constants import CR1  # Import CR1 bit positions
 
     # Set arm_enable=1, sw_trigger_enable=1, sw_trigger=1
     cr1_value = (

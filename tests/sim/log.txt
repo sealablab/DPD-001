@@ -1,0 +1,19 @@
+======================================================================
+Running dpd_wrapper tests
+======================================================================
+Simulator: ghdl
+Top-level: customwrapper
+Test Module: dpd_wrapper_tests.P1_dpd_wrapper_basic
+Test Level: P1_BASIC
+Verbosity: NORMAL
+GHDL Filter: normal
+Waveforms: Disabled
+Sources: 7 VHDL files
+======================================================================
+
+[GHDL Output Filter - Level: normal]
+  Total lines: 12581
+  Filtered: 12523 (99.5% reduction)
+  - Vector truncated warnings: 2
+  - Metavalue warnings: 4
+  - Duplicate warnings: 12517

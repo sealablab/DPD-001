@@ -1,0 +1,59 @@
+INFO cocotb: Running command: ghdl -r --work=customwrapper --std=08 customwrapper --vpi=/Users/johnycsh/DPD/DPD-001/.venv/lib/python3.12/site-packages/cocotb/libs/libcocotbvpi_ghdl.so
+ERROR cocotb: loading VPI module '/Users/johnycsh/DPD/DPD-001/.venv/lib/python3.12/site-packages/cocotb/libs/libcocotbvpi_ghdl.so'
+INFO cocotb:      -.--ns INFO     gpi                                ..mbed/gpi_embed.cpp:94   in _embed_init_python              Using Python 3.12.10 interpreter at /Users/johnycsh/DPD/DPD-001/.venv/bin/python3
+INFO cocotb:      -.--ns INFO     gpi                                ../gpi/GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+ERROR cocotb: VPI module loaded!
+INFO cocotb:      0.00ns INFO     cocotb                             Running on GHDL version 5.0.1 (4.1.0.r602.g37ad91899) [Dunoon edition]
+INFO cocotb:      0.00ns WARNING  gpi                                vpi_iterate returned NULL for type vpiInstance for object NULL
+INFO cocotb:      0.00ns INFO     cocotb                             Seeding Python random module with 1764113412
+INFO cocotb:      0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from /Users/johnycsh/DPD/DPD-001/.venv/lib/python3.12/site-packages/cocotb
+INFO cocotb:      0.00ns INFO     cocotb                             Running tests
+INFO cocotb:      0.00ns INFO     cocotb.regression                  running dpd_wrapper_tests.P1_dpd_wrapper_basic.test_dpd_wrapper_p1 (1/1)
+INFO cocotb:                                                             Entry point for P1 tests
+INFO cocotb:      0.00ns INFO     cocotb.customwrapper               ============================================================
+INFO cocotb:      0.00ns INFO     cocotb.customwrapper               PHASE: P1 - BASIC TESTS
+INFO cocotb:      0.00ns INFO     cocotb.customwrapper               ============================================================
+INFO cocotb:      0.00ns INFO     cocotb.customwrapper               ✓ Clock started on 'Clk' (8ns period = 125.0MHz)
+INFO cocotb:     80.00ns INFO     cocotb.customwrapper               ✓ Reset complete (active-high, 10 cycles)
+INFO cocotb:     80.00ns INFO     cocotb.customwrapper               ============================================================
+INFO cocotb:     80.00ns INFO     cocotb.customwrapper               Test 1: Reset behavior
+INFO cocotb:    120.00ns WARNING  py.warnings                        /Users/johnycsh/DPD/DPD-001/tests/sim/dpd_wrapper_tests/dpd_helpers.py:32: DeprecationWarning: `logic_array.signed_integer` getter is deprecated. Use `logic_array.to_signed()` instead.
+INFO cocotb:                                                           return int(dut.OutputC.value.signed_integer)
+INFO cocotb:    120.00ns WARNING  py.warnings                        /Users/johnycsh/DPD/DPD-001/tests/sim/dpd_wrapper_tests/P1_dpd_wrapper_basic.py:101: DeprecationWarning: `logic_array.signed_integer` getter is deprecated. Use `logic_array.to_signed()` instead.
+INFO cocotb:                                                           output_a = int(self.dut.OutputA.value.signed_integer)
+INFO cocotb:    120.00ns WARNING  py.warnings                        /Users/johnycsh/DPD/DPD-001/tests/sim/dpd_wrapper_tests/P1_dpd_wrapper_basic.py:102: DeprecationWarning: `logic_array.signed_integer` getter is deprecated. Use `logic_array.to_signed()` instead.
+INFO cocotb:                                                           output_b = int(self.dut.OutputB.value.signed_integer)
+INFO cocotb:    160.00ns INFO     cocotb.customwrapper               ✓ Reset behavior PASSED
+INFO cocotb:    160.00ns INFO     cocotb.customwrapper               ============================================================
+INFO cocotb:    160.00ns INFO     cocotb.customwrapper               Test 2: FORGE control scheme
+INFO cocotb:    216.00ns INFO     cocotb.customwrapper                 Control0 ← 0xC0000000
+INFO cocotb:    216.00ns INFO     cocotb.customwrapper                 Control1 ← 0x00000001
+INFO cocotb:    472.00ns INFO     cocotb.customwrapper                 Control0 ← 0x00000000
+INFO cocotb:    472.00ns INFO     cocotb.customwrapper                 Control1 ← 0x00000001
+INFO cocotb:    488.00ns INFO     cocotb.customwrapper               ✓ FORGE control asserted (CR0 = 0xE0000000)
+INFO cocotb: ../../src/ieee2008/100504.00ns ERROR    cocotb.customwrapper               ✗ FORGE control scheme FAILED: Timeout waiting for OutputC=6554±200, stuck at 9896 after 100μs (12500 cycles)
+INFO cocotb: 100504.00ns WARNING  ..d_wrapper_p1.test_dpd_wrapper_p1 Timeout waiting for OutputC=6554±200, stuck at 9896 after 100μs (12500 cycles)
+INFO cocotb:                                                         Traceback (most recent call last):
+INFO cocotb:                                                           File "/Users/johnycsh/DPD/DPD-001/tests/sim/dpd_wrapper_tests/P1_dpd_wrapper_basic.py", line 315, in test_dpd_wrapper_p1
+INFO cocotb:                                                             await tester.run_all_tests()
+INFO cocotb:                                                           File "/Users/johnycsh/DPD/DPD-001/tests/sim/test_base.py", line 225, in run_all_tests
+INFO cocotb:                                                             await self.run_p1_basic()
+INFO cocotb:                                                           File "/Users/johnycsh/DPD/DPD-001/tests/sim/dpd_wrapper_tests/P1_dpd_wrapper_basic.py", line 86, in run_p1_basic
+INFO cocotb:                                                             await self.test("FORGE control scheme", self.test_forge_control)
+INFO cocotb:                                                           File "/Users/johnycsh/DPD/DPD-001/tests/sim/test_base.py", line 202, in test
+INFO cocotb:                                                             await test_func()
+INFO cocotb:                                                           File "/Users/johnycsh/DPD/DPD-001/tests/sim/dpd_wrapper_tests/P1_dpd_wrapper_basic.py", line 153, in test_forge_control
+INFO cocotb:                                                             await wait_for_state(self.dut, HVS_DIGITAL_ARMED, timeout_us=100)
+INFO cocotb:                                                           File "/Users/johnycsh/DPD/DPD-001/tests/sim/dpd_wrapper_tests/dpd_helpers.py", line 87, in wait_for_state
+INFO cocotb:                                                             raise AssertionError(
+INFO cocotb:                                                         AssertionError: Timeout waiting for OutputC=6554±200, stuck at 9896 after 100μs (12500 cycles)
+INFO cocotb: 100504.00ns WARNING  cocotb.regression                  dpd_wrapper_tests.P1_dpd_wrapper_basic.test_dpd_wrapper_p1 failed
+INFO cocotb: 100504.00ns INFO     cocotb.regression                  ********************************************************************************************************************
+INFO cocotb:                                                         ** TEST                                                        STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+INFO cocotb:                                                         ********************************************************************************************************************
+INFO cocotb:                                                         ** dpd_wrapper_tests.P1_dpd_wrapper_basic.test_dpd_wrapper_p1   FAIL      100504.00           0.39     260611.99  **
+INFO cocotb:                                                         ********************************************************************************************************************
+INFO cocotb:                                                         ** TESTS=1 PASS=0 FAIL=1 SKIP=0                                           100504.00           0.39     258410.22  **
+INFO cocotb:                                                         ********************************************************************************************************************
+ERROR cocotb: Failed: dpd_wrapper_tests.P1_dpd_wrapper_basic::test_dpd_wrapper_p1
+FAILED 1 tests.

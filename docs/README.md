@@ -20,6 +20,7 @@ This documentation directory contains detailed architectural notes, test design 
 
 The CustomWrapper entity interface (Clk, Reset, InputA/B/C, OutputA/B/C, Control0-15) that DPD-001 implements. Includes FORGE control scheme (CR0[31:29]), register mapping, and I/O port usage. Critical reference for understanding DPD's top-level interface.
 
+ 
 ### Custom Instrument
 [custom-instrument.md](custom-instrument.md) - **Future Standard**
 

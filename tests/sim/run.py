@@ -12,15 +12,21 @@ Usage:
     COCOTB_VERBOSITY=NORMAL python run.py   # More verbose output
     TEST_LEVEL=P2_INTERMEDIATE python run.py  # Run P2 tests (when implemented)
     GHDL_FILTER=none python run.py          # Disable GHDL output filtering
+    
+    # Debug tests (for FSM trigger investigation)
+    TEST_MODULE=dpd_wrapper_tests.P1_dpd_trigger_debug python run.py
+    WAVES=true TEST_MODULE=dpd_wrapper_tests.P1_dpd_trigger_debug python run.py
 
 Environment Variables:
     COCOTB_VERBOSITY: Test output level (MINIMAL, NORMAL, VERBOSE, DEBUG)
     TEST_LEVEL: Test suite level (P1_BASIC, P2_INTERMEDIATE, etc.)
+    TEST_MODULE: Test module to run (default: dpd_wrapper_tests.P1_dpd_wrapper_basic)
+    WAVES: Enable waveform capture (true/false, default: false)
     GHDL_FILTER: GHDL output filter level (aggressive, normal, minimal, none)
                  Default: auto-selected based on COCOTB_VERBOSITY
 
 Author: Moku Instrument Forge Team
-Date: 2025-11-19
+Date: 2025-11-25 (updated for debug test support)
 """
 
 import os
@@ -153,14 +159,22 @@ def main():
     # GHDL output filter configuration
     filter_level = get_ghdl_filter_level()
 
+    # Waveform capture configuration
+    waves = os.environ.get("WAVES", "false").lower() == "true"
+
+    # Test module selection (default to basic tests, can override for debug)
+    test_module = os.environ.get("TEST_MODULE", "dpd_wrapper_tests.P1_dpd_wrapper_basic")
+
     print(f"=" * 70)
     print(f"Running {MODULE_NAME} tests")
     print(f"=" * 70)
     print(f"Simulator: {sim}")
     print(f"Top-level: {HDL_TOPLEVEL}")
+    print(f"Test Module: {test_module}")
     print(f"Test Level: {os.environ['TEST_LEVEL']}")
     print(f"Verbosity: {os.environ['COCOTB_VERBOSITY']}")
     print(f"GHDL Filter: {filter_level.value}")
+    print(f"Waveforms: {'Enabled' if waves else 'Disabled'}")
     print(f"Sources: {len(HDL_SOURCES)} VHDL files")
     print(f"=" * 70)
 
@@ -181,9 +195,9 @@ def main():
                 vhdl_sources=[str(src) for src in HDL_SOURCES],
                 toplevel=HDL_TOPLEVEL,
                 toplevel_lang="vhdl",
-                module="dpd_wrapper_tests.P1_dpd_wrapper_basic",
+                module=test_module,
                 simulator=sim,
-                waves=False,
+                waves=waves,
                 extra_args=["--std=08"],
             )
 
