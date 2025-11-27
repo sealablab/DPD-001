@@ -161,7 +161,8 @@ Many of these documents were migrated from the FORGE-V5 project (`/Users/johnycs
 - [N/CLAUDE.md](../N/CLAUDE.md) - Comprehensive project guide
 - [rtl/DPD-RTL.yaml](../rtl/DPD-RTL.yaml) - Register specification
 - [tests/sim/](../tests/sim/) - CocoTB simulation tests
-- [tests/hw/](../tests/hw/) - Hardware validation tests
+- [tests/lib/](../tests/lib/) - Unified test infrastructure (API v4.0)
+- [tests/adapters/](../tests/adapters/) - Async test adapters (sim/hw convergence)
 
 ---
 

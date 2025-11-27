@@ -244,13 +244,13 @@ end architecture;
 
 **Usage in Tests:**
 ```python
-# tests/sim/dpd_wrapper_tests/P1_dpd_wrapper_basic.py
+# tests/sim/dpd/P1_basic.py
 
 @cocotb.test()
-async def test_dpd_wrapper_p1(dut):
+async def test_dpd_p1(dut):
     """P1 test entry point"""
-    tester = DPDWrapperBasicTests(dut)
-    await tester.run_p1_basic()
+    tester = DPDBasicTests(dut)
+    await tester.run_all_tests()
 ```
 
 ---
@@ -278,7 +278,7 @@ async def test_dpd_wrapper_p1(dut):
 
 ---
 
-**Last Updated:** 2025-01-28  
-**Maintainer:** Moku Instrument Forge Team  
-**Status:** Migrated and updated for DPD-001
+**Last Updated:** 2025-11-26
+**Maintainer:** Moku Instrument Forge Team
+**Status:** Updated for API v4.0
 

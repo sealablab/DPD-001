@@ -149,7 +149,7 @@ end if;
 
 ### CocoTB Simulation Tests
 
-For CocoTB simulation tests (`tests/sim/dpd_wrapper_tests/dpd_wrapper_constants.py`):
+From `tests/lib/hw.py` (unified test infrastructure):
 
 ```python
 HVS_DIGITAL_UNITS_PER_STATE = 3277
@@ -158,12 +158,12 @@ HVS_DIGITAL_IDLE = 1 * HVS_DIGITAL_UNITS_PER_STATE          # 3277
 HVS_DIGITAL_ARMED = 2 * HVS_DIGITAL_UNITS_PER_STATE         # 6554
 HVS_DIGITAL_FIRING = 3 * HVS_DIGITAL_UNITS_PER_STATE        # 9831
 HVS_DIGITAL_COOLDOWN = 4 * HVS_DIGITAL_UNITS_PER_STATE      # 13108
-HVS_DIGITAL_TOLERANCE = 200  # ±200 digital units (~30mV)
+SIM_HVS_TOLERANCE = 200  # ±200 digital units (~30mV)
 ```
 
 ### Hardware Tests
 
-For hardware tests (`tests/hw/hw_test_constants.py`):
+From `tests/lib/hw.py`:
 
 ```python
 STATE_VOLTAGE_MAP = {

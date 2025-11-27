@@ -1,6 +1,6 @@
 # DPD Hardware Debug Checklist
 
-**Last Updated:** 2025-01-28 (migrated from review_me)  
+**Last Updated:** 2025-11-26 (updated for API v4.0)
 **Maintainer:** Moku Instrument Forge Team
 
 > **Purpose:** Minimal bit-flipping sequence to generate observable outputs on real hardware
@@ -81,12 +81,12 @@ cc.set_control(0, 0xE0000000)  # CR0[31:29] = 0b111
 
 ---
 
-## Step 2: Arm the FSM (CR1[0] = 1)
+## Step 2: Arm the FSM (CR0[2] = 1)
 
 **Purpose:** Transition IDLE → ARMED
 
 ```python
-cc.set_control(1, 0x00000001)  # CR1[0] = arm_enable = 1
+cc.set_control(0, 0xE0000004)  # CR0 = FORGE + arm_enable
 ```
 
 **Expected behavior:**
@@ -208,13 +208,13 @@ cc.set_control(7, 0x000004E2)  # 1250 decimal = 0x4E2
 
 ---
 
-## Step 8: **FIRE!** Software trigger (CR1[1] = 1)
+## Step 8: **FIRE!** Software trigger (CR0[0] = 1)
 
-**Purpose:** Trigger the FSM to fire outputs
+**Purpose:** Trigger the FSM to fire outputs (atomic single-write trigger!)
 
 ```python
-# Set sw_trigger = 1 (while keeping arm_enable = 1)
-cc.set_control(1, 0x00000003)  # CR1[1:0] = 0b11 (sw_trigger + arm_enable)
+# API v4.0: Single atomic write triggers immediately
+cc.set_control(0, 0xE0000005)  # CR0 = FORGE + arm + sw_trigger
 ```
 
 **Expected behavior (happens VERY fast, within ~310μs):**
@@ -234,15 +234,14 @@ cc.set_control(1, 0x00000003)  # CR1[1:0] = 0b11 (sw_trigger + arm_enable)
 
 ---
 
-## Step 9: Clear to return to IDLE (CR1[3] = 1)
+## Step 9: Clear to return to IDLE (CR0[1] = 1)
 
 **Purpose:** Reset FSM back to IDLE state via fault_clear
 
 ```python
-# Pulse fault_clear to force re-initialization
-cc.set_control(1, 0x00000008)  # CR1[3] = fault_clear = 1
-time.sleep(0.01)
-cc.set_control(1, 0x00000000)  # Clear all CR1 bits
+# API v4.0: fault_clear is CR0[1], edge-triggered with auto-clear
+cc.set_control(0, 0xE0000002)  # CR0 = FORGE + fault_clear
+# No need to clear - RTL auto-clears after 4 cycles
 ```
 
 **Expected behavior:**
@@ -258,7 +257,7 @@ cc.set_control(1, 0x00000000)  # Clear all CR1 bits
 
 ---
 
-## Complete Sequence (Python Script)
+## Complete Sequence (Python Script) - API v4.0
 
 ```python
 import time
@@ -273,42 +272,31 @@ for i in range(11):
     cc.set_control(i, 0x00000000)
 time.sleep(0.5)
 
-print("Step 1: Enable FORGE_READY")
-cc.set_control(0, 0xE0000000)
+print("Step 1: Enable FORGE + configure timing (params latch in INITIALIZING)")
+cc.set_control(0, 0xE0000000)  # FORGE enabled
+time.sleep(0.1)
+
+# Configure during INITIALIZING state
+print("Step 2-7: Configure all parameters")
+cc.set_control(2, 0x000007D0)  # OutputA voltage = 2000mV
+cc.set_control(3, 0x00000BB8)  # OutputB voltage = 3000mV
+cc.set_control(4, 0x000030D4)  # OutputA duration = 100μs
+cc.set_control(5, 0x000061A8)  # OutputB duration = 200μs
+cc.set_control(7, 0x000004E2)  # Cooldown = 10μs
+time.sleep(0.2)
+
+print("Step 8: Arm FSM")
+cc.set_control(0, 0xE0000004)  # FORGE + arm_enable
 time.sleep(0.5)
 
-print("Step 2: Arm FSM")
-cc.set_control(1, 0x00000001)
-time.sleep(0.5)
-
-print("Step 3: Set OutputA voltage = 2000mV")
-cc.set_control(2, 0x000007D0)
-time.sleep(0.2)
-
-print("Step 4: Set OutputA duration = 100μs")
-cc.set_control(4, 0x000030D4)
-time.sleep(0.2)
-
-print("Step 5: Set OutputB voltage = 3000mV")
-cc.set_control(3, 0x00000BB8)
-time.sleep(0.2)
-
-print("Step 6: Set OutputB duration = 200μs")
-cc.set_control(5, 0x000061A8)
-time.sleep(0.2)
-
-print("Step 7: Set cooldown = 10μs")
-cc.set_control(7, 0x000004E2)
-time.sleep(0.2)
-
-print("Step 8: FIRE! (software trigger)")
-cc.set_control(1, 0x00000003)
+print("Step 9: FIRE! (atomic trigger)")
+cc.set_control(0, 0xE0000005)  # FORGE + arm + sw_trigger
 time.sleep(0.5)  # Wait for pulse sequence to complete
 
-print("Step 9: Clear fault, return to IDLE")
-cc.set_control(1, 0x00000008)
-time.sleep(0.01)
-cc.set_control(1, 0x00000000)
+print("Step 10: Clear fault, return to IDLE")
+cc.set_control(0, 0xE0000002)  # FORGE + fault_clear (auto-clears)
+time.sleep(0.1)
+cc.set_control(0, 0xE0000000)  # Return to FORGE only
 
 print("\nSequence complete!")
 m.relinquish_ownership()
@@ -328,7 +316,7 @@ m.relinquish_ownership()
 
 ### If OutputC goes to negative voltage:
 - **Problem:** FSM entered FAULT state
-- **Solution:** Check that durations are non-zero, pulse fault_clear (CR1[3])
+- **Solution:** Check that durations are non-zero, pulse fault_clear via `cc.set_control(0, 0xE0000002)`
 
 ### If outputs happen but you can't see them:
 - **Problem:** Pulses are too fast (100-200μs)
@@ -339,7 +327,7 @@ m.relinquish_ownership()
 
 ### If config changes don't take effect:
 - **Problem:** Configuration registers only update in INITIALIZING state
-- **Solution:** Pulse fault_clear (CR1[3]) to force re-initialization, then re-arm
+- **Solution:** Pulse fault_clear via `cc.set_control(0, 0xE0000002)` to force re-initialization, then re-arm
 
 ### If nothing happens at all:
 - **Problem:** Network timeout, bitstream not responding
@@ -350,36 +338,35 @@ m.relinquish_ownership()
 
 ---
 
-## Key Insights
+## Key Insights (API v4.0)
 
 1. **OutputC is your best friend** - It shows FSM state persistently
 2. **Outputs are FAST** - 100-200μs pulses are hard to see without a scope
 3. **State sequence is:** INITIALIZING (0.0V) → IDLE (0.5V) → ARMED (1.0V) → FIRING (1.5V) → COOLDOWN (2.0V) → back to IDLE (0.5V)
 4. **Minimum working config requires:**
-   - CR0[31:29] = 0b111 (FORGE_READY)
-   - CR1[0] = 1 (arm)
+   - CR0 = 0xE0000000 (FORGE enabled)
    - CR2[15:0] = non-zero voltage for OutputA
    - CR3[15:0] = non-zero voltage for OutputB
    - CR4 = non-zero duration for OutputA
    - CR5 = non-zero duration for OutputB
    - CR7 = non-zero cooldown
-   - CR1[1] = 1 (trigger!)
+   - CR0 = 0xE0000005 (atomic arm + trigger!)
 
-5. **Config register gotcha:** CR2-CR10 only propagate in INITIALIZING state. To apply new config mid-operation, pulse fault_clear first!
+5. **Config register gotcha:** CR2-CR10 only propagate in INITIALIZING state. To apply new config mid-operation, pulse fault_clear (CR0[1]) first!
 
-6. **The magic bit sequence is:** CR0 → CR1[0] → CR2-7 (config) → CR1[1] (fire!)
+6. **The API v4.0 magic:** Single atomic write `0xE0000005` arms AND triggers in one operation!
 
 ---
 
 ## Related Documents
 
+- [API v4.0 Reference](api-v4.md) - Authoritative SW/HW calling convention
 - [HVS Encoding](hvs.md) - Understanding OutputC voltage encoding
 - [Network Register Sync](network-register-sync.md) - Why config only updates in INITIALIZING
 - [Custom Wrapper](custom-wrapper.md) - Control register details
-- [Hardware Tests](../tests/hw/) - Automated hardware test suite
 
 ---
 
-**Last Updated:** 2025-01-28  
-**Status:** Migrated from review_me, integrated into docs/
+**Last Updated:** 2025-11-26
+**Status:** Updated for API v4.0
 

@@ -1,6 +1,6 @@
 # Custom Wrapper
 
-**Last Updated:** 2025-01-28 (migrated from FORGE-V5)  
+**Last Updated:** 2025-11-26 (updated for API v4.0)  
 **Maintainer:** Moku Instrument Forge Team
 
 > **Migration Note:** This document was migrated from FORGE-V5 and expanded with DPD-001-specific implementation details.  
@@ -95,21 +95,21 @@ begin
 end architecture bpd_forge;
 ```
 
-### Control Register Mapping
+### Control Register Mapping (API v4.0)
 
 **DPD-001 Register Usage:**
 
 | Register | Usage | Description |
 |----------|-------|-------------|
-| **CR0** | FORGE Control | CR0[31:29] = FORGE control bits (forge_ready, user_enable, clk_enable) |
-| **CR1** | Lifecycle Control | arm_enable, sw_trigger, auto_rearm, fault_clear, enable bits |
-| **CR2** | Trigger & Output | Trigger threshold (16-bit), Output voltage (16-bit) |
+| **CR0** | FORGE + Lifecycle | CR0[31:29] = FORGE control; CR0[2:0] = arm, fault_clear, sw_trigger |
+| **CR1** | Reserved | Reserved for future campaign mode |
+| **CR2** | Trigger & Output | Trigger threshold [31:16], trig_out voltage [15:0] |
 | **CR3** | Intensity | Intensity voltage (16-bit signed mV) |
 | **CR4-CR7** | Timing | Trigger duration, intensity duration, timeout, cooldown (clock cycles) |
-| **CR8-CR10** | Monitor Config | Monitor thresholds and configuration |
+| **CR8-CR10** | Monitor Config | Monitor threshold, auto_rearm, polarity, enable, window timing |
 | **CR11-CR15** | Unused | Reserved for future expansion |
 
-**See:** `rtl/DPD-RTL.yaml` for complete register specification.
+**See:** [API v4.0 Reference](api-v4.md) and `rtl/DPD-RTL.yaml` for complete register specification.
 
 ### FORGE Control Scheme
 
@@ -216,13 +216,13 @@ end architecture;
 
 **Usage in Tests:**
 ```python
-# tests/sim/dpd_wrapper_tests/P1_dpd_wrapper_basic.py
+# tests/sim/dpd/P1_basic.py
 
 @cocotb.test()
-async def test_dpd_wrapper_p1(dut):
+async def test_dpd_p1(dut):
     """P1 test entry point"""
-    tester = DPDWrapperBasicTests(dut)
-    await tester.run_p1_basic()
+    tester = DPDBasicTests(dut)
+    await tester.run_all_tests()
 ```
 
 ### Register Access in Tests
@@ -246,30 +246,32 @@ await mcc_set_regs(dut, regs)
 
 ## Control Register Details
 
-### CR0 - FORGE Control
+### CR0 - FORGE Control + Lifecycle (API v4.0)
 
-**Bits 31:29 - FORGE Control Scheme:**
-- `CR0[31]` = `forge_ready` (set by MCC loader)
-- `CR0[30]` = `user_enable` (user control)
-- `CR0[29]` = `clk_enable` (clock gating)
+**CR0 consolidates all real-time control for atomic single-write operations:**
 
-**Bits 28:0 - Reserved for future use**
+| Bits | Field | Type | Description |
+|------|-------|------|-------------|
+| [31] | `forge_ready` | Level | Set by MCC loader after deployment |
+| [30] | `user_enable` | Level | User control (GUI toggle) |
+| [29] | `clk_enable` | Level | Clock gating control |
+| [28] | `campaign_enable` | Level | Reserved for campaign mode |
+| [27:3] | Reserved | - | Future use |
+| [2] | `arm_enable` | Level | Arm FSM (IDLE → ARMED) |
+| [1] | `fault_clear` | Edge | Clear fault state (auto-clear after 4 cycles) |
+| [0] | `sw_trigger` | Edge | Software trigger (auto-clear after 4 cycles) |
 
-### CR1 - Lifecycle Control
+**Common CR0 Values:**
+- `0xE0000000` - Module enabled, FSM idle
+- `0xE0000004` - Module armed
+- `0xE0000005` - Atomic trigger (arm + trigger in single write)
+- `0xE0000006` - Clear fault while armed
 
-**DPD-001 uses CR1 for FSM lifecycle management:**
+### CR1 - Reserved
 
-| Bit | Field | Description |
-|-----|-------|-------------|
-| CR1[0] | `arm_enable` | Enable arming (IDLE → ARMED) |
-| CR1[1] | `sw_trigger` | Software trigger (edge detection) |
-| CR1[2] | `fault_clear` | Clear fault state (edge detection) |
-| CR1[3] | `sw_trigger_enable` | Enable software trigger path (safety gate) |
-| CR1[4] | `hw_trigger_enable` | Enable hardware trigger path (safety gate) |
-| CR1[5] | `auto_rearm` | Auto-rearm after cooldown (burst mode) |
-| CR1[31:6] | Reserved | Future use |
+**CR1 is reserved for future campaign mode.** Currently unused.
 
-**See:** `rtl/DPD-RTL.yaml` for complete register specification.
+**See:** [API v4.0 Reference](api-v4.md) for complete calling convention.
 
 ---
 
@@ -294,11 +296,11 @@ end if;
 **When reading control registers:**
 ```vhdl
 -- Correct: Use unsigned conversion
-signal cr1_value : unsigned(31 downto 0);
-cr1_value <= unsigned(Control1);
+signal cr0_value : unsigned(31 downto 0);
+cr0_value <= unsigned(Control0);
 
 -- Wrong: Don't use signed conversion for control registers
--- cr1_value <= signed(Control1);  -- WRONG!
+-- cr0_value <= signed(Control0);  -- WRONG!
 ```
 
 ### 3. Register Bit Ordering
@@ -357,7 +359,7 @@ cr1_value <= unsigned(Control1);
 
 ---
 
-**Last Updated:** 2025-01-28  
-**Maintainer:** Moku Instrument Forge Team  
-**Status:** Migrated and expanded with DPD-001 examples
+**Last Updated:** 2025-11-26
+**Maintainer:** Moku Instrument Forge Team
+**Status:** Updated for API v4.0
 
