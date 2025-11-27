@@ -1,277 +1,492 @@
 ###############################################################################
 # Demo Probe Driver (DPD) Register Specification
-# **status**: UPDATED 2025-11-25
+# Version: 4.0 (API-breaking refactor)
+# Updated: 2025-11-26
 #
-# Purpose: Documentation and quick reference for debugging
+# This file is the AUTHORITATIVE SOURCE for:
+#   - RTL implementation (DPD.vhd, DPD_shim.vhd, DPD_main.vhd)
+#   - Test framework (tests/lib/register_spec.py)
+#   - Python constants (py_tools/dpd_constants.py)
+#   - Future UI generation
 #
-# Register mapping mirrors the hardware implementation:
-# - All timing values stored in clock cycles (125 MHz = 8ns period)
-# - All voltages in millivolts (±5V envelope for Moku:Go ADC/DAC)
-# - Control bits packed efficiently into 32-bit registers
-#
-# Physical I/O Mapping:
-#   InputA  → External trigger input (hardware voltage comparator)
-#   InputB  → Probe monitor feedback (ADC, ±5V)
-#   OutputA → Trigger output (DAC, ±5V)
-#   OutputB → Intensity output (DAC, ±5V)
-#   OutputC → FSM state debug (HVS encoding, signed 16-bit)
-#
-# OutputC HVS (Hierarchical Voltage Scaling) Encoding:
-#   - Encodes FSM state as analog voltage for oscilloscope debugging
-#   - Scaling: 3277 digital units per state = 0.5V per state @ ±5V full scale
-#   - Digital-to-voltage: voltage = (digital_units / 32768) * 5V
-#   - State voltages (human-readable on scope, set to 500mV/div):
-#       INITIALIZING (state 0): 0 units     → 0.0V (transient after reset)
-#       IDLE (state 1):         3277 units  → 0.5V
-#       ARMED (state 2):        6554 units  → 1.0V
-#       FIRING (state 3):       9831 units  → 1.5V
-#       COOLDOWN (state 4):     13108 units → 2.0V
-#       FAULT (status[7]=1):    Negative voltage (sign flip)
-#   - Status offset: ±100 digital units max (±0.015V fine-grained debugging)
-#   - Implementation: forge_hierarchical_encoder.vhd (DIGITAL_UNITS_PER_STATE=3277)
-#
-# Trigger Sources (ARMED → FIRING transition):
-#   1. Hardware trigger: InputA voltage crosses threshold (CR2[31:16])
-#      - MUST be enabled via CR1[4] hw_trigger_enable (default: disabled)
-#      - 50mV hysteresis prevents noise re-triggering
-#   2. Software trigger: CR1[5] edge detection (0→1)
-#      - Network-controllable via Control1 register
-#      - Auto-clears after edge is detected
-#      - MUST be enabled via CR1[3] sw_trigger_enable (default: disabled)
-#      - Independent of hardware trigger (both can work simultaneously)
-#      - GUI workflow: CR1=0x29 (arm_enable + sw_trigger_enable + sw_trigger)
+# Consumers:
+#   - RTL: Manual implementation following this spec
+#   - Tests: Runtime parsing via load_yaml()
+#   - Tools: Code generation for constants
 ###############################################################################
 
 app_name: demo_probe_driver
 platform: moku_go
-description: >
-  Demo Probe Driver with hardware voltage trigger and configurable FSM timing.
+clock_freq_hz: 125000000
+clock_period_ns: 8
 
-control_registers:
-  # CR0[31:29] reserved for FORGE control scheme (forge_ready, user_enable, clk_enable)
-  # CR1-CR10 available for application (10 registers)
-  # CR11-CR15 unused (future expansion)
+###############################################################################
+# Register Classes
+#
+# Defines how registers propagate through the RTL layers and their
+# network accessibility characteristics.
+###############################################################################
+register_classes:
+  forge:
+    description: FORGE safety gate signals - extracted at TOP layer
+    sync_safe: false
+    layer: top
+    network_writable: true
+    network_readable: false  # Future: true when MCC supports read-back
 
+  lifecycle:
+    description: Real-time control signals - always propagate immediately
+    sync_safe: false
+    layer: top
+    network_writable: true
+    network_readable: false
+
+  config:
+    description: Configuration parameters - only update when FSM in INITIALIZING
+    sync_safe: true
+    layer: shim
+    gate_condition: "state_vector = STATE_SYNC_SAFE"
+    network_writable: true
+    network_readable: false
+
+  status:
+    description: Read-only status/statistics (future MCC read-back)
+    sync_safe: false
+    layer: main
+    network_writable: false
+    network_readable: false  # Future: true
+    current_workaround: "HVS encoding on OutputC"
+
+###############################################################################
+# FSM States
+#
+# Defines the state encoding for HVS (Hierarchical Voltage Scaling) output
+# on OutputC. Used by test framework and oscilloscope debugging.
+###############################################################################
+fsm_states:
+  - name: INITIALIZING
+    value: 0
+    encoding: "000000"
+    letter: "I"
+    display_name: "Initializing"
+    description: "Register latch/validation after reset or fault_clear"
+    hvs_voltage_v: 0.0
+    is_sync_safe: true
+
+  - name: IDLE
+    value: 1
+    encoding: "000001"
+    letter: "D"
+    display_name: "Idle"
+    description: "Waiting for arm_enable signal"
+    hvs_voltage_v: 0.5
+
+  - name: ARMED
+    value: 2
+    encoding: "000010"
+    letter: "A"
+    display_name: "Armed"
+    description: "Waiting for trigger - probe will respond to InputA or sw_trigger"
+    hvs_voltage_v: 1.0
+
+  - name: FIRING
+    value: 3
+    encoding: "000011"
+    letter: "F"
+    display_name: "Firing"
+    description: "Driving OutputA (trigger) and OutputB (intensity) pulses"
+    hvs_voltage_v: 1.5
+
+  - name: COOLDOWN
+    value: 4
+    encoding: "000100"
+    letter: "C"
+    display_name: "Cooldown"
+    description: "Thermal safety delay between pulses"
+    hvs_voltage_v: 2.0
+
+  - name: FAULT
+    value: 63
+    encoding: "111111"
+    letter: "X"
+    display_name: "Fault"
+    description: "Sticky fault state - requires fault_clear to recover"
+    hvs_voltage_v: -0.5  # Negative indicates fault (HVS sign flip)
+    is_fault: true
+
+###############################################################################
+# HVS Encoding Parameters
+###############################################################################
+hvs_encoding:
+  digital_units_per_state: 3277
+  voltage_per_state_v: 0.5
+  status_offset_max_units: 100
+  fault_sign_flip: true
+  fault_indicator_bit: 7  # status_vector[7] triggers sign flip
+
+###############################################################################
+# Physical I/O Mapping
+###############################################################################
+io_mapping:
+  InputA:
+    function: "Hardware trigger input"
+    type: adc
+    range_v: [-5, 5]
+
+  InputB:
+    function: "Probe monitor feedback"
+    type: adc
+    range_v: [-5, 5]
+
+  OutputA:
+    function: "Trigger output to probe"
+    type: dac
+    range_v: [-5, 5]
+
+  OutputB:
+    function: "Intensity output to probe"
+    type: dac
+    range_v: [-5, 5]
+
+  OutputC:
+    function: "FSM state debug (HVS encoding)"
+    type: dac
+    range_v: [-5, 5]
+    encoding: hvs
+
+###############################################################################
+# Control Register Allocation Summary
+###############################################################################
+register_allocation:
+  CR0:  "Lifecycle Control (FORGE + arm/trigger/fault)"
+  CR1:  "Campaign Control (reserved)"
+  CR2:  "Trigger Threshold + Trigger Output Voltage"
+  CR3:  "Intensity Output Voltage"
+  CR4:  "Trigger Pulse Duration"
+  CR5:  "Intensity Pulse Duration"
+  CR6:  "Trigger Wait Timeout"
+  CR7:  "Cooldown Interval"
+  CR8:  "Monitor Control + Mode Config"
+  CR9:  "Monitor Window Start"
+  CR10: "Monitor Window Duration"
+  CR11: "Campaign Trigger Target (reserved)"
+  CR12: "Campaign Current Count (reserved, status)"
+  CR13: "Campaign Fault Count (reserved, status)"
+  CR14: "Reserved"
+  CR15: "Reserved"
+
+###############################################################################
+# Datatype Definitions
+###############################################################################
 datatypes:
-  ###########################################################################
-  # 1. Arming and lifecycle management
-  ###########################################################################
+
+  #############################################################################
+  # CR0 - Lifecycle Control
+  #############################################################################
+
+  - name: forge_ready
+    datatype: std_logic
+    description: "FORGE safety bit - set by loader after deployment"
+    control_register: CR0
+    bit_range: "[31]"
+    register_class: forge
+    default_value: false
+    letter: "R"
+    display_name: "Ready"
+
+  - name: user_enable
+    datatype: std_logic
+    description: "FORGE safety bit - user control (GUI toggle)"
+    control_register: CR0
+    bit_range: "[30]"
+    register_class: forge
+    default_value: false
+    letter: "U"
+    display_name: "User Enable"
+
+  - name: clk_enable
+    datatype: std_logic
+    description: "FORGE safety bit - clock gating control"
+    control_register: CR0
+    bit_range: "[29]"
+    register_class: forge
+    default_value: false
+    letter: "N"
+    display_name: "Clock Enable"
+
+  - name: campaign_enable
+    datatype: std_logic
+    description: "Activates campaign state machine (future implementation)"
+    control_register: CR0
+    bit_range: "[28]"
+    register_class: lifecycle
+    default_value: false
+    status: reserved
+    letter: "P"
+    display_name: "Campaign"
 
   - name: arm_enable
     datatype: std_logic
-    description: Enable arming of the FSM (IDLE → ARMED transition).
+    description: "Arm the FSM - enables trigger response (IDLE → ARMED)"
+    control_register: CR0
+    bit_range: "[2]"
+    register_class: lifecycle
     default_value: false
-    control_register: CR1
-    bit_range: "[0]"
-
-  - name: auto_rearm_enable
-    datatype: std_logic
-    description: When true, FSM re-enters ARMED after cooldown instead of returning to IDLE (burst mode).
-    default_value: false
-    control_register: CR1
-    bit_range: "[1]"
+    letter: "A"
+    display_name: "Armed"
 
   - name: fault_clear
     datatype: std_logic
-    description: Write 1 to clear fault state and return to IDLE. Uses edge detection (auto-clears).
+    description: "Clear fault state and return to INITIALIZING for re-validation"
+    control_register: CR0
+    bit_range: "[1]"
+    register_class: lifecycle
     default_value: false
-    control_register: CR1
-    bit_range: "[2]"
-
-  - name: sw_trigger_enable
-    datatype: std_logic
-    description: |-
-      Enable software trigger path (gates CR1[5] sw_trigger signal).
-      When false (default), software trigger is blocked (safe default).
-      When true, rising edges on CR1[5] can trigger the FSM.
-      Safety feature: disabled by default to prevent spurious triggers from metavalues during initialization.
-    default_value: false
-    control_register: CR1
-    bit_range: "[3]"
-
-  - name: hw_trigger_enable
-    datatype: std_logic
-    description: |-
-      Enable hardware voltage trigger on InputA.
-      When false (default), hardware trigger is blocked (safe default).
-      When true, InputA voltage crossing threshold (CR2[31:16]) can trigger the FSM.
-      Safety feature: disabled by default to prevent spurious triggers during initialization.
-    default_value: false
-    control_register: CR1
-    bit_range: "[4]"
+    letter: "C"
+    display_name: "Clear Fault"
+    # Edge detection behavior
+    edge_mode: rising
+    auto_clear: true
+    pulse_width_cycles: 4
+    shadow_behavior: write_only
+    gui_hint: momentary
 
   - name: sw_trigger
     datatype: std_logic
-    description: |-
-      Software trigger signal for FSM (ARMED → FIRING transition).
-      Uses edge detection: rising edge (0→1) generates 1-cycle trigger pulse.
-      Auto-clears after edge is detected.
-      MUST have CR1[3] sw_trigger_enable=1 to be active (gated for safety).
-      Works independently from hardware voltage trigger (InputA comparator).
-      GUI workflow: Set CR1[0]=1 to arm, CR1[3]=1 to enable SW trigger, then CR1[5]=1 to fire.
+    description: "Software trigger - fires probe when armed (ARMED → FIRING)"
+    control_register: CR0
+    bit_range: "[0]"
+    register_class: lifecycle
     default_value: false
+    letter: "T"
+    display_name: "Trigger"
+    edge_mode: rising
+    auto_clear: true
+    pulse_width_cycles: 4
+    shadow_behavior: write_only
+    gui_hint: momentary
+
+  #############################################################################
+  # CR1 - Campaign Control (Reserved)
+  #############################################################################
+
+  - name: campaign_abort
+    datatype: std_logic
+    description: "Abort current campaign and return to idle (future)"
     control_register: CR1
-    bit_range: "[5]"
+    bit_range: "[31]"
+    register_class: lifecycle
+    default_value: false
+    status: reserved
 
-  - name: trigger_wait_timeout
-    datatype: unsigned_32
-    description: Maximum time to wait in ARMED before timing out (watchdog).
-    default_value: 250000000
-    units: clock_cycles
-    units_human: "2.0s @ 125MHz"
-    control_register: CR6
-    bit_range: "[31:0]"
+  - name: campaign_pause
+    datatype: std_logic
+    description: "Pause campaign execution (future)"
+    control_register: CR1
+    bit_range: "[30]"
+    register_class: lifecycle
+    default_value: false
+    status: reserved
 
-  ###########################################################################
-  # 2. Input trigger control (hardware voltage comparator)
-  ###########################################################################
+  #############################################################################
+  # CR2 - Trigger Configuration
+  #############################################################################
 
   - name: input_trigger_voltage_threshold
     datatype: signed_16
-    description: >
-      Voltage threshold for hardware trigger on InputA (mV).
-      Hardware comparator fires when InputA crosses above this threshold.
-      50mV fixed hysteresis (threshold_low = threshold_high - 50mV).
+    description: "Hardware trigger threshold on InputA (mV). 50mV hysteresis applied."
+    control_register: CR2
+    bit_range: "[31:16]"
+    register_class: config
     default_value: 950
     min_value: -5000
     max_value: 5000
     units: mV
-    control_register: CR2
-    bit_range: "[31:16]"
-
-  ###########################################################################
-  # 3. Output drive controls (trigger path first, then power/intensity leg)
-  ###########################################################################
 
   - name: trig_out_voltage
     datatype: signed_16
-    description: Output voltage level for OutputA trigger line (mV, ±5V range).
+    description: "Trigger pulse voltage on OutputA (mV)"
+    control_register: CR2
+    bit_range: "[15:0]"
+    register_class: config
     default_value: 0
     min_value: -5000
     max_value: 5000
     units: mV
-    control_register: CR2
-    bit_range: "[15:0]"
 
-  - name: trig_out_duration
-    datatype: unsigned_32
-    description: Duration of the trigger_out pulse on OutputA.
-    default_value: 12500
-    units: clock_cycles
-    units_human: "100μs @ 125MHz"
-    control_register: CR4
-    bit_range: "[31:0]"
+  #############################################################################
+  # CR3 - Intensity Configuration
+  #############################################################################
 
   - name: intensity_voltage
     datatype: signed_16
-    description: Analog intensity/power control voltage on OutputB (mV, ±5V range).
+    description: "Intensity/power control voltage on OutputB (mV)"
+    control_register: CR3
+    bit_range: "[15:0]"
+    register_class: config
     default_value: 0
     min_value: -5000
     max_value: 5000
     units: mV
-    control_register: CR3
-    bit_range: "[15:0]"
+
+  #############################################################################
+  # CR4-CR7 - Timing Configuration
+  #############################################################################
+
+  - name: trig_out_duration
+    datatype: unsigned_32
+    description: "Duration of trigger pulse on OutputA"
+    control_register: CR4
+    bit_range: "[31:0]"
+    register_class: config
+    default_value: 12500
+    units: clock_cycles
+    units_human: "100μs @ 125MHz"
 
   - name: intensity_duration
     datatype: unsigned_32
-    description: Duration of the intensity drive window on OutputB.
+    description: "Duration of intensity pulse on OutputB"
+    control_register: CR5
+    bit_range: "[31:0]"
+    register_class: config
     default_value: 25000
     units: clock_cycles
     units_human: "200μs @ 125MHz"
-    control_register: CR5
+
+  - name: trigger_wait_timeout
+    datatype: unsigned_32
+    description: "Maximum time in ARMED before watchdog fault"
+    control_register: CR6
     bit_range: "[31:0]"
+    register_class: config
+    default_value: 250000000
+    units: clock_cycles
+    units_human: "2.0s @ 125MHz"
 
   - name: cooldown_interval
     datatype: unsigned_32
-    description: Cooldown period enforced between pulses (thermal safety).
+    description: "Thermal safety delay after FIRING before re-arm"
+    control_register: CR7
+    bit_range: "[31:0]"
+    register_class: config
     default_value: 1250
     units: clock_cycles
     units_human: "10μs @ 125MHz"
-    control_register: CR7
-    bit_range: "[31:0]"
 
-  ###########################################################################
-  # 4. Probe monitoring and feedback thresholds
-  ###########################################################################
-  # Note: probe_monitor_feedback is an INPUT from InputB (ADC), not a control register
-
-  - name: monitor_enable
-    datatype: std_logic
-    description: Enable probe monitor threshold evaluation during FIRING state.
-    default_value: true
-    control_register: CR8
-    bit_range: "[0]"
-
-  - name: monitor_expect_negative
-    datatype: std_logic
-    description: >
-      Polarity select for monitor comparator.
-      True: negative-going crossing counts as "probe fired" (InputB < threshold).
-      False: positive-going crossing (InputB > threshold).
-    default_value: true
-    control_register: CR8
-    bit_range: "[1]"
+  #############################################################################
+  # CR8 - Monitor Control + Mode Configuration
+  #############################################################################
 
   - name: monitor_threshold_voltage
     datatype: signed_16
-    description: Threshold (mV) that InputB must cross within observation window.
+    description: "Threshold voltage for probe feedback monitoring on InputB (mV)"
+    control_register: CR8
+    bit_range: "[31:16]"
+    register_class: config
     default_value: -200
     min_value: -5000
     max_value: 5000
     units: mV
+
+  - name: auto_rearm_enable
+    datatype: std_logic
+    description: "Burst mode - auto re-arm after cooldown instead of returning to IDLE"
     control_register: CR8
-    bit_range: "[31:16]"
+    bit_range: "[2]"
+    register_class: config
+    default_value: false
+    letter: "B"
+    display_name: "Burst Mode"
+
+  - name: monitor_expect_negative
+    datatype: std_logic
+    description: "Monitor polarity - true: negative-going crossing, false: positive-going"
+    control_register: CR8
+    bit_range: "[1]"
+    register_class: config
+    default_value: true
+
+  - name: monitor_enable
+    datatype: std_logic
+    description: "Enable probe feedback monitoring during FIRING state"
+    control_register: CR8
+    bit_range: "[0]"
+    register_class: config
+    default_value: true
+
+  #############################################################################
+  # CR9-CR10 - Monitor Timing
+  #############################################################################
 
   - name: monitor_window_start
     datatype: unsigned_32
-    description: Delay after entering FIRING state before monitoring window opens.
+    description: "Delay after FIRING entry before monitoring window opens"
+    control_register: CR9
+    bit_range: "[31:0]"
+    register_class: config
     default_value: 0
     units: clock_cycles
     units_human: "0ns @ 125MHz"
-    control_register: CR9
-    bit_range: "[31:0]"
 
   - name: monitor_window_duration
     datatype: unsigned_32
-    description: Length of monitoring window (supports long settling tails).
+    description: "Duration of monitoring window"
+    control_register: CR10
+    bit_range: "[31:0]"
+    register_class: config
     default_value: 625000
     units: clock_cycles
     units_human: "5ms @ 125MHz"
-    control_register: CR10
+
+  #############################################################################
+  # CR11-CR13 - Campaign Statistics (Reserved for future)
+  #############################################################################
+
+  - name: campaign_trigger_target
+    datatype: unsigned_32
+    description: "Number of triggers to execute in campaign mode"
+    control_register: CR11
     bit_range: "[31:0]"
+    register_class: config
+    default_value: 100
+    status: reserved
+
+  - name: campaign_current_count
+    datatype: unsigned_32
+    description: "Current trigger count in active campaign (read-only)"
+    control_register: CR12
+    bit_range: "[31:0]"
+    register_class: status
+    default_value: 0
+    status: reserved
+
+  - name: campaign_fault_count
+    datatype: unsigned_32
+    description: "Accumulated fault count in active campaign (read-only)"
+    control_register: CR13
+    bit_range: "[31:0]"
+    register_class: status
+    default_value: 0
+    status: reserved
 
 ###############################################################################
-# Register Summary
+# CR0 Quick Reference
 ###############################################################################
-# CR0[31:29] - FORGE_READY control (forge_ready, user_enable, clk_enable)
-# CR0[28:0]  - Unused
+# Bit layout:
+#   CR0[31]   = forge_ready       (R) ─┐
+#   CR0[30]   = user_enable       (U)  ├── "RUN" - FORGE safety gate
+#   CR0[29]   = clk_enable        (N) ─┘
+#   CR0[28]   = campaign_enable   (P) [reserved]
+#   CR0[27:3] = reserved
+#   CR0[2]    = arm_enable        (A)
+#   CR0[1]    = fault_clear       (C) [edge-triggered, auto-clear]
+#   CR0[0]    = sw_trigger        (T) [edge-triggered, auto-clear]
 #
-# CR1[0]     - arm_enable
-# CR1[1]     - auto_rearm_enable
-# CR1[2]     - fault_clear (edge-detected)
-# CR1[3]     - sw_trigger_enable (gates software trigger, default: disabled)
-# CR1[4]     - hw_trigger_enable (gates hardware voltage trigger, default: disabled)
-# CR1[5]     - sw_trigger (edge-detected, software trigger signal)
-# CR1[31:6]  - Unused
-#
-# CR2[31:16] - input_trigger_voltage_threshold (mV, signed)
-# CR2[15:0]  - trig_out_voltage (mV, signed)
-#
-# CR3[15:0]  - intensity_voltage (mV, signed)
-# CR3[31:16] - Unused
-#
-# CR4[31:0]  - trig_out_duration (clock cycles)
-# CR5[31:0]  - intensity_duration (clock cycles)
-# CR6[31:0]  - trigger_wait_timeout (clock cycles)
-# CR7[31:0]  - cooldown_interval (clock cycles)
-#
-# CR8[0]     - monitor_enable
-# CR8[1]     - monitor_expect_negative
-# CR8[15:2]  - Unused
-# CR8[31:16] - monitor_threshold_voltage (mV, signed)
-#
-# CR9[31:0]  - monitor_window_start (clock cycles)
-# CR10[31:0] - monitor_window_duration (clock cycles)
-#
-# CR11-CR15  - Unused (future expansion)
+# Common CR0 values:
+#   0x00000000 = All disabled (safe default after reset)
+#   0xE0000000 = FORGE "RUN" enabled, FSM idle
+#   0xE0000004 = RUN + armed
+#   0xE0000005 = RUN + armed + sw_trigger (fires once)
+#   0xE0000006 = RUN + armed + fault_clear
+#   0xF0000004 = RUN + campaign + armed (future)
 ###############################################################################

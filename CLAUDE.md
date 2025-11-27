@@ -50,9 +50,9 @@ The DPD follows the standard FORGE architecture for Moku CloudCompile applicatio
 - Minimal logic, mostly structural
 
 **Layer 2: SHIM (DPD_shim.vhd)**
-- Maps raw Control Registers (CR1-CR10) to friendly signal names
+- Maps raw Control Registers (CR2-CR10) to friendly signal names
+- Implements edge detection + pulse stretcher for CR0[1:0] (fault_clear, sw_trigger)
 - Implements HVS (Hierarchical Voltage Encoding) on OutputC for FSM state observation
-- Handles hardware trigger pulse generation (sw_trigger edge detection)
 - **Network Register Synchronization**: Gates CR2-CR10 updates based on FSM state
 - Instantiates DPD_main (application logic)
 
@@ -100,22 +100,32 @@ The DPD FSM has six states encoded in OutputC via HVS:
 
 Configuration registers (CR2-CR10) are only propagated when the FSM is in INITIALIZING state. This prevents race conditions from asynchronous network register updates. See `docs/network-register-sync.md` for details.
 
-- **Lifecycle controls (CR1)**: Always pass through (arm_enable, sw_trigger, fault_clear)
+- **Lifecycle controls (CR0[2:0])**: Always pass through (arm_enable, fault_clear, sw_trigger)
 - **Configuration params (CR2-CR10)**: Only updated when state = INITIALIZING
 
-### Control Register Mapping
+### Control Register Mapping (v4.0)
 
-Registers are documented in `rtl/DPD-RTL.yaml`:
+**Authoritative reference:** `docs/api-v4.md` and `rtl/DPD-RTL.yaml`
 
-- **CR0[31:29]** - FORGE_READY control (forge_ready, user_enable, clk_enable)
-- **CR1[3:0]** - Lifecycle control (arm_enable, sw_trigger, auto_rearm_enable, fault_clear)
-- **CR2** - Trigger threshold (upper 16 bits) and trigger output voltage (lower 16 bits)
-- **CR3** - Intensity output voltage
-- **CR4-CR7** - Timing controls (32-bit clock cycles): trigger duration, intensity duration, timeout, cooldown
-- **CR8** - Monitor control bits + threshold (packed register)
-- **CR9-CR10** - Monitor timing windows
+**CR0 - Lifecycle Control (atomic operations)**
+```
+CR0[31:29] = FORGE "RUN" gate (R=ready, U=user, N=clock)
+CR0[28]    = campaign_enable (reserved)
+CR0[2]     = arm_enable (level-sensitive)
+CR0[1]     = fault_clear (edge-triggered, auto-clear)
+CR0[0]     = sw_trigger (edge-triggered, auto-clear)
+```
 
-All timing values are in **clock cycles** (125 MHz = 8ns period). The Python utilities in `py_tools/clk_utils.py` convert between time units and clock cycles.
+**CR1** - Reserved for campaign mode
+
+**CR2-CR10 - Configuration (sync-safe gated)**
+- **CR2** - Trigger threshold [31:16] + trigger output voltage [15:0]
+- **CR3** - Intensity output voltage [15:0]
+- **CR4-CR7** - Timing: trigger duration, intensity duration, timeout, cooldown
+- **CR8** - Monitor threshold [31:16] + auto_rearm[2] + polarity[1] + enable[0]
+- **CR9-CR10** - Monitor window timing
+
+All timing values are in **clock cycles** (125 MHz = 8ns period). Use `py_tools/clk_utils.py` for conversions.
 
 ### FORGE Control Scheme
 
@@ -285,29 +295,36 @@ if rising_edge(Clk) then
 end if;
 ```
 
-### Edge Detection for Control Signals
+### Edge Detection with Auto-Clear (v4.0)
 
-Software trigger and fault_clear use edge detection (not level-sensitive):
+Software trigger (CR0[0]) and fault_clear (CR0[1]) use **edge detection with pulse stretching**:
 
 ```vhdl
--- In shim layer
+-- In shim layer (DPD_shim.vhd)
+constant PULSE_WIDTH : integer := 4;  -- 32ns @ 125MHz
+
 process(Clk)
-    variable sw_trigger_prev : std_logic := '0';
 begin
     if rising_edge(Clk) then
-        if Reset = '1' then
-            ext_trigger_in <= '0';
-            sw_trigger_prev := '0';
-        elsif clk_enable = '1' then
-            -- Edge detection: 0→1 transition
-            ext_trigger_in <= (app_reg_1(1) = '1' and sw_trigger_prev = '0');
-            sw_trigger_prev := app_reg_1(1);
+        -- Edge detection: capture 0→1 transition
+        if sw_trigger = '1' and sw_trigger_prev = '0' then
+            sw_trigger_pulse_cnt <= PULSE_WIDTH;
+        elsif sw_trigger_pulse_cnt > 0 then
+            sw_trigger_pulse_cnt <= sw_trigger_pulse_cnt - 1;
         end if;
+        sw_trigger_prev <= sw_trigger;
     end if;
 end process;
+
+-- Stretched pulse output (held for 4 cycles regardless of input)
+sw_trigger_stretched <= '1' when sw_trigger_pulse_cnt > 0 else '0';
 ```
 
-This prevents continuous triggering when the bit remains high.
+This design:
+1. Detects rising edge on CR0[0]
+2. Stretches the pulse to 4 clock cycles (32ns)
+3. Software can clear the bit immediately or leave it set
+4. Eliminates timing dependencies between SW writes and HW edge detection
 
 ## Hardware Debug Workflow
 
@@ -345,8 +362,8 @@ When reading OutputC with an oscilloscope, expect ±300mV tolerance due to ADC n
 ### FORGE Control Partial Enable
 Tests must verify that the FSM does NOT operate when FORGE control is partially enabled. All three bits (forge_ready, user_enable, clk_enable) must be high.
 
-### CR1 State Leakage Between Tests
-When testing FORGE control scheme (partial vs complete enable), clear CR1 between test phases to prevent arm_enable state leakage. Otherwise, the FSM may remain armed from a previous test.
+### CR0 State Leakage Between Tests
+When testing FORGE control scheme (partial vs complete enable), ensure CR0[2:0] is cleared between test phases to prevent arm_enable state leakage. Otherwise, the FSM may remain armed from a previous test. Use `CR0.RUN` (0xE0000000) to reset to a known state.
 
 ## File Organization
 
@@ -387,6 +404,7 @@ DPD-001/
 │           ├── P1_basic.py              # P1 hardware test suite
 │           └── P2_intermediate.py       # P2 stub
 ├── docs/                               # Documentation
+│   ├── api-v4.md                       # **API v4.0 calling convention** (START HERE)
 │   ├── hvs.md                          # HVS encoding documentation
 │   ├── hardware-debug-checklist.md     # Debugging guide
 │   ├── network-register-sync.md        # Sync protocol documentation
@@ -397,6 +415,8 @@ DPD-001/
 
 ## References
 
+- **API v4.0 Reference**: `docs/api-v4.md` - Authoritative SW/HW calling convention
+- **Register Specification**: `rtl/DPD-RTL.yaml` - Machine-readable register spec
 - **FORGE Architecture**: Not included in this repo, but referenced in Layer 1/2/3 comments
 - **Moku API**: https://apis.liquidinstruments.com/
 - **CocoTB**: https://docs.cocotb.org/

@@ -1,12 +1,18 @@
 --------------------------------------------------------------------------------
 -- File: DPD_main.vhd
 -- Author: Moku Instrument Forge Team
--- Date: 2025-11-25
--- Version: 2.0 (Layer 3 - MCC-agnostic refactor)
+-- Date: 2025-11-26
+-- Version: 4.0 (Layer 3 - API v4.0 compatibility update)
 --
 -- Description:
---   Five-state FSM for Demo Probe Driver following forge-vhdl standards.
+--   Six-state FSM for Demo Probe Driver following forge-vhdl standards.
 --   This is Layer 3 of the Forge architecture - completely MCC-agnostic.
+--
+-- API Version 4.0 Notes:
+--   - This layer's interface is unchanged
+--   - Lifecycle controls (arm_enable, fault_clear) arrive from shim
+--   - auto_rearm_enable now sourced from CR8[2] (handled by shim)
+--   - fault_clear is now pulse-stretched in shim (auto-clear behavior)
 --
 -- Platform: Moku:Go
 -- Clock Frequency: 125 MHz (8 ns period)
@@ -20,11 +26,12 @@
 --   FAULT        (111111) - Sticky fault state (requires fault_clear)
 --
 -- Layer 3 of 3-Layer Forge Architecture:
---   Layer 1: DPD.vhd (implements MCC CustomWrapper entity)
---   Layer 2: DPD_shim.vhd (RTL / register mapping. #TODO NetworkSyncProtocol
+--   Layer 1: DPD.vhd (TOP - extracts CR0 bits)
+--   Layer 2: DPD_shim.vhd (register mapping, edge detection, HVS encoding)
 --   Layer 3: DPD_main.vhd (THIS FILE - application logic)
 --
 -- References:
+--   - rtl/DPD-RTL.yaml (authoritative specification)
 --   - DPD_shim.vhd (shim layer)
 --   - forge_common_pkg.vhd (FORGE_READY control scheme)
 --------------------------------------------------------------------------------
@@ -32,7 +39,7 @@
 -- Network Register Synchronization:
 --   Resolved via STATE_SYNC_SAFE protocol. Configuration parameters are gated
 --   at the shim layer (sync_safe signal) and latched atomically here in
---   INITIALIZING state. See: N/network-register-sync.md
+--   INITIALIZING state.
 --
 
 library IEEE;

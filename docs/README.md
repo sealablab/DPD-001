@@ -1,7 +1,8 @@
 # DPD-001 Documentation Index
 
-**Last Updated:** 2025-01-28
+**Last Updated:** 2025-11-26
 **Project:** DPD-001 (Demo Probe Driver) - FPGA-based probe controller for Moku:Go
+**API Version:** 4.0
 
 ---
 
@@ -11,9 +12,22 @@ For quick reference and common tasks, see [CLAUDE.md](../CLAUDE.md) in the proje
 
 This documentation directory contains detailed architectural notes, test design patterns, debugging guides, and FORGE framework references.
 
+### Authoritative Sources
+
+| Document | Purpose |
+|----------|---------|
+| **[api-v4.md](api-v4.md)** | **Register calling convention** - SW/HW interface reference |
+| [rtl/DPD-RTL.yaml](../rtl/DPD-RTL.yaml) | Machine-readable register specification |
+| [py_tools/dpd_constants.py](../py_tools/dpd_constants.py) | Python constants (derived from YAML) |
+
 ---
 
 ## Architecture & Core Concepts
+
+### API v4.0 Reference
+[api-v4.md](api-v4.md) - **Authoritative Calling Convention**
+
+The SW/HW interface reference for DPD. Documents CR0 lifecycle control, configuration registers (CR2-CR10), usage patterns, FSM states, and migration from v3. **Start here when writing or updating code that interfaces with DPD.**
 
 ### Custom Wrapper
 [custom-wrapper.md](custom-wrapper.md) - **Current MCC Standard**
@@ -105,8 +119,12 @@ Includes invocation examples, phase contracts, and common workflows.
 docs/
 ├── README.md (this file)
 │
+├── Authoritative References
+│   ├── api-v4.md                     # SW/HW calling convention (START HERE)
+│   └── ../rtl/DPD-RTL.yaml           # Machine-readable register spec
+│
 ├── Architecture & Core Concepts
-│   ├── custom-wrapper.md            # Current MCC interface standard
+│   ├── custom-wrapper.md             # Current MCC interface standard
 │   ├── custom-instrument.md          # Future MCC interface standard
 │   ├── hvs.md                        # FSM state debugging via voltage
 │   ├── network-register-sync.md      # CR sync protocol
@@ -147,5 +165,17 @@ Many of these documents were migrated from the FORGE-V5 project (`/Users/johnycs
 
 ---
 
+## Obsolete Documentation
+
+The following historic documents describe the **pre-v4.0 API** with CR1-based lifecycle controls. They should be deleted or archived:
+
+- `HANDOFF_SW_TRIGGER_DEBUG.md` - Debug notes for CR1→CR0 migration
+- `handoffs/20251125/HANDOFF_FSM_TRIGGER_DEBUG.md` - Historic trigger debugging
+- `handoffs/20251125/HANDOFF_FSM_DEBUG_CONTINUATION.md` - Historic FSM debugging
+- Any test code referencing `sw_trigger_enable`, `hw_trigger_enable`, or CR1 lifecycle bits
+
+---
+
 **Maintainer:** Moku Instrument Forge Team
-**Last Updated:** 2025-01-28
+**Last Updated:** 2025-11-26
+**API Version:** 4.0

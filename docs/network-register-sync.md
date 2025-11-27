@@ -1,14 +1,16 @@
 # Network Register Synchronization Protocol
 
-**Date:** 2025-11-25  
-**Status:** Implemented  
+**Date:** 2025-11-26
+**Version:** Updated for API v4.0
+**Status:** Implemented
 **Files:** `forge_common_pkg.vhd`, `DPD_shim.vhd`, `DPD_main.vhd`
+**See Also:** [API v4.0 Reference](api-v4.md)
 
 ---
 
 ## Problem
 
-Network-accessible control registers (CR1-CR10) can be updated asynchronously at any time by the host. This creates race conditions when the FSM is actively operating:
+Network-accessible control registers (CR2-CR10) can be updated asynchronously at any time by the host. This creates race conditions when the FSM is actively operating:
 
 - Parameter changes mid-pulse could cause glitches
 - Partial updates (e.g., voltage without duration) create inconsistent states
@@ -35,7 +37,7 @@ Network Regs → [Shim Gate] → app_reg_* → [Main Latch] → latched_*
 
 | Type | Registers | Gating | Rationale |
 |------|-----------|--------|-----------|
-| **Lifecycle controls** | CR1 (arm_enable, fault_clear, etc.) | None | Real-time control signals must work in any state |
+| **Lifecycle controls** | CR0[2:0] (arm_enable, fault_clear, sw_trigger) | None | Real-time control signals must work in any state |
 | **Configuration params** | CR2-CR10 (voltages, durations, thresholds) | sync_safe | Define operation parameters, must be stable |
 
 ---
@@ -79,15 +81,22 @@ dpd.arm()          # Now safe to operate with new params
 
 ```vhdl
 -- sync_safe signal: '1' when state = INITIALIZING
-sync_safe <= '1' when (app_state_vector = STATE_SYNC_SAFE) else '0';
+sync_safe <= '1' when (state_vector = STATE_SYNC_SAFE) else '0';
 
--- Gate configuration registers
-app_reg_2 <= Control2 when sync_safe = '1' else app_reg_2;  -- Voltage params
-app_reg_3 <= Control3 when sync_safe = '1' else app_reg_3;
--- ... CR4-CR10 similarly gated
+-- Gate configuration registers (CR2-CR10)
+process(Clk)
+begin
+    if rising_edge(Clk) then
+        if sync_safe = '1' then
+            latched_app_reg_2 <= app_reg_2;   -- Voltage params
+            latched_app_reg_3 <= app_reg_3;
+            -- ... CR4-CR10 similarly gated
+        end if;
+    end if;
+end process;
 
--- Lifecycle controls always pass through
-app_reg_1 <= Control1;  -- No gating
+-- Lifecycle controls (CR0[2:0]) always pass through - no gating
+-- arm_enable, fault_clear, sw_trigger handled in separate edge detection process
 ```
 
 ### Main Layer (DPD_main.vhd)
@@ -121,6 +130,6 @@ end process;
 
 ---
 
-**Last Updated:** 2025-01-28  
-**Status:** Migrated from review_me, integrated into docs/
+**Last Updated:** 2025-11-26
+**Status:** Updated for API v4.0 (lifecycle controls moved to CR0)
 
