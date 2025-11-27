@@ -21,8 +21,8 @@ from pathlib import Path
 TESTS_PATH = Path(__file__).parent.parent
 sys.path.insert(0, str(TESTS_PATH))
 
-# Import from shared infrastructure
-from shared.test_base_common import (
+# Import from lib (unified test infrastructure)
+from lib import (
     TestLevel,
     VerbosityLevel,
     TestResult,

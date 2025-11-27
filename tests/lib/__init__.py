@@ -74,6 +74,14 @@ from .timeouts import Timeouts
 # Configuration dataclass
 from .dpd_config import DPDConfig
 
+# Test base classes
+from .test_base import (
+    TestLevel,
+    VerbosityLevel,
+    TestResult,
+    TestRunnerMixin,
+)
+
 # [COMPAT] Backward compatibility aliases - delete once imports updated
 P1TestValues = P1Timing
 P2TestValues = P2Timing

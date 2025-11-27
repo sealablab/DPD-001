@@ -38,12 +38,25 @@ from contextlib import contextmanager
 # Ensure we're in the cocotb_tests directory
 os.chdir(Path(__file__).parent)
 
-# Import constants for HDL sources
-from dpd.constants import (
-    HDL_SOURCES,
-    HDL_TOPLEVEL,
-    MODULE_NAME,
-)
+# Add parent to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# HDL configuration (previously in dpd/constants.py)
+PROJECT_ROOT = Path(__file__).parent.parent.parent  # DPD-001/
+RTL_DIR = PROJECT_ROOT / "rtl"
+
+MODULE_NAME = "dpd_wrapper"
+HDL_TOPLEVEL = "customwrapper"  # GHDL lowercases entity names
+
+HDL_SOURCES = [
+    RTL_DIR / "CustomWrapper_test_stub.vhd",
+    RTL_DIR / "forge_common_pkg.vhd",
+    RTL_DIR / "forge_hierarchical_encoder.vhd",
+    RTL_DIR / "moku_voltage_threshold_trigger_core.vhd",
+    RTL_DIR / "DPD_main.vhd",
+    RTL_DIR / "DPD_shim.vhd",
+    RTL_DIR / "DPD.vhd",
+]
 
 # Import GHDL filter
 from ghdl_filter import GHDLOutputFilter, FilterLevel

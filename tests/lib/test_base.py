@@ -11,7 +11,7 @@ Date: 2025-11-26
 
 from enum import IntEnum
 from dataclasses import dataclass
-from typing import Optional, List, Callable, Any
+from typing import Optional, List
 
 
 class TestLevel(IntEnum):
@@ -117,17 +117,17 @@ class TestRunnerMixin:
         if self.verbosity == VerbosityLevel.SILENT:
             pass
         elif self.verbosity == VerbosityLevel.MINIMAL:
-            self._log_message("  \u2713 PASS")
+            self._log_message("  ✓ PASS")
         elif self.verbosity == VerbosityLevel.NORMAL:
             if duration_ms > 0:
-                self._log_message(f"\u2713 {test_name} PASSED ({duration_ms:.0f}ms)")
+                self._log_message(f"✓ {test_name} PASSED ({duration_ms:.0f}ms)")
             else:
-                self._log_message(f"\u2713 {test_name} PASSED")
+                self._log_message(f"✓ {test_name} PASSED")
         else:
             if duration_ms > 0:
-                self._log_message(f"\u2713 {test_name} PASSED ({duration_ms:.1f}ms)")
+                self._log_message(f"✓ {test_name} PASSED ({duration_ms:.1f}ms)")
             else:
-                self._log_message(f"\u2713 {test_name} PASSED")
+                self._log_message(f"✓ {test_name} PASSED")
 
     def log_test_fail(self, test_name: str, error: str, duration_ms: float = 0):
         """Log test failure."""
@@ -135,12 +135,12 @@ class TestRunnerMixin:
 
         # Always log failures regardless of verbosity
         if self.verbosity == VerbosityLevel.MINIMAL:
-            self._log_error(f"  \u2717 FAIL: {error}")
+            self._log_error(f"  ✗ FAIL: {error}")
         else:
             if duration_ms > 0:
-                self._log_error(f"\u2717 {test_name} FAILED ({duration_ms:.0f}ms): {error}")
+                self._log_error(f"✗ {test_name} FAILED ({duration_ms:.0f}ms): {error}")
             else:
-                self._log_error(f"\u2717 {test_name} FAILED: {error}")
+                self._log_error(f"✗ {test_name} FAILED: {error}")
 
     def log_phase_start(self, phase_name: str):
         """Log phase start (P1, P2, etc.)."""
@@ -171,9 +171,9 @@ class TestRunnerMixin:
             self._log_message(f"FAILED: {self.failed_count}")
 
             if self.failed_count == 0:
-                self._log_message("RESULT: ALL TESTS PASSED \u2713")
+                self._log_message("RESULT: ALL TESTS PASSED ✓")
             else:
-                self._log_error(f"RESULT: {self.failed_count} TESTS FAILED \u2717")
+                self._log_error(f"RESULT: {self.failed_count} TESTS FAILED ✗")
 
             # Show failed tests
             if self.failed_count > 0 and self.verbosity >= VerbosityLevel.NORMAL:

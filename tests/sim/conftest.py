@@ -40,9 +40,9 @@ from cocotb.triggers import RisingEdge, FallingEdge, ClockCycles, with_timeout
 TESTS_PATH = Path(__file__).parent.parent
 sys.path.insert(0, str(TESTS_PATH))
 
-# Import shared infrastructure
-from shared.control_interface import CocoTBControl, ControlInterface
+# Import from lib (unified test infrastructure)
 from lib import CR0
+from shared.control_interface import CocoTBControl, ControlInterface
 
 
 # Default clock period for Moku:Go (125MHz = 8ns period)
