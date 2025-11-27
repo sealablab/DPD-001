@@ -1,18 +1,22 @@
-# Test Run Summary - First Execution in DPD Repo
+# Test Run Summary - Historical Document
 
-**Date:** 2025-11-25  
-**Status:** ✅ Tests running successfully  
-**GHDL Filter:** ✅ Working (99.6% output reduction)
+**Date:** 2025-11-25 (historical - paths updated 2025-11-26)
+**Status:** Tests running successfully
+**GHDL Filter:** Working (99.6% output reduction)
+
+> **Note:** This is a historical document from initial test execution. Test module
+> paths have been updated to reflect the current structure (`dpd.*` instead of
+> `dpd_wrapper_tests.*`).
 
 ---
 
 ## Test Execution Results
 
-### Basic Tests (P1_dpd_wrapper_basic)
+### Basic Tests (dpd.P1_basic)
 
 ```bash
-cd /Users/johnycsh/DPD/DPD-001/tests/sim
-uv run python run.py
+cd tests/sim
+python run.py
 ```
 
 **Results:**
@@ -22,11 +26,11 @@ uv run python run.py
   - Expected: OutputC = 6554 (ARMED state)
   - Actual: OutputC = 9896 (FIRING state)
 
-### Debug Tests (P1_dpd_trigger_debug)
+### Debug Tests (dpd.P1_dpd_trigger_debug)
 
 ```bash
-cd /Users/johnycsh/DPD/DPD-001/tests/sim
-TEST_MODULE=dpd_wrapper_tests.P1_dpd_trigger_debug uv run python run.py
+cd tests/sim
+TEST_MODULE=dpd.P1_dpd_trigger_debug python run.py
 ```
 
 **Results:**
@@ -139,36 +143,36 @@ TEST_MODULE=dpd_wrapper_tests.P1_dpd_trigger_debug uv run python run.py
 ### Run Basic Tests
 
 ```bash
-cd /Users/johnycsh/DPD/DPD-001/tests/sim
-uv run python run.py
+cd tests/sim
+python run.py
 ```
 
 ### Run Debug Tests
 
 ```bash
-cd /Users/johnycsh/DPD/DPD-001/tests/sim
-TEST_MODULE=dpd_wrapper_tests.P1_dpd_trigger_debug uv run python run.py
+cd tests/sim
+TEST_MODULE=dpd.P1_dpd_trigger_debug python run.py
 ```
 
 ### Run with Waveform Capture
 
 ```bash
-cd /Users/johnycsh/DPD/DPD-001/tests/sim
-WAVES=true TEST_MODULE=dpd_wrapper_tests.P1_dpd_trigger_debug uv run python run.py
+cd tests/sim
+WAVES=true TEST_MODULE=dpd.P1_dpd_trigger_debug python run.py
 ```
 
 ### Run with No Filtering (Debug Mode)
 
 ```bash
-cd /Users/johnycsh/DPD/DPD-001/tests/sim
-GHDL_FILTER=none uv run python run.py
+cd tests/sim
+GHDL_FILTER=none python run.py
 ```
 
 ### Run with Verbose Output
 
 ```bash
-cd /Users/johnycsh/DPD/DPD-001/tests/sim
-COCOTB_VERBOSITY=DEBUG uv run python run.py
+cd tests/sim
+COCOTB_VERBOSITY=DEBUG python run.py
 ```
 
 ---
@@ -249,8 +253,7 @@ COCOTB_VERBOSITY=DEBUG uv run python run.py
 
 ## References
 
-- **Debug Plan:** `FSM_TRIGGER_DEBUG_PLAN.md`
-- **Debug Summary:** `FSM_TRIGGER_DEBUG_SUMMARY.md`
-- **Usage Guide:** `DEBUG_TEST_USAGE.md`
-- **Original Issue:** `HANDOFF_FSM_TRIGGER_DEBUG.md`
+- **Main README:** [README.md](README.md)
+- **Debug Tests:** [DEBUG_TEST_USAGE.md](DEBUG_TEST_USAGE.md)
+- **GHDL Filter:** [FILTER_QUICKSTART.md](FILTER_QUICKSTART.md)
 

@@ -1,12 +1,15 @@
 """
-Async Adapter Base Classes
-==========================
+Async Adapter Base Classes (API v4.0)
+=====================================
 
-Abstract interfaces for unified sim/hardware testing.
+Abstract interfaces for unified sim/hardware testing with strict CR0 protection.
 
-All wait operations are async:
-- CocoTB: await ClockCycles(dut.Clk, N)
-- Moku: await asyncio.sleep(seconds)
+CR0 Protection:
+  - FORGE bits [31:29]: Only modifiable via enable_forge() / disable_forge()
+  - Lifecycle bits [2:0]: Only modifiable via arm() / disarm() / trigger() / clear_fault()
+  - No direct CR0 access from tests
+
+Reference: docs/api-v4.md
 """
 
 from abc import ABC, abstractmethod
@@ -20,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from lib import (
     Platform,
     HVS,
-    cr1_build,
+    CR0,
     HVS_DIGITAL_INITIALIZING,
     HVS_DIGITAL_IDLE,
     HVS_DIGITAL_ARMED,
@@ -33,11 +36,32 @@ CLK_FREQ_HZ = Platform.CLK_FREQ_HZ
 
 
 class AsyncFSMController(ABC):
-    """Abstract async interface for FSM control register operations."""
+    """Abstract async interface for FSM control register operations.
+
+    CR0 Protection:
+        CR0 is fully encapsulated. All access is through dedicated methods.
+        - FORGE bits [31:29]: enable_forge() / disable_forge()
+        - Lifecycle bits [2:0]: arm() / disarm() / trigger() / clear_fault()
+
+        The controller tracks both FORGE and lifecycle state internally
+        and combines them on every write to CR0.
+
+    Configuration registers (CR2-CR10) remain directly accessible via
+    set_control_register() for configuration purposes.
+    """
+
+    def __init__(self):
+        """Initialize CR0 state tracking."""
+        self._forge_state: int = 0      # Tracks CR0[31:29]
+        self._lifecycle_state: int = 0  # Tracks CR0[2:0]
 
     @abstractmethod
     async def set_control_register(self, reg_num: int, value: int):
-        """Set a control register value."""
+        """Set a control register value.
+
+        Note: For CR0, use the dedicated FORGE/lifecycle methods instead.
+        Direct CR0 access is only used internally.
+        """
         pass
 
     @abstractmethod
@@ -50,31 +74,80 @@ class AsyncFSMController(ABC):
         """Wait for N clock cycles."""
         pass
 
-    async def wait_us(self, microseconds: float):
-        """Wait for a duration in microseconds."""
-        cycles = int(microseconds * CLK_FREQ_HZ / 1e6)
-        await self.wait_cycles(cycles)
+    async def _write_cr0(self):
+        """Internal: Combine FORGE + lifecycle and write CR0."""
+        await self.set_control_register(0, self._forge_state | self._lifecycle_state)
 
-    async def wait_ms(self, milliseconds: float):
-        """Wait for a duration in milliseconds."""
-        await self.wait_us(milliseconds * 1000)
+    # =========================================================================
+    # FORGE Control (CR0[31:29]) - The only way to modify FORGE bits
+    # =========================================================================
 
-    async def set_forge_ready(self, wait_after: int = 0):
-        """Enable FORGE control (CR0[31:29] = 0b111)."""
-        MCC_CR0_ALL_ENABLED = 0xE0000000
-        await self.set_control_register(0, MCC_CR0_ALL_ENABLED)
-        if wait_after > 0:
-            await self.wait_cycles(wait_after)
+    async def enable_forge(self, ready: bool = True, user: bool = True, clk: bool = True):
+        """Enable FORGE control bits. Call at test setup.
 
-    async def clear_forge_ready(self):
-        """Disable FORGE control."""
-        await self.set_control_register(0, 0x00000000)
-        await self.wait_cycles(100)
+        Args:
+            ready: Set forge_ready (CR0[31]) - normally set by MCC loader
+            user:  Set user_enable (CR0[30]) - user control
+            clk:   Set clk_enable (CR0[29]) - clock gating
 
-    async def set_cr1(self, **kwargs):
-        """Set CR1 using named parameters."""
-        value = cr1_build(**kwargs)
-        await self.set_control_register(1, value)
+        For normal tests, call with no args to enable all.
+        For FORGE safety tests, pass specific bits to test partial enable.
+        """
+        self._forge_state = (
+            (CR0.FORGE_READY_MASK if ready else 0) |
+            (CR0.USER_ENABLE_MASK if user else 0) |
+            (CR0.CLK_ENABLE_MASK if clk else 0)
+        )
+        await self._write_cr0()
+
+    async def disable_forge(self):
+        """Disable all FORGE control bits."""
+        self._forge_state = 0
+        self._lifecycle_state = 0  # Also clear lifecycle when FORGE disabled
+        await self._write_cr0()
+
+    # =========================================================================
+    # Lifecycle Control (CR0[2:0]) - The only way to modify lifecycle bits
+    # =========================================================================
+
+    async def arm(self):
+        """Arm FSM (IDLE → ARMED). Sets CR0[2]."""
+        self._lifecycle_state |= CR0.ARM_ENABLE_MASK
+        await self._write_cr0()
+
+    async def disarm(self):
+        """Disarm FSM (ARMED → IDLE). Clears CR0[2]."""
+        self._lifecycle_state &= ~CR0.ARM_ENABLE_MASK
+        await self._write_cr0()
+
+    async def trigger(self):
+        """Fire software trigger. Single atomic write with arm preserved.
+
+        This is the v4.0 "atomic trigger" - a single write of 0xE0000005
+        that includes FORGE + arm + trigger in one operation.
+
+        The RTL auto-clears trigger via edge detection + pulse stretcher,
+        so no explicit clear is needed.
+        """
+        # Atomic: FORGE + arm + trigger in one write
+        await self.set_control_register(0,
+            self._forge_state | CR0.ARM_ENABLE_MASK | CR0.SW_TRIGGER_MASK)
+        # RTL auto-clears trigger via edge detection + pulse stretcher
+
+    async def clear_fault(self):
+        """Clear fault state. Edge-triggered with auto-clear.
+
+        Transitions FSM: FAULT → INITIALIZING → IDLE
+        """
+        await self.set_control_register(0,
+            self._forge_state | CR0.FAULT_CLEAR_MASK)
+        await self.wait_cycles(10)  # Let edge detection capture it
+        # After clear, FSM goes to INITIALIZING then IDLE
+        self._lifecycle_state = 0  # Reset lifecycle tracking
+
+    # =========================================================================
+    # Configuration Register Access (CR2-CR10)
+    # =========================================================================
 
     async def configure_timing(self, trig_duration: int, intensity_duration: int,
                                 cooldown: int, timeout: Optional[int] = None):
@@ -84,6 +157,31 @@ class AsyncFSMController(ABC):
         await self.set_control_register(7, cooldown)
         if timeout is not None:
             await self.set_control_register(6, timeout)
+
+    async def apply_config(self, config):
+        """Apply a DPDConfig to registers CR2-CR10.
+
+        Args:
+            config: DPDConfig instance with configuration values
+
+        Note: This does not modify CR0 or CR1. Use enable_forge() and arm()
+        for lifecycle control.
+        """
+        for reg in config.to_app_regs_list():
+            await self.set_control_register(reg["idx"], reg["value"])
+
+    # =========================================================================
+    # Convenience Methods
+    # =========================================================================
+
+    async def wait_us(self, microseconds: float):
+        """Wait for a duration in microseconds."""
+        cycles = int(microseconds * CLK_FREQ_HZ / 1e6)
+        await self.wait_cycles(cycles)
+
+    async def wait_ms(self, milliseconds: float):
+        """Wait for a duration in milliseconds."""
+        await self.wait_us(milliseconds * 1000)
 
 
 class AsyncFSMStateReader(ABC):
@@ -136,40 +234,35 @@ class AsyncFSMTestHarness(ABC):
             f"expected {expected_state}, got {state} (digital={digital})"
         )
 
-    async def arm_fsm(self, timing_config):
-        """Arm the FSM with specified timing."""
-        await self.controller.configure_timing(
-            trig_duration=timing_config.TRIG_OUT_DURATION,
-            intensity_duration=timing_config.INTENSITY_DURATION,
-            cooldown=timing_config.COOLDOWN_INTERVAL,
-        )
-        await self.controller.set_cr1(arm_enable=True)
+    async def arm_fsm(self, timing_config=None):
+        """Arm the FSM with optional timing configuration.
+
+        Args:
+            timing_config: Optional timing config with TRIG_OUT_DURATION,
+                          INTENSITY_DURATION, COOLDOWN_INTERVAL attributes
+        """
+        if timing_config:
+            await self.controller.configure_timing(
+                trig_duration=timing_config.TRIG_OUT_DURATION,
+                intensity_duration=timing_config.INTENSITY_DURATION,
+                cooldown=timing_config.COOLDOWN_INTERVAL,
+            )
+        await self.controller.arm()
         await self.controller.wait_cycles(100)
 
     async def software_trigger(self):
-        """Issue a software trigger."""
-        await self.controller.set_cr1(
-            arm_enable=True,
-            sw_trigger_enable=True,
-            sw_trigger=True,
-        )
-        await self.controller.wait_cycles(10)
-        await self.controller.set_cr1(
-            arm_enable=True,
-            sw_trigger_enable=True,
-            sw_trigger=False,
-        )
+        """Issue software trigger. Single atomic write."""
+        await self.controller.trigger()
 
     async def reset_to_idle(self, timeout_us: int = 10000) -> bool:
-        """Reset FSM to IDLE state."""
-        for i in range(1, 16):
+        """Reset FSM to IDLE state via fault_clear."""
+        # Clear configuration registers
+        for i in range(2, 11):
             await self.controller.set_control_register(i, 0)
         await self.controller.wait_cycles(100)
 
-        await self.controller.set_cr1(fault_clear=True)
-        await self.controller.wait_cycles(10)
-        await self.controller.set_cr1(fault_clear=False)
-        await self.controller.wait_cycles(100)
+        # Use fault_clear to transition to IDLE
+        await self.controller.clear_fault()
 
         return await self.wait_for_state("IDLE", timeout_us=timeout_us)
 

@@ -5,29 +5,32 @@
 ### Run Debug Tests
 
 ```bash
-cd /Users/johnycsh/DPD/DPD-001/tests/sim
+cd tests/sim
 
 # Run P1 debug test (signal monitoring)
-TEST_MODULE=dpd_wrapper_tests.P1_dpd_trigger_debug uv run python run.py
+TEST_MODULE=dpd.P1_dpd_trigger_debug python run.py
 
 # Run with waveform capture
-WAVES=true TEST_MODULE=dpd_wrapper_tests.P1_dpd_trigger_debug uv run python run.py
+WAVES=true TEST_MODULE=dpd.P1_dpd_trigger_debug python run.py
 ```
 
-### Run Original Tests
+### Run Standard Tests
 
 ```bash
-# Run original P1 tests (failing test_forge_control)
-uv run python run.py
+# Run P1 basic tests (default)
+python run.py
+
+# Run async adapter tests
+TEST_MODULE=dpd.P1_async_adapter_test python run.py
 ```
 
 ## Debug Test Structure
 
-### Files Created
+### Files
 
-1. **`dpd_debug_constants.py`** - Signal names, timing points, test configuration
-2. **`dpd_debug_helpers.py`** - SignalMonitor class and capture utilities
-3. **`P1_dpd_trigger_debug.py`** - P1 debug test suite
+1. **`dpd/dpd_debug_constants.py`** - Signal names, timing points, test configuration
+2. **`dpd/dpd_debug_helpers.py`** - SignalMonitor class and capture utilities
+3. **`dpd/P1_dpd_trigger_debug.py`** - P1 debug test suite
 
 ### Test Coverage
 
@@ -68,7 +71,7 @@ gtkwave waves.vcd
 
 In GTKWave:
 1. Add signals: `combined_trigger`, `hw_trigger_out`, `sw_trigger_edge`, etc.
-2. Zoom to time around ARMED → FIRING transition
+2. Zoom to time around ARMED -> FIRING transition
 3. Look for unexpected pulses or glitches
 
 ## Expected Output
@@ -76,7 +79,7 @@ In GTKWave:
 ### Successful Run (No Spurious Trigger)
 
 ```
-Running dpd_trigger_debug tests
+Running dpd tests
 ======================================================================
 Test: Signal accessibility check
   Accessible signals: 3/8
@@ -89,19 +92,19 @@ Test: Trigger path monitoring
   OutputC (FSM state) = 6554
   Trigger Path State: After monitoring period
     ...
-✅ Tests completed successfully!
+Tests completed successfully!
 ```
 
 ### Spurious Trigger Detected
 
 ```
-⚠️ SPURIOUS TRIGGER: OutputC=9831 (expected ARMED=6554)
+SPURIOUS TRIGGER: OutputC=9831 (expected ARMED=6554)
   combined_trigger transitions:
-    Cycle 1234: 0 → 1
+    Cycle 1234: 0 -> 1
   hw_trigger_out transitions:
     (no transitions)
   sw_trigger_edge transitions:
-    Cycle 1234: 0 → 1
+    Cycle 1234: 0 -> 1
 ```
 
 ## Troubleshooting
@@ -133,13 +136,12 @@ After running debug tests:
 
 1. **Review signal monitor logs** - Look for unexpected transitions
 2. **Analyze waveforms** - Visual inspection of trigger signals
-3. **Check Control registers** - Verify CR1[4] and CR1[1] values
+3. **Check Control registers** - Verify CR1 values
 4. **Identify root cause** - Based on findings, implement fix
-5. **Re-run original test** - Verify `test_forge_control` passes
+5. **Re-run tests** - Verify all tests pass
 
 ## References
 
-- **Debug Plan:** `FSM_TRIGGER_DEBUG_PLAN.md`
-- **Summary:** `FSM_TRIGGER_DEBUG_SUMMARY.md`
-- **Original Issue:** `HANDOFF_FSM_TRIGGER_DEBUG.md`
-
+- **Main README:** [README.md](README.md)
+- **GHDL Filter:** [FILTER_QUICKSTART.md](FILTER_QUICKSTART.md)
+- **Project Documentation:** `CLAUDE.md` (project root)

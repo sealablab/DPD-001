@@ -1,0 +1,375 @@
+Script started on Wed Nov 26 09:26:40 2025
+[1m[7m%[27m[1m[0m                                                                                                                               k~/DPD/DPD-001\]7;file://DRP-e1.local/Users/johnycsh/DPD/DPD-001\[0m[27m[24m[J[01;32m➜  [36mDPD-001[00m [K[?1h=[?2004h[0m[27m[24m[J[01;32m➜  [36mDPD-001[00m [01;34mgit:([31mmain[34m) [33m✗[00m [Kscript t.txt[12Dgit pull    [8Dpython tests/hw/run_hw_tests.py 192.168.13.123 --bitstream ./dpd-bits.tar [?1l>[?2004l
+kpython\[32m09:26:45[0m | [1mINFO    [0m | [1m======================================================================[0m
+[32m09:26:45[0m | [1mINFO    [0m | [1mDPD Hardware Progressive Tests[0m
+[32m09:26:45[0m | [1mINFO    [0m | [1m======================================================================[0m
+[32m09:26:45[0m | [1mINFO    [0m | [1mDevice: 192.168.13.123[0m
+[32m09:26:45[0m | [1mINFO    [0m | [1mTest Level: P1_BASIC[0m
+[32m09:26:45[0m | [1mINFO    [0m | [1mVerbosity: MINIMAL[0m
+[32m09:26:45[0m | [1mINFO    [0m | [1mOscilloscope Slot: 1[0m
+[32m09:26:45[0m | [1mINFO    [0m | [1mCloudCompile Slot: 2[0m
+[32m09:26:45[0m | [1mINFO    [0m | [1m======================================================================[0m
+[32m09:26:45[0m | [1mINFO    [0m | [1m
+Connecting to 192.168.13.123...[0m
+[32m09:26:45[0m | [1mINFO    [0m | [1mConnecting to device at 192.168.13.123...[0m
+[32m09:26:47[0m | [32m[1mSUCCESS [0m | [32m[1mConnected to Moku:Go at 192.168.13.123[0m
+[32m09:26:47[0m | [32m[1mSUCCESS [0m | [32m[1m✓ Connected[0m
+[32m09:26:47[0m | [1mINFO    [0m | [1m
+Validating instruments...[0m
+[32m09:26:47[0m | [1mINFO    [0m | [1m  Checking slot 1 (Oscilloscope)...[0m
+[32m09:26:47[0m | [1mINFO    [0m | [1m  Checking slot 2 (CloudCompile)...[0m
+[32m09:26:47[0m | [1mINFO    [0m | [1m
+======================================================================[0m
+[32m09:26:47[0m | [1mINFO    [0m | [1mRunning P1 (BASIC) Tests[0m
+[32m09:26:47[0m | [1mINFO    [0m | [1m======================================================================[0m
+[32m09:26:48[0m | [1mINFO    [0m | [1m
+P1 - BASIC TESTS[0m
+[32m09:26:48[0m | [1mINFO    [0m | [1mT1: Routing validation[0m
+[32m09:26:48[0m | [1mINFO    [0m | [1m  ✓ PASS[0m
+[32m09:26:48[0m | [1mINFO    [0m | [1mT2: FORGE initialization[0m
+[32m09:26:49[0m | [1mINFO    [0m | [1m  ✓ PASS[0m
+[32m09:26:49[0m | [1mINFO    [0m | [1mT3: Reset to IDLE[0m
+[32m09:26:51[0m | [1mINFO    [0m | [1m  ✓ PASS[0m
+[32m09:26:51[0m | [1mINFO    [0m | [1mT4: FORGE control scheme[0m
+[32m09:26:56[0m | [1mINFO    [0m | [1m  ✓ PASS[0m
+[32m09:26:56[0m | [1mINFO    [0m | [1mT5: FSM software trigger[0m
+[32m09:26:59[0m | [31m[1mERROR   [0m | [31m[1m  ✗ FAIL: Unexpected error: unsupported format string passed to NoneType.__format__[0m
+[32m09:26:59[0m | [1mINFO    [0m | [1mT6: FSM complete cycle[0m
+[32m09:27:01[0m | [31m[1mERROR   [0m | [31m[1m  ✗ FAIL: Unexpected error: unsupported format string passed to NoneType.__format__[0m
+[32m09:27:01[0m | [31m[1mERROR   [0m | [31m[1mFAILED: 2/6[0m
+[32m09:27:01[0m | [1mINFO    [0m | [1m
+======================================================================[0m
+[32m09:27:01[0m | [31m[1mERROR   [0m | [31m[1m❌ SOME TESTS FAILED[0m
+[32m09:27:01[0m | [1mINFO    [0m | [1m======================================================================[0m
+[32m09:27:01[0m | [1mINFO    [0m | [1m
+👋 Disconnecting...[0m
+[32m09:27:01[0m | [32m[1mSUCCESS [0m | [32m[1mDisconnected[0m
+[1m[7m%[27m[1m[0m                                                                                                                               k~/DPD/DPD-001\]7;file://DRP-e1.local/Users/johnycsh/DPD/DPD-001\[0m[27m[24m[J[01;31m➜  [36mDPD-001[00m [01;34mgit:([31mmain[34m) [33m✗[00m [K[?1h=[?2004hpython tests/hw/run_hw_tests.py 192.168.13.123 --bitstream ./dpd-bits.tar  --debug[?1l>[?2004l
+kpython\[32m09:27:08[0m | [1mINFO    [0m | [1mMoku debug logging enabled (output to stderr)[0m
+[32m09:27:08[0m | [1mINFO    [0m | [1m======================================================================[0m
+[32m09:27:08[0m | [1mINFO    [0m | [1mDPD Hardware Progressive Tests[0m
+[32m09:27:08[0m | [1mINFO    [0m | [1m======================================================================[0m
+[32m09:27:08[0m | [1mINFO    [0m | [1mDevice: 192.168.13.123[0m
+[32m09:27:08[0m | [1mINFO    [0m | [1mTest Level: P1_BASIC[0m
+[32m09:27:08[0m | [1mINFO    [0m | [1mVerbosity: MINIMAL[0m
+[32m09:27:08[0m | [1mINFO    [0m | [1mOscilloscope Slot: 1[0m
+[32m09:27:08[0m | [1mINFO    [0m | [1mCloudCompile Slot: 2[0m
+[32m09:27:08[0m | [1mINFO    [0m | [1m======================================================================[0m
+[32m09:27:08[0m | [1mINFO    [0m | [1m
+Connecting to 192.168.13.123...[0m
+[32m09:27:08[0m | [1mINFO    [0m | [1mConnecting to device at 192.168.13.123...[0m
+2025-11-26 09:27:08,569 - moku.moku - INFO - Initializing Moku connection to 192.168.13.123
+2025-11-26 09:27:08,569 - moku.moku - DEBUG - Connection parameters: force_connect=False, ignore_busy=False, persist_state=True
+2025-11-26 09:27:08,569 - moku.session - DEBUG - Session initialized for 192.168.13.123 with timeouts: connect=15s, read=5s
+2025-11-26 09:27:08,569 - moku.moku - DEBUG - Session created, claiming ownership
+2025-11-26 09:27:08,569 - moku.moku - DEBUG - Claiming ownership with params: {'force_connect': False, 'ignore_busy': False, 'persist_state': True}
+2025-11-26 09:27:08,569 - moku.session - DEBUG - POST http://192.168.13.123/api/moku/claim_ownership with params: {'force_connect': False, 'ignore_busy': False, 'persist_state': True}
+2025-11-26 09:27:10,048 - moku.session - DEBUG - POST http://192.168.13.123/api/moku/claim_ownership - Status: 200
+2025-11-26 09:27:10,049 - moku.moku - INFO - Successfully claimed ownership of Moku
+2025-11-26 09:27:10,049 - moku.session - DEBUG - GET http://192.168.13.123/api/moku/describe
+2025-11-26 09:27:10,067 - moku.session - DEBUG - GET http://192.168.13.123/api/moku/describe - Status: 200
+2025-11-26 09:27:10,068 - moku.moku - DEBUG - Device properties: hardware=Moku:Go, mokuOS=4.0.3
+2025-11-26 09:27:10,374 - moku.moku - INFO - Successfully connected to mokugo running MokuOS 4.0.3
+2025-11-26 09:27:10,374 - moku.moku - DEBUG - Checking bitstream 02-000.bar (remote checksum: 6e790c82...)
+2025-11-26 09:27:10,374 - moku.utilities - DEBUG - Looking for version info in /Users/johnycsh/Library/Application Support/Moku/data/versions/4.0.3.json
+2025-11-26 09:27:10,375 - moku.utilities - DEBUG - Bitstream path: /Users/johnycsh/Library/Application Support/Moku/data/instruments/18673/mokugo
+2025-11-26 09:27:10,375 - moku.moku - DEBUG - Bitstream 02-000.bar already up to date
+2025-11-26 09:27:10,375 - moku.moku - DEBUG - Checking bitstream 02-000-00.bar (remote checksum: 7a6a6752...)
+2025-11-26 09:27:10,376 - moku.utilities - DEBUG - Looking for version info in /Users/johnycsh/Library/Application Support/Moku/data/versions/4.0.3.json
+2025-11-26 09:27:10,376 - moku.utilities - DEBUG - Bitstream path: /Users/johnycsh/Library/Application Support/Moku/data/instruments/18673/mokugo
+2025-11-26 09:27:10,376 - moku.moku - DEBUG - Bitstream 02-000-00.bar already up to date
+2025-11-26 09:27:10,376 - moku.moku - DEBUG - Checking bitstream 02-000-01.bar (remote checksum: 48f42e9f...)
+2025-11-26 09:27:10,376 - moku.utilities - DEBUG - Looking for version info in /Users/johnycsh/Library/Application Support/Moku/data/versions/4.0.3.json
+2025-11-26 09:27:10,376 - moku.utilities - DEBUG - Bitstream path: /Users/johnycsh/Library/Application Support/Moku/data/instruments/18673/mokugo
+2025-11-26 09:27:10,376 - moku.moku - DEBUG - Bitstream 02-000-01.bar already up to date
+2025-11-26 09:27:10,376 - moku.session - DEBUG - GET http://192.168.13.123/api/moku/platform/2
+2025-11-26 09:27:10,444 - moku.session - DEBUG - GET http://192.168.13.123/api/moku/platform/2 - Status: 200
+[32m09:27:10[0m | [32m[1mSUCCESS [0m | [32m[1mConnected to Moku:Go at 192.168.13.123[0m
+[32m09:27:10[0m | [32m[1mSUCCESS [0m | [32m[1m✓ Connected[0m
+[32m09:27:10[0m | [1mINFO    [0m | [1m
+Validating instruments...[0m
+[32m09:27:10[0m | [1mINFO    [0m | [1m  Checking slot 1 (Oscilloscope)...[0m
+[32m09:27:10[0m | [1mINFO    [0m | [1m  Checking slot 2 (CloudCompile)...[0m
+[32m09:27:10[0m | [1mINFO    [0m | [1m
+======================================================================[0m
+[32m09:27:10[0m | [1mINFO    [0m | [1mRunning P1 (BASIC) Tests[0m
+[32m09:27:10[0m | [1mINFO    [0m | [1m======================================================================[0m
+2025-11-26 09:27:10,445 - moku.instruments.Oscilloscope - DEBUG - Initializing Oscilloscope (ID=1)
+2025-11-26 09:27:10,445 - moku.instruments.Oscilloscope - INFO - Uploading bitstream for Oscilloscope in slot 1
+2025-11-26 09:27:10,445 - moku.moku - DEBUG - Checking bitstream 02-001-00.bar (remote checksum: 1718661e...)
+2025-11-26 09:27:10,445 - moku.utilities - DEBUG - Looking for version info in /Users/johnycsh/Library/Application Support/Moku/data/versions/4.0.3.json
+2025-11-26 09:27:10,445 - moku.utilities - DEBUG - Bitstream path: /Users/johnycsh/Library/Application Support/Moku/data/instruments/18673/mokugo
+2025-11-26 09:27:10,446 - moku.moku - DEBUG - Bitstream 02-001-00.bar already up to date
+2025-11-26 09:27:10,446 - moku.instruments.Oscilloscope - DEBUG - Deploying instrument to slot 1
+2025-11-26 09:27:10,446 - moku.session - DEBUG - GET http://192.168.13.123/api/slot1/oscilloscope
+2025-11-26 09:27:11,042 - moku.session - DEBUG - GET http://192.168.13.123/api/slot1/oscilloscope - Status: 200
+2025-11-26 09:27:11,043 - moku.instruments.Oscilloscope - INFO - Oscilloscope successfully deployed to slot 1
+2025-11-26 09:27:11,059 - moku.instruments.CloudCompile - DEBUG - Initializing CloudCompile (ID=255)
+2025-11-26 09:27:11,059 - moku.instruments.CloudCompile - INFO - Uploading bitstream for CloudCompile in slot 2
+2025-11-26 09:27:11,059 - moku.moku - DEBUG - Checking bitstream 02-255-01.bar (remote checksum: 4d54a5c6...)
+2025-11-26 09:27:11,060 - moku.moku - DEBUG - Bitstream 02-255-01.bar already up to date
+2025-11-26 09:27:11,060 - moku.instruments.CloudCompile - DEBUG - Deploying instrument to slot 2
+2025-11-26 09:27:11,060 - moku.session - DEBUG - GET http://192.168.13.123/api/slot2/cloudcompile
+2025-11-26 09:27:11,624 - moku.session - DEBUG - GET http://192.168.13.123/api/slot2/cloudcompile - Status: 200
+2025-11-26 09:27:11,626 - moku.instruments.CloudCompile - INFO - CloudCompile successfully deployed to slot 2
+[32m09:27:11[0m | [1mINFO    [0m | [1m
+P1 - BASIC TESTS[0m
+[32m09:27:11[0m | [1mINFO    [0m | [1mT1: Routing validation[0m
+2025-11-26 09:27:11,637 - moku.session - DEBUG - GET http://192.168.13.123/api/mim/get_connections
+2025-11-26 09:27:11,655 - moku.session - DEBUG - GET http://192.168.13.123/api/mim/get_connections - Status: 200
+[32m09:27:11[0m | [1mINFO    [0m | [1m  ✓ PASS[0m
+[32m09:27:11[0m | [1mINFO    [0m | [1mT2: FORGE initialization[0m
+2025-11-26 09:27:11,656 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 0, 'value': 3758096384}
+2025-11-26 09:27:12,070 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:12,174 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/get_control with params: {'strict': True, 'idx': 0}
+2025-11-26 09:27:12,190 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/get_control - Status: 200
+[32m09:27:12[0m | [1mINFO    [0m | [1m  ✓ PASS[0m
+[32m09:27:12[0m | [1mINFO    [0m | [1mT3: Reset to IDLE[0m
+2025-11-26 09:27:12,192 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 0, 'value': 0}
+2025-11-26 09:27:12,210 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:12,313 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_controls with params: {'strict': True, 'controls': [{'idx': 1, 'value': 0}, {'idx': 2, 'value': 62259200}, {'idx': 3, 'value': 0}, {'idx': 4, 'value': 12500}, {'idx': 5, 'value': 25000}, {'idx': 6, 'value': 250000000}, {'idx': 7, 'value': 1250}, {'idx': 8, 'value': 4281860099}, {'idx': 9, 'value': 0}, {'idx': 10, 'value': 625000}]}
+2025-11-26 09:27:12,344 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_controls - Status: 200
+2025-11-26 09:27:12,549 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 0, 'value': 3758096384}
+2025-11-26 09:27:12,572 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:12,778 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:13,073 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:13,098 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:13,123 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:13,150 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:13,175 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:13,258 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:13,315 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:13,338 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:13,360 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:13,383 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:13,406 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:13,488 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:13,610 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:13,639 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:13,660 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:13,686 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:13,709 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:13,736 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 1, 'value': 4}
+2025-11-26 09:27:13,757 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:13,811 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 1, 'value': 0}
+2025-11-26 09:27:13,830 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:14,136 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:14,161 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:14,187 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:14,412 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:14,442 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:14,466 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:14,549 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:14,672 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:14,697 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:14,731 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:14,760 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:14,798 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:14,826 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:14,855 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:14,882 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:14,916 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:14,944 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:14,968 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:14,997 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:15,020 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:15,046 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:15,067 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+[32m09:27:15[0m | [1mINFO    [0m | [1m  ✓ PASS[0m
+[32m09:27:15[0m | [1mINFO    [0m | [1mT4: FORGE control scheme[0m
+2025-11-26 09:27:15,095 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 0, 'value': 0}
+2025-11-26 09:27:15,342 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:15,446 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_controls with params: {'strict': True, 'controls': [{'idx': 1, 'value': 0}, {'idx': 2, 'value': 62259200}, {'idx': 3, 'value': 0}, {'idx': 4, 'value': 12500}, {'idx': 5, 'value': 25000}, {'idx': 6, 'value': 250000000}, {'idx': 7, 'value': 1250}, {'idx': 8, 'value': 4281860099}, {'idx': 9, 'value': 0}, {'idx': 10, 'value': 625000}]}
+2025-11-26 09:27:15,467 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_controls - Status: 200
+2025-11-26 09:27:15,672 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 0, 'value': 3758096384}
+2025-11-26 09:27:15,692 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:15,898 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:15,925 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:15,951 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:15,978 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:16,006 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:16,025 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:16,053 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 0, 'value': 3221225472}
+2025-11-26 09:27:16,072 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:16,073 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 1, 'value': 1}
+2025-11-26 09:27:16,096 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:16,402 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:16,431 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:16,459 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:16,483 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:16,509 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:16,529 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:16,557 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:16,578 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:16,602 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:16,741 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:16,770 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 1, 'value': 0}
+2025-11-26 09:27:16,790 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:16,892 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 0, 'value': 3758096384}
+2025-11-26 09:27:16,927 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:17,233 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 4, 'value': 12500}
+2025-11-26 09:27:17,267 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:17,268 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 5, 'value': 25000}
+2025-11-26 09:27:17,283 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:17,284 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 7, 'value': 1250}
+2025-11-26 09:27:17,297 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:17,297 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 2, 'value': 62261200}
+2025-11-26 09:27:17,444 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:17,445 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 3, 'value': 1500}
+2025-11-26 09:27:17,475 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:17,680 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 1, 'value': 1}
+2025-11-26 09:27:17,780 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:17,886 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:17,925 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:17,953 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:17,983 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:18,007 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:18,030 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:18,058 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:18,079 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:18,108 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:18,306 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:18,335 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:18,365 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:18,392 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:18,442 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:18,470 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:18,491 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:18,519 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 0, 'value': 0}
+2025-11-26 09:27:18,539 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:18,642 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_controls with params: {'strict': True, 'controls': [{'idx': 1, 'value': 0}, {'idx': 2, 'value': 62259200}, {'idx': 3, 'value': 0}, {'idx': 4, 'value': 12500}, {'idx': 5, 'value': 25000}, {'idx': 6, 'value': 250000000}, {'idx': 7, 'value': 1250}, {'idx': 8, 'value': 4281860099}, {'idx': 9, 'value': 0}, {'idx': 10, 'value': 625000}]}
+2025-11-26 09:27:18,662 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_controls - Status: 200
+2025-11-26 09:27:18,868 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 0, 'value': 3758096384}
+2025-11-26 09:27:18,894 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:19,096 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:19,150 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:19,177 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:19,206 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:19,232 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:19,353 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:19,433 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:19,459 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:19,492 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:19,524 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:19,548 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:19,573 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:19,657 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:19,690 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:19,718 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:19,741 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:19,769 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:19,875 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+[32m09:27:19[0m | [1mINFO    [0m | [1m  ✓ PASS[0m
+[32m09:27:19[0m | [1mINFO    [0m | [1mT5: FSM software trigger[0m
+2025-11-26 09:27:19,904 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 0, 'value': 0}
+2025-11-26 09:27:19,937 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:20,044 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_controls with params: {'strict': True, 'controls': [{'idx': 1, 'value': 0}, {'idx': 2, 'value': 62259200}, {'idx': 3, 'value': 0}, {'idx': 4, 'value': 12500}, {'idx': 5, 'value': 25000}, {'idx': 6, 'value': 250000000}, {'idx': 7, 'value': 1250}, {'idx': 8, 'value': 4281860099}, {'idx': 9, 'value': 0}, {'idx': 10, 'value': 625000}]}
+2025-11-26 09:27:20,057 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_controls - Status: 200
+2025-11-26 09:27:20,262 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 0, 'value': 3758096384}
+2025-11-26 09:27:20,288 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:20,491 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:20,522 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:20,549 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:20,581 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:20,627 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:20,651 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:20,728 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:21,140 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:21,169 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:21,194 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:21,221 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:21,650 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:21,727 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:22,168 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:22,198 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:22,219 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:22,243 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:22,693 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:22,721 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 4, 'value': 12500}
+2025-11-26 09:27:22,748 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:22,749 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 5, 'value': 25000}
+2025-11-26 09:27:22,760 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:22,761 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 7, 'value': 1250}
+2025-11-26 09:27:22,773 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:22,774 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 2, 'value': 62261200}
+2025-11-26 09:27:23,026 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:23,027 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 3, 'value': 1500}
+2025-11-26 09:27:23,071 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:23,277 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 1, 'value': 1}
+2025-11-26 09:27:23,309 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:23,415 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:23,437 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:23,465 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:23,514 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:23,542 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:23,585 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:23,613 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/get_control with params: {'strict': True, 'idx': 1}
+2025-11-26 09:27:23,645 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/get_control - Status: 200
+[32m09:27:23[0m | [31m[1mERROR   [0m | [31m[1m  ✗ FAIL: Unexpected error: unsupported format string passed to NoneType.__format__[0m
+[32m09:27:23[0m | [1mINFO    [0m | [1mT6: FSM complete cycle[0m
+2025-11-26 09:27:23,646 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 0, 'value': 0}
+2025-11-26 09:27:23,754 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:23,861 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_controls with params: {'strict': True, 'controls': [{'idx': 1, 'value': 0}, {'idx': 2, 'value': 62259200}, {'idx': 3, 'value': 0}, {'idx': 4, 'value': 12500}, {'idx': 5, 'value': 25000}, {'idx': 6, 'value': 250000000}, {'idx': 7, 'value': 1250}, {'idx': 8, 'value': 4281860099}, {'idx': 9, 'value': 0}, {'idx': 10, 'value': 625000}]}
+2025-11-26 09:27:23,889 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_controls - Status: 200
+2025-11-26 09:27:24,091 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 0, 'value': 3758096384}
+2025-11-26 09:27:24,124 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:24,329 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:24,366 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:24,389 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:24,412 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:24,440 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:24,466 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:24,545 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:24,586 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:24,615 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:24,635 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:24,663 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:24,684 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:24,765 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:24,786 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:24,811 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:24,835 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:24,862 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:24,882 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:24,965 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:24,993 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:25,021 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:25,041 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:25,069 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:25,090 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:25,117 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 4, 'value': 12500}
+2025-11-26 09:27:25,129 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:25,129 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 5, 'value': 25000}
+2025-11-26 09:27:25,143 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:25,144 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 7, 'value': 1250}
+2025-11-26 09:27:25,158 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:25,159 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 2, 'value': 62261200}
+2025-11-26 09:27:25,175 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:25,175 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 3, 'value': 1500}
+2025-11-26 09:27:25,192 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:25,397 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control with params: {'strict': True, 'idx': 1, 'value': 1}
+2025-11-26 09:27:25,418 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/set_control - Status: 200
+2025-11-26 09:27:25,524 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:25,550 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:25,578 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:25,620 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:25,648 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data with params: {'timeout': 60, 'wait_reacquire': False, 'wait_complete': False, 'measurements': False}
+2025-11-26 09:27:25,666 - moku.session - DEBUG - POST http://192.168.13.123/api/slot1/oscilloscope/get_data - Status: 200
+2025-11-26 09:27:25,690 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/get_control with params: {'strict': True, 'idx': 1}
+2025-11-26 09:27:25,709 - moku.session - DEBUG - POST http://192.168.13.123/api/slot2/cloudcompile/get_control - Status: 200
+[32m09:27:25[0m | [31m[1mERROR   [0m | [31m[1m  ✗ FAIL: Unexpected error: unsupported format string passed to NoneType.__format__[0m
+[32m09:27:25[0m | [31m[1mERROR   [0m | [31m[1mFAILED: 2/6[0m
+[32m09:27:25[0m | [1mINFO    [0m | [1m
+======================================================================[0m
+[32m09:27:25[0m | [31m[1mERROR   [0m | [31m[1m❌ SOME TESTS FAILED[0m
+[32m09:27:25[0m | [1mINFO    [0m | [1m======================================================================[0m
+[32m09:27:25[0m | [1mINFO    [0m | [1m
+👋 Disconnecting...[0m
+2025-11-26 09:27:25,710 - moku.moku - DEBUG - Relinquishing ownership
+2025-11-26 09:27:25,711 - moku.session - DEBUG - POST http://192.168.13.123/api/moku/relinquish_ownership with params: None
+2025-11-26 09:27:25,724 - moku.session - DEBUG - POST http://192.168.13.123/api/moku/relinquish_ownership - Status: 200
+2025-11-26 09:27:25,725 - moku.moku - INFO - Successfully relinquished ownership
+[32m09:27:25[0m | [32m[1mSUCCESS [0m | [32m[1mDisconnected[0m
+[1m[7m%[27m[1m[0m                                                                                                                               k~/DPD/DPD-001\]7;file://DRP-e1.local/Users/johnycsh/DPD/DPD-001\[0m[27m[24m[J[01;31m➜  [36mDPD-001[00m [01;34mgit:([31mmain[34m) [33m✗[00m [K[?1h=[?2004h[?2004l
+
+Script done on Wed Nov 26 09:27:26 2025

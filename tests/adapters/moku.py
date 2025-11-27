@@ -34,6 +34,7 @@ class MokuAsyncController(AsyncFSMController):
             mcc: CloudCompile instrument instance
             propagation_delay_ms: Delay after each write for network propagation
         """
+        super().__init__()  # Initialize _forge_state and _lifecycle_state
         self.mcc = mcc
         self.propagation_delay_ms = propagation_delay_ms
         self._shadow_regs = {}
@@ -113,6 +114,45 @@ class MokuAsyncHarness(AsyncFSMTestHarness):
         self.osc = osc
         self._controller = MokuAsyncController(mcc, propagation_delay_ms)
         self._state_reader = MokuAsyncStateReader(osc)
+        self._initialized = False
+
+    async def initialize_fsm(self):
+        """Initialize FSM with valid config to escape FAULT state.
+
+        After bitstream load, FSM starts in FAULT because timing config is zero.
+        This method:
+        1. Sets valid timing config (CR4-CR7)
+        2. Sets output voltages (CR2-CR3)
+        3. Enables FORGE (CR0)
+        4. Pulses fault_clear to re-latch config and transition to IDLE
+        """
+        if self._initialized:
+            return
+
+        # Clear all registers first
+        for i in range(11):
+            self.mcc.set_control(i, 0)
+        await asyncio.sleep(0.1)
+
+        # Set valid timing config BEFORE FORGE enable
+        self.mcc.set_control(4, 12500)      # trig_duration: 100μs @ 125MHz
+        self.mcc.set_control(5, 25000)      # intensity_duration: 200μs
+        self.mcc.set_control(6, 250000000)  # timeout: 2s
+        self.mcc.set_control(7, 1250)       # cooldown: 10μs
+
+        # Set output voltages
+        self.mcc.set_control(2, (1000 << 16) | 2000)  # threshold=1V, trig_out=2V
+        self.mcc.set_control(3, 1500)                  # intensity=1.5V
+        await asyncio.sleep(0.1)
+
+        # Enable FORGE + pulse fault_clear (CR0[1]) to re-latch config
+        # v4.0 API: fault_clear is CR0[1], not CR1[2]
+        self.mcc.set_control(0, 0xE0000002)  # FORGE + fault_clear
+        await asyncio.sleep(0.05)
+        self.mcc.set_control(0, 0xE0000000)  # FORGE only (clear fault_clear)
+        await asyncio.sleep(0.2)
+
+        self._initialized = True
 
     @property
     def controller(self) -> AsyncFSMController:

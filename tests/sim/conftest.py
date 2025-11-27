@@ -42,7 +42,7 @@ sys.path.insert(0, str(TESTS_PATH))
 
 # Import shared infrastructure
 from shared.control_interface import CocoTBControl, ControlInterface
-from shared.constants import CR0
+from lib import CR0
 
 
 # Default clock period for Moku:Go (125MHz = 8ns period)

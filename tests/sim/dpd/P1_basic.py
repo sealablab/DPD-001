@@ -1,20 +1,21 @@
 """
-Progressive Test Level 1 (P1) - Demo Probe Driver Wrapper (BASIC)
+Progressive Test Level 1 (P1) - Demo Probe Driver (API v4.0)
 
-Fast smoke tests for CustomWrapper (bpd_forge architecture) integration.
+Fast smoke tests for DPD FSM using the CR0-based lifecycle control API.
 
-Test Coverage:
-- Reset behavior
-- FORGE control scheme (CR0[31:29])
-- Basic FSM state transitions (software trigger)
-- Basic FSM state transitions (hardware trigger)
-- Output pulse verification during FIRING
+Test Coverage (CR0 hierarchy):
+- T1: FORGE run gate (CR0[31:29]) - Safety control
+- T2: Arm control (CR0[2]) - arm/disarm
+- T3: Software trigger (CR0[0]) - atomic trigger
+- T4: Fault clear (CR0[1]) - fault recovery
+- T5: Full cycle - complete FSM cycle
 
 Expected Runtime: <5s
 Expected Output: <20 lines (P1 standard)
 
+API Reference: docs/api-v4.md
 Author: Moku Instrument Forge Team
-Date: 2025-11-18
+Date: 2025-11-26 (API v4.0 rewrite)
 """
 
 import cocotb
@@ -22,58 +23,37 @@ from cocotb.triggers import ClockCycles
 import sys
 from pathlib import Path
 
-# Add cocotb_tests directory to path for local test_base
-COCOTB_TESTS_PATH = Path(__file__).parent.parent
-if COCOTB_TESTS_PATH.exists():
-    sys.path.insert(0, str(COCOTB_TESTS_PATH))
+# Add paths for imports
+TESTS_PATH = Path(__file__).parent.parent
+sys.path.insert(0, str(TESTS_PATH))
+sys.path.insert(0, str(TESTS_PATH.parent))
 
 from test_base import TestBase
+from adapters.cocotb import CocoTBAsyncHarness
+from conftest import setup_clock, reset_active_high, init_mcc_inputs
 
-# Import DPD test utilities
-from conftest import (
-    setup_clock,
-    reset_active_high,
-    init_mcc_inputs,
-    mcc_set_regs,
-    wait_for_mcc_ready,
-    forge_cr0,
-)
-
-from dpd.constants import (
+from lib import (
+    CR0,
+    P1Timing,
     HVS_DIGITAL_INITIALIZING,
     HVS_DIGITAL_IDLE,
     HVS_DIGITAL_ARMED,
     HVS_DIGITAL_FIRING,
     HVS_DIGITAL_COOLDOWN,
-    HVS_DIGITAL_TOLERANCE,
-    MCC_CR0_ALL_ENABLED,
-    MCC_CR0_USER_ENABLE,
-    MCC_CR0_FORGE_READY,
-    P1TestValues,
+    SIM_HVS_TOLERANCE,
     DEFAULT_TRIGGER_WAIT_TIMEOUT,
-    cr1_build,
-)
-
-from dpd.helpers import (
-    read_output_c,
-    assert_state,
-    wait_for_state,
-    wait_cycles_relaxed,
-    arm_dpd,
-    software_trigger,
-    hardware_trigger,
-    wait_for_fsm_complete_cycle,
 )
 
 
-class DPDWrapperBasicTests(TestBase):
-    """P1 (BASIC) tests for Demo Probe Driver wrapper"""
+class DPDBasicTests(TestBase):
+    """P1 (BASIC) tests for Demo Probe Driver - API v4.0"""
 
     def __init__(self, dut):
-        super().__init__(dut, "dpd_wrapper")
+        super().__init__(dut, "dpd_p1")
+        self.harness = None
 
-    async def run_p1_basic(self):
-        """P1 test suite entry point - 5 essential tests"""
+    async def setup(self):
+        """Common setup for all tests."""
         # Setup clock and reset
         await setup_clock(self.dut, period_ns=8, clk_signal="Clk")
         await reset_active_high(self.dut, rst_signal="Reset", cycles=10)
@@ -85,286 +65,225 @@ class DPDWrapperBasicTests(TestBase):
             if hasattr(self.dut, ctrl_name):
                 getattr(self.dut, ctrl_name).value = 0
 
-        # Run essential tests
-        await self.test("Reset behavior", self.test_reset)
-        await self.test("FORGE control scheme", self.test_forge_control)
-        await self.test("FSM cycle (software trigger)", self.test_fsm_software_trigger)
-        # TODO: T4 hardware trigger needs investigation - spurious trigger when hw_trigger_enable set
-        # await self.test("FSM cycle (hardware trigger)", self.test_fsm_hardware_trigger)
-        # TODO: T5 depends on T4 setup
-        # await self.test("Output pulses during FIRING", self.test_output_pulses)
+        # Create harness
+        self.harness = CocoTBAsyncHarness(self.dut)
 
-    async def test_reset(self):
-        """Verify Reset drives FSM to INITIALIZING state, then transitions to IDLE"""
-        # Assert reset
-        self.dut.Reset.value = 1
-        await ClockCycles(self.dut.Clk, 5)
+    async def run_p1_basic(self):
+        """P1 test suite entry point - 5 essential tests following CR0 hierarchy."""
+        await self.setup()
 
-        # Check FSM is in INITIALIZING while reset is asserted (state 0, OutputC = 0)
-        assert_state(self.dut, HVS_DIGITAL_INITIALIZING, context="during reset")
+        # Run tests in CR0 bit order
+        await self.test("T1: FORGE run gate (CR0[31:29])", self.test_forge_run_gate)
+        await self.test("T2: Arm control (CR0[2])", self.test_arm_control)
+        await self.test("T3: Software trigger (CR0[0])", self.test_software_trigger)
+        await self.test("T4: Fault clear (CR0[1])", self.test_fault_clear)
+        await self.test("T5: Full FSM cycle", self.test_full_cycle)
 
-        # Check outputs are inactive
-        output_a = int(self.dut.OutputA.value.to_signed())
-        output_b = int(self.dut.OutputB.value.to_signed())
-        assert output_a == 0, f"OutputA should be 0 after reset, got {output_a}"
-        assert output_b == 0, f"OutputB should be 0 after reset, got {output_b}"
+    # =========================================================================
+    # T1: FORGE Run Gate (CR0[31:29])
+    # =========================================================================
 
-        # Release reset
-        self.dut.Reset.value = 0
-        await ClockCycles(self.dut.Clk, 5)
+    async def test_forge_run_gate(self):
+        """Verify FORGE control bits gate FSM operation.
 
-        # After reset released with FORGE control enabled, FSM transitions to IDLE
-        # Note: FSM may briefly stay in INITIALIZING to latch parameters before IDLE
+        CR0[31:29] = FORGE control (all 3 must be set for operation):
+        - Bit 31: forge_ready (set by MCC loader)
+        - Bit 30: user_enable (user control)
+        - Bit 29: clk_enable (clock gating)
 
-    async def test_forge_control(self):
-        """Verify FORGE control scheme enables module correctly"""
-        # Reset and ensure clean state
-        self.dut.Reset.value = 1
-        await ClockCycles(self.dut.Clk, 5)
-        self.dut.Reset.value = 0
-        await ClockCycles(self.dut.Clk, 2)
+        Test: Partial FORGE enable should NOT allow FSM to arm.
+        """
+        # Reset to clean state
+        await self.harness.apply_reset()
 
-        # Initialize inputs to 0 (prevent hardware trigger)
-        await init_mcc_inputs(self.dut)
+        # Configure timing registers (needed for FSM to leave INITIALIZING)
+        await self._configure_timing()
 
-        # CRITICAL: Configure timing registers FIRST (while FORGE disabled)
-        # Network sync protocol only allows CR2-CR10 updates when FSM in INITIALIZING
-        await mcc_set_regs(self.dut, {
-            0: 0x00000000,  # FORGE disabled during config
-            4: P1TestValues.TRIG_OUT_DURATION,      # CR4: trig_out_duration
-            5: P1TestValues.INTENSITY_DURATION,     # CR5: intensity_duration
-            6: DEFAULT_TRIGGER_WAIT_TIMEOUT,        # CR6: trigger_wait_timeout (2s)
-            7: P1TestValues.COOLDOWN_INTERVAL,      # CR7: cooldown_interval
-        }, set_forge_ready=False)
-        await ClockCycles(self.dut.Clk, 5)
+        # Test: Partial enable (missing clk_enable) - FSM should NOT arm
+        await self.harness.controller.enable_forge(ready=True, user=True, clk=False)
+        await self.harness.controller.wait_cycles(20)
 
-        # Test: Partial FORGE enable (missing clk_enable) - FSM should NOT arm
-        await mcc_set_regs(self.dut, {
-            0: MCC_CR0_FORGE_READY | MCC_CR0_USER_ENABLE,  # Missing clk_enable!
-            1: cr1_build(arm_enable=True),
-        }, set_forge_ready=False)  # Don't auto-set FORGE bits - test partial enable
-        await ClockCycles(self.dut.Clk, 20)
+        # Try to arm - should not work without full FORGE enable
+        await self.harness.controller.arm()
+        await self.harness.controller.wait_cycles(20)
 
-        # FSM should remain in INITIALIZING or IDLE (global_enable=0 blocks operation)
-        # With clk_enable=0, FSM clock is gated so state doesn't advance from INITIALIZING
-        output_c = read_output_c(self.dut)
-        # Accept either INITIALIZING (0) or IDLE (3277) - FSM is frozen without clock
-        in_init = abs(output_c - HVS_DIGITAL_INITIALIZING) <= HVS_DIGITAL_TOLERANCE
-        in_idle = abs(output_c - HVS_DIGITAL_IDLE) <= HVS_DIGITAL_TOLERANCE
-        assert in_init or in_idle, f"FSM should be in INITIALIZING or IDLE with partial FORGE, got OutputC={output_c}"
+        # FSM should still be in INITIALIZING (clock gated, can't advance)
+        state, digital = await self.harness.state_reader.get_state()
+        assert state == "INITIALIZING", f"Expected INITIALIZING with partial FORGE, got {state}"
 
-        # CRITICAL: Clear CR1 before reset to prevent state leakage between test phases
-        await mcc_set_regs(self.dut, {1: cr1_build()}, set_forge_ready=False)
-        await ClockCycles(self.dut.Clk, 2)
+        # Now enable all FORGE bits
+        await self.harness.controller.enable_forge()
+        await self.harness.controller.wait_cycles(50)
 
-        # Reset again to get clean state for complete FORGE test
-        # This ensures FSM goes through INITIALIZING and latches parameters
-        self.dut.Reset.value = 1
-        await ClockCycles(self.dut.Clk, 5)
-        self.dut.Reset.value = 0
-        await ClockCycles(self.dut.Clk, 5)
+        # FSM should transition to IDLE (or ARMED if arm bit still set)
+        state, digital = await self.harness.state_reader.get_state()
+        assert state in ("IDLE", "ARMED"), f"Expected IDLE or ARMED with full FORGE, got {state}"
 
-        # Reconfigure timing registers (they're latched during INITIALIZING)
-        await mcc_set_regs(self.dut, {
-            0: 0x00000000,  # FORGE disabled during config
-            4: P1TestValues.TRIG_OUT_DURATION,
-            5: P1TestValues.INTENSITY_DURATION,
-            6: DEFAULT_TRIGGER_WAIT_TIMEOUT,
-            7: P1TestValues.COOLDOWN_INTERVAL,
-        }, set_forge_ready=False)
-        await ClockCycles(self.dut.Clk, 5)
+    # =========================================================================
+    # T2: Arm Control (CR0[2])
+    # =========================================================================
 
-        # Test: Complete FORGE enable (all 3 bits) - FSM should arm
-        await mcc_set_regs(self.dut, {
-            0: MCC_CR0_ALL_ENABLED,  # forge_ready=1, user_enable=1, clk_enable=1
-            1: cr1_build(arm_enable=True),  # arm_enable=1, trigger enables=0 (safety)
-        })
+    async def test_arm_control(self):
+        """Verify arm control via CR0[2].
 
-        # Wait for ARMED state (IDLE→ARMED transition)
-        await wait_for_state(self.dut, HVS_DIGITAL_ARMED, timeout_us=100)
+        CR0[2] = arm_enable (level-sensitive):
+        - Set: FSM transitions IDLE → ARMED
 
-        # Cleanup: Clear CR1 and reset for next test
-        await mcc_set_regs(self.dut, {1: cr1_build()}, set_forge_ready=False)
-        await ClockCycles(self.dut.Clk, 2)
+        Note: RTL does not support disarm (ARMED→IDLE) via arm_enable=0.
+        Once armed, FSM stays in ARMED until trigger, timeout, or reset.
+        """
+        # Reset and enable FORGE
+        await self.harness.apply_reset()
+        await self._configure_timing()
+        await self.harness.controller.enable_forge()
 
-        # Apply reset
-        self.dut.Reset.value = 1
-        await ClockCycles(self.dut.Clk, 10)
-        self.dut.Reset.value = 0
-        await ClockCycles(self.dut.Clk, 5)
+        # Wait for IDLE
+        reached = await self.harness.wait_for_state("IDLE", timeout_us=100)
+        assert reached, "FSM did not reach IDLE after reset"
 
-    async def test_fsm_software_trigger(self):
-        """Verify complete FSM cycle using software trigger (sw_trigger)"""
-        # Enable FORGE control so shim is running
-        await mcc_set_regs(self.dut, {0: MCC_CR0_ALL_ENABLED})
-        await ClockCycles(self.dut.Clk, 2)
+        # Arm FSM
+        await self.harness.controller.arm()
+        reached = await self.harness.wait_for_state("ARMED", timeout_us=100)
+        assert reached, "FSM did not reach ARMED after arm()"
 
-        await init_mcc_inputs(self.dut)  # Ensure inputs are zero (no hardware trigger)
+        # Verify we can't disarm by clearing arm_enable (RTL design choice)
+        # FSM stays ARMED - must use trigger or fault_clear to leave ARMED state
+        await self.harness.controller.disarm()
+        await self.harness.controller.wait_cycles(50)
+        state, _ = await self.harness.state_reader.get_state()
+        # FSM should still be ARMED (no ARMED→IDLE transition on disarm)
+        assert state == "ARMED", f"Expected FSM to stay ARMED after disarm(), got {state}"
 
-        # Apply reset (shim will reset app_reg_* to defaults during reset)
-        self.dut.Reset.value = 1
-        await ClockCycles(self.dut.Clk, 5)
+    # =========================================================================
+    # T3: Software Trigger (CR0[0])
+    # =========================================================================
 
-        # Release reset - FSM enters INITIALIZING
-        self.dut.Reset.value = 0
-        # IMMEDIATELY set timing registers while FSM still in INITIALIZING (sync_safe=1)
-        # Don't await - just set the values synchronously
-        self.dut.Control4.value = P1TestValues.TRIG_OUT_DURATION
-        self.dut.Control5.value = P1TestValues.INTENSITY_DURATION
-        self.dut.Control6.value = DEFAULT_TRIGGER_WAIT_TIMEOUT
-        self.dut.Control7.value = P1TestValues.COOLDOWN_INTERVAL
-        await ClockCycles(self.dut.Clk, 10)  # Wait for FSM to latch and transition to IDLE
+    async def test_software_trigger(self):
+        """Verify software trigger via CR0[0].
 
-        # Verify FSM is in IDLE with P1 timing values latched
-        assert_state(self.dut, HVS_DIGITAL_IDLE, context="test start")
+        CR0[0] = sw_trigger (edge-triggered with auto-clear):
+        - Single atomic write of 0xE0000005 (FORGE + arm + trigger)
+        - RTL auto-clears via edge detection + pulse stretcher
+        """
+        # Reset and enable FORGE
+        await self.harness.apply_reset()
+        await self._configure_timing()
+        await self.harness.controller.enable_forge()
 
-        # Arm FSM (CR1[0] = arm_enable)
-        await mcc_set_regs(self.dut, {1: cr1_build(arm_enable=True)}, set_forge_ready=False)
-        await ClockCycles(self.dut.Clk, 5)
+        # Wait for IDLE, then arm
+        reached = await self.harness.wait_for_state("IDLE", timeout_us=100)
+        assert reached, "FSM did not reach IDLE"
+        await self.harness.controller.arm()
+        reached = await self.harness.wait_for_state("ARMED", timeout_us=100)
+        assert reached, "FSM did not reach ARMED"
 
-        # FSM should be ARMED
-        assert_state(self.dut, HVS_DIGITAL_ARMED, context="after arm")
+        # Software trigger - single atomic write!
+        await self.harness.controller.trigger()
 
-        # Software trigger via CR1[5] (sw_trigger) gated by CR1[3] (sw_trigger_enable)
-        await mcc_set_regs(self.dut, {
-            1: cr1_build(arm_enable=True, sw_trigger_enable=True, sw_trigger=True)
-        }, set_forge_ready=False)
-        await ClockCycles(self.dut.Clk, 10)  # Wait for trigger to take effect
+        # FSM should leave ARMED (either FIRING or already past)
+        await self.harness.controller.wait_cycles(20)
+        state, digital = await self.harness.state_reader.get_state()
+        assert state != "ARMED", f"FSM still ARMED after trigger, got {state}"
 
-        # FSM should have left ARMED state (either FIRING or COOLDOWN)
-        output_c = read_output_c(self.dut)
-        assert output_c != HVS_DIGITAL_ARMED, f"FSM still in ARMED after software trigger, OutputC={output_c}"
+        # Wait for FSM to complete cycle
+        await self._wait_for_cycle_complete()
 
-        # Wait for FSM to reach COOLDOWN state (confirms trigger fired)
-        # Note: P1 timing is fast (3000 cycles FIRING + 500 cycles COOLDOWN = 28μs total)
-        total_cycles = P1TestValues.TRIG_OUT_DURATION + P1TestValues.INTENSITY_DURATION + P1TestValues.COOLDOWN_INTERVAL
-        await wait_cycles_relaxed(self.dut, total_cycles, margin_percent=200)
+    # =========================================================================
+    # T4: Fault Clear (CR0[1])
+    # =========================================================================
 
-        # FSM should have completed FIRING and reached COOLDOWN (or IDLE if transition works)
-        # NOTE: Shim reset defaults are 12500+25000+1250 = 38750 cycles for full cycle
-        # Wait enough time for FSM to complete with default timing values
-        await wait_cycles_relaxed(self.dut, 40000, margin_percent=50)  # ~500μs total
+    async def test_fault_clear(self):
+        """Verify fault recovery via CR0[1].
 
-        output_c = read_output_c(self.dut)
-        # Accept COOLDOWN, IDLE, or ARMED (cycle completed and re-armed since arm_enable=1)
-        in_cooldown = abs(output_c - HVS_DIGITAL_COOLDOWN) <= HVS_DIGITAL_TOLERANCE
-        in_idle = abs(output_c - HVS_DIGITAL_IDLE) <= HVS_DIGITAL_TOLERANCE
-        in_armed = abs(output_c - HVS_DIGITAL_ARMED) <= HVS_DIGITAL_TOLERANCE
-        assert in_cooldown or in_idle or in_armed, f"FSM should be in COOLDOWN, IDLE or ARMED after cycle, got OutputC={output_c}"
+        CR0[1] = fault_clear (edge-triggered with auto-clear):
+        - Transitions FSM: FAULT → INITIALIZING → IDLE
+        - Re-latches configuration parameters
 
-    async def test_fsm_hardware_trigger(self):
-        """Verify complete FSM cycle using hardware trigger (InputA voltage)"""
-        # Enable FORGE control so shim is running
-        await mcc_set_regs(self.dut, {0: MCC_CR0_ALL_ENABLED})
-        await ClockCycles(self.dut.Clk, 2)
+        Note: We can't easily force FAULT state in simulation without
+        specific fault injection, so we test clear_fault() from IDLE
+        to verify it doesn't break anything.
+        """
+        # Reset and enable FORGE
+        await self.harness.apply_reset()
+        await self._configure_timing()
+        await self.harness.controller.enable_forge()
 
-        await init_mcc_inputs(self.dut)  # Ensure inputs are zero
+        # Wait for IDLE
+        reached = await self.harness.wait_for_state("IDLE", timeout_us=100)
+        assert reached, "FSM did not reach IDLE"
 
-        # Apply reset (shim resets app_reg_* to defaults during reset)
-        self.dut.Reset.value = 1
-        await ClockCycles(self.dut.Clk, 5)
+        # Clear fault (should transition through INITIALIZING back to IDLE)
+        await self.harness.controller.clear_fault()
 
-        # Release reset - immediately set timing registers while FSM in INITIALIZING
-        self.dut.Reset.value = 0
-        self.dut.Control4.value = P1TestValues.TRIG_OUT_DURATION
-        self.dut.Control5.value = P1TestValues.INTENSITY_DURATION
-        self.dut.Control6.value = DEFAULT_TRIGGER_WAIT_TIMEOUT
-        self.dut.Control7.value = P1TestValues.COOLDOWN_INTERVAL
-        # Wait for FSM to stabilize: INITIALIZING → IDLE (may take several cycles)
-        await wait_for_state(self.dut, HVS_DIGITAL_IDLE, timeout_us=100)
+        # Wait for FSM to settle back to IDLE
+        reached = await self.harness.wait_for_state("IDLE", timeout_us=500)
+        assert reached, "FSM did not return to IDLE after clear_fault()"
 
-        # Set InputA well below threshold BEFORE enabling hardware trigger
-        # This prevents spurious triggers from transient values
-        self.dut.InputA.value = -10000  # Well below 950mV threshold (~-1.5V)
-        await ClockCycles(self.dut.Clk, 5)
+    # =========================================================================
+    # T5: Full FSM Cycle
+    # =========================================================================
 
-        # Clear CR1 completely (removes any leftover sw_trigger bits from T3)
-        await mcc_set_regs(self.dut, {1: cr1_build()}, set_forge_ready=False)
-        await ClockCycles(self.dut.Clk, 5)
+    async def test_full_cycle(self):
+        """Verify complete FSM cycle: IDLE → ARMED → FIRING → COOLDOWN → (IDLE or ARMED).
 
-        # Arm FSM with hardware trigger enabled
-        await mcc_set_regs(self.dut, {
-            1: cr1_build(arm_enable=True, hw_trigger_enable=True)
-        }, set_forge_ready=False)
-        await ClockCycles(self.dut.Clk, 5)
+        This test exercises the full lifecycle using only CR0 controls.
+        Note: FSM may return to ARMED (not IDLE) if arm_enable is still set.
+        """
+        # Reset and enable FORGE
+        await self.harness.apply_reset()
+        await self._configure_timing()
+        await self.harness.controller.enable_forge()
 
-        # FSM should be ARMED
-        assert_state(self.dut, HVS_DIGITAL_ARMED, context="after arm (hardware test)")
+        # Wait for IDLE
+        reached = await self.harness.wait_for_state("IDLE", timeout_us=100)
+        assert reached, "FSM did not reach IDLE"
 
-        # Hardware trigger via InputA voltage - set threshold and apply voltage
-        await mcc_set_regs(self.dut, {
-            2: (P1TestValues.TRIGGER_THRESHOLD_MV << 16) | 2000,  # CR2: threshold + trig voltage
-        }, set_forge_ready=False)
-        self.dut.InputA.value = P1TestValues.TRIGGER_TEST_VOLTAGE_DIGITAL
-        await ClockCycles(self.dut.Clk, 20)
+        # Arm FSM
+        await self.harness.controller.arm()
+        reached = await self.harness.wait_for_state("ARMED", timeout_us=100)
+        assert reached, "FSM did not reach ARMED"
 
-        # FSM should have left ARMED (trigger fired)
-        output_c = read_output_c(self.dut)
-        assert output_c != HVS_DIGITAL_ARMED, f"FSM still in ARMED after hardware trigger, OutputC={output_c}"
+        # Trigger
+        await self.harness.controller.trigger()
 
-        # Wait for FSM cycle to complete
-        total_cycles = P1TestValues.TRIG_OUT_DURATION + P1TestValues.INTENSITY_DURATION + P1TestValues.COOLDOWN_INTERVAL
-        await wait_cycles_relaxed(self.dut, total_cycles, margin_percent=200)
+        # Verify FSM left ARMED state (entered FIRING)
+        await self.harness.controller.wait_cycles(10)
+        state, _ = await self.harness.state_reader.get_state()
+        assert state != "ARMED", f"FSM should have left ARMED after trigger, got {state}"
 
-        # FSM should be in COOLDOWN, IDLE, or ARMED (re-armed since arm_enable=1)
-        # Wait extra time for shim default timing values
-        await wait_cycles_relaxed(self.dut, 40000, margin_percent=50)
+        # Wait for full cycle to complete and FSM to return to IDLE or ARMED
+        # (With P1 timing: 1000 + 2000 + 500 = 3500 cycles total, add margin)
+        await self._wait_for_cycle_complete()
 
-        output_c = read_output_c(self.dut)
-        in_cooldown = abs(output_c - HVS_DIGITAL_COOLDOWN) <= HVS_DIGITAL_TOLERANCE
-        in_idle = abs(output_c - HVS_DIGITAL_IDLE) <= HVS_DIGITAL_TOLERANCE
-        in_armed = abs(output_c - HVS_DIGITAL_ARMED) <= HVS_DIGITAL_TOLERANCE
-        assert in_cooldown or in_idle or in_armed, f"FSM should be in COOLDOWN, IDLE or ARMED after cycle, got OutputC={output_c}"
+        # Check final state - should be IDLE or ARMED (if arm_enable still set)
+        state, _ = await self.harness.state_reader.get_state()
+        assert state in ("IDLE", "ARMED"), f"Expected IDLE or ARMED after cycle, got {state}"
 
-    async def test_output_pulses(self):
-        """Verify OutputA and OutputB pulses are active during FIRING state"""
-        # Reset from previous test
-        await init_mcc_inputs(self.dut)
-        for i in range(16):
-            if hasattr(self.dut, f"Control{i}"):
-                getattr(self.dut, f"Control{i}").value = 0
-        self.dut.Reset.value = 1
-        await ClockCycles(self.dut.Clk, 10)
-        self.dut.Reset.value = 0
-        await ClockCycles(self.dut.Clk, 5)
+    # =========================================================================
+    # Helper Methods
+    # =========================================================================
 
-        # Ensure FORGE control enabled
-        await mcc_set_regs(self.dut, {0: MCC_CR0_ALL_ENABLED})
-        await ClockCycles(self.dut.Clk, 5)
+    async def _configure_timing(self):
+        """Configure timing registers with P1 (fast) values."""
+        ctrl = self.harness.controller
+        await ctrl.set_control_register(4, P1Timing.TRIG_OUT_DURATION)
+        await ctrl.set_control_register(5, P1Timing.INTENSITY_DURATION)
+        await ctrl.set_control_register(6, DEFAULT_TRIGGER_WAIT_TIMEOUT)
+        await ctrl.set_control_register(7, P1Timing.COOLDOWN_INTERVAL)
 
-        # Clear CR1 and arm with non-zero output voltages
-        await mcc_set_regs(self.dut, {
-            1: cr1_build(),  # Clear CR1
-            2: (950 << 16) | 2000,  # CR2: threshold=950mV, trig_voltage=2000mV
-            3: 1500,  # CR3: intensity_voltage=1500mV
-        }, set_forge_ready=False)
-
-        await arm_dpd(
-            self.dut,
-            trig_duration=P1TestValues.TRIG_OUT_DURATION,
-            intensity_duration=P1TestValues.INTENSITY_DURATION,
-            cooldown=P1TestValues.COOLDOWN_INTERVAL,
+    async def _wait_for_cycle_complete(self):
+        """Wait for FSM to complete FIRING + COOLDOWN."""
+        total_cycles = (
+            P1Timing.TRIG_OUT_DURATION +
+            P1Timing.INTENSITY_DURATION +
+            P1Timing.COOLDOWN_INTERVAL +
+            200  # margin
         )
-
-        # Trigger via software
-        await mcc_set_regs(self.dut, {
-            1: cr1_build(arm_enable=True, sw_trigger_enable=True, sw_trigger=True)
-        }, set_forge_ready=False)
-        await ClockCycles(self.dut.Clk, 20)  # Wait for trigger and outputs to activate
-
-        # Check outputs are non-zero (should be in FIRING or just after)
-        output_a = int(self.dut.OutputA.value.to_signed())
-        output_b = int(self.dut.OutputB.value.to_signed())
-
-        # Note: With fast P1 timing, we might have already passed FIRING
-        # So just verify outputs were non-zero at some point OR FSM progressed past ARMED
-        output_c = read_output_c(self.dut)
-        assert output_c != HVS_DIGITAL_ARMED or (output_a != 0 and output_b != 0), \
-            f"Either FSM should have progressed past ARMED OR outputs should be active. OutputC={output_c}, OutputA={output_a}, OutputB={output_b}"
+        await self.harness.controller.wait_cycles(total_cycles)
 
 
 @cocotb.test()
-async def test_dpd_wrapper_p1(dut):
-    """Entry point for P1 tests"""
-    tester = DPDWrapperBasicTests(dut)
+async def test_dpd_p1(dut):
+    """Entry point for P1 tests."""
+    tester = DPDBasicTests(dut)
     await tester.run_all_tests()

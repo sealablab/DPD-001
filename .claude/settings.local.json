@@ -30,7 +30,20 @@
       "Bash(python:*)",
       "Bash(TEST_MODULE=dpd_wrapper_tests.P1_dpd_trigger_debug uv run python:*)",
       "Bash(grep:*)",
-      "Bash(git tag:*)"
+      "Bash(git tag:*)",
+      "Bash(git checkout:*)",
+      "Bash(mkdir:*)",
+      "Bash(git restore:*)",
+      "Bash(git merge:*)",
+      "Bash(git branch:*)",
+      "Bash(TEST_MODULE=dpd.P1_async_adapter_test python run.py:*)",
+      "Bash(export TEST_MODULE=dpd.P1_async_adapter_test)",
+      "Bash(export TEST_MODULE=dpd.P1_basic)",
+      "Bash(git reset:*)",
+      "Bash(/bin/bash -c 'TEST_MODULE=dpd.P1_async_adapter_test python run.py 2>&1 | tail -30')",
+      "Bash(TEST_MODULE=dpd.P1_async_adapter_test uv run python:*)",
+      "Bash(TEST_MODULE=dpd.P1_basic uv run python:*)",
+      "Bash(TEST_MODULE=dpd.P1_basic python run.py:*)"
     ],
     "deny": [],
     "ask": []

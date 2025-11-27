@@ -204,12 +204,10 @@ python run_old.py
 
 | File | Purpose |
 |------|---------|
-| `run.py` | **UPDATED** - Now includes filtering by default |
-| `run_old.py` | Archived - Original unfiltered runner (for reference) |
-| `ghdl_filter.py` | Filter implementation (updated) |
+| `run.py` | Test runner with filtering enabled by default |
+| `ghdl_filter.py` | Filter implementation |
 
 ## More Info
 
-- **Detailed solution:** [FILTER_SOLUTION.md](FILTER_SOLUTION.md)
-- **Problem analysis:** [FILTER_ANALYSIS.md](FILTER_ANALYSIS.md)
-- **Full documentation:** [GHDL_FILTER_README.md](GHDL_FILTER_README.md)
+- **Main README:** [README.md](README.md)
+- **Debug Tests:** [DEBUG_TEST_USAGE.md](DEBUG_TEST_USAGE.md)

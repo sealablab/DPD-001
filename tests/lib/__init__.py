@@ -1,29 +1,34 @@
 """
-DPD Test Library
-================
+DPD Test Library (API v4.0)
+===========================
 
 Single import point for all test constants, utilities, and configuration.
 
 Usage:
-    from tests.lib import CR1, P1Timing, SIM_HVS_TOLERANCE, DPDConfig
-    from tests.lib import us_to_cycles, cr1_build
+    from tests.lib import CR0, CR8, P1Timing, SIM_HVS_TOLERANCE, DPDConfig
+    from tests.lib import us_to_cycles, cr0_build
 
-This replaces the fragmented imports from:
-- tests/shared/constants.py
-- tests/sim/dpd/constants.py
-- tests/hw/dpd/constants.py
+API v4.0 Changes:
+  - CR0 contains all lifecycle controls (arm, trigger, fault_clear)
+  - CR1 is reserved for future campaign mode
+  - CR8 contains auto_rearm_enable at bit 2
+  - cr1_build/cr1_extract removed - use cr0_build/cr0_extract instead
+
+Reference: docs/api-v4.md
 """
 
 # Hardware constants (from py_tools/dpd_constants.py)
 from .hw import (
     CR0,
     CR1,
+    CR8,
     FSMState,
     HVS,
     Platform,
     DefaultTiming,
-    cr1_build,
-    cr1_extract,
+    cr0_build,
+    cr0_extract,
+    cr8_build,
     # Convenience aliases
     MCC_CR0_ALL_ENABLED,
     MCC_CR0_FORGE_READY,
@@ -67,7 +72,7 @@ from .tolerances import (
 from .timeouts import Timeouts
 
 # Configuration dataclass
-from .config import DPDConfig
+from .dpd_config import DPDConfig
 
 # [COMPAT] Backward compatibility aliases - delete once imports updated
 P1TestValues = P1Timing

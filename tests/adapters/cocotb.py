@@ -39,6 +39,7 @@ class CocoTBAsyncController(AsyncFSMController):
             jitter_enabled: Add random delays to register writes
             jitter_range: (min_cycles, max_cycles) for jitter delays
         """
+        super().__init__()  # Initialize _forge_state and _lifecycle_state
         self.dut = dut
         self.jitter_enabled = jitter_enabled
         self.jitter_range = jitter_range

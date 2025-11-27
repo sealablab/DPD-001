@@ -66,6 +66,14 @@ class MultiInstrument(Moku):
 > - Configuration files use the `.mokuconf` extension
 > - Slot numbers are 1-indexed and must be within the range [1, platform_id]
 
+> [!danger] Common Gotcha: Frontend Configuration in MIM
+> **Individual instrument `set_frontend()` methods cannot be used in Multi-Instrument Mode.** You'll get an error like:
+> ```
+> Frontend parameters cannot be set on an instrument when using Multi-Instrument Mode, use mim/set_frontend
+> ```
+>
+> Use `moku.set_frontend()` instead - but note it only applies to **physical Moku inputs** (Input1, Input2), not internal slot-to-slot routing which is digital. See [set_frontend](#set_frontend) for details.
+
 # Methods
 
 ## set_instrument
@@ -133,15 +141,34 @@ def set_frontend(channel, impedance, coupling, attenuation=None, gain=None, stri
     """Configure input channel frontend parameters"""
 ```
 
-Sets the frontend configuration for an input channel, including impedance, coupling, and attenuation.
+Sets the frontend configuration for a **physical Moku input channel** (Input1, Input2, etc.), including impedance, coupling, and attenuation.
+
+> [!warning] Physical Inputs Only
+> This method configures the **analog frontend** for physical Moku input ports. It does **NOT** apply to internal slot-to-slot routing, which is entirely digital. For example:
+> - `Input1 → Slot2InA`: Frontend settings apply (analog signal enters Moku)
+> - `Slot2OutC → Slot1InA`: Frontend settings do NOT apply (internal digital routing)
+>
+> Individual instrument `set_frontend()` methods (e.g., `Oscilloscope.set_frontend()`) cannot be used in Multi-Instrument Mode - you must use `moku.set_frontend()` for physical inputs.
 
 **Parameters:**
-- `channel` - Integer channel number to configure
+- `channel` - Physical input channel number (1, 2, etc.)
 - `impedance` - Input impedance ('1MOhm' or '50Ohm')
 - `coupling` - Input coupling mode ('AC' or 'DC')
 - `attenuation` - Optional attenuation level ('-20dB', '0dB', '14dB', '20dB', '32dB', '40dB')
 - `gain` - Optional gain setting
 - `strict` - Boolean to disable implicit conversions (default: True)
+
+**Example - External trigger input:**
+```python
+# Configure physical Input1 for external trigger signal
+moku.set_frontend(channel=1, impedance='1MOhm', coupling='DC', attenuation='0dB')
+
+# Route physical input to CloudCompile
+moku.set_connections([
+    {'source': 'Input1', 'destination': 'Slot2InA'},  # Frontend applies here
+    {'source': 'Slot2OutC', 'destination': 'Slot1InA'},  # Internal, no frontend
+])
+```
 
 ## set_output
 

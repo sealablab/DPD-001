@@ -38,5 +38,6 @@
     "*.log",
     "notes",
     "scratch"
-  ]
+  ],
+  "promptDelete": false
 }

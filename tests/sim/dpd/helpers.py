@@ -163,7 +163,7 @@ async def arm_dpd(dut, trig_duration: int, intensity_duration: int, cooldown: in
 
 
 async def software_trigger(dut):
-    """Trigger FSM via sw_trigger (CR1[5]).
+    """Trigger FSM via sw_trigger (CR0[0]).
 
     NOTE: Requires sw_trigger_enable (CR1[3]) to be set for trigger to propagate.
           This is a safety feature to prevent spurious triggers from metavalues.
@@ -185,9 +185,10 @@ async def software_trigger(dut):
         sw_trigger=True,
     )
 
-    # Apply only CR1 (don't touch timing registers)
+    # Apply both CR0 (sw_trigger) and CR1 (arm_enable + sw_trigger_enable)
     # Note: set_control is async with built-in propagation jitter
     ctrl = create_control(dut)
+    await ctrl.set_control(0, config._build_cr0())  # FORGE + sw_trigger
     await ctrl.set_control(1, config._build_cr1())
 
     # Wait for FIRING state (should be quick)
@@ -307,7 +308,7 @@ async def trigger_and_wait_cycle(dut, config: DPDConfig):
     """
     from conftest import create_control
 
-    # Send software trigger
+    # Send software trigger via CR0[0]
     # Note: set_control is async with built-in propagation jitter
     trigger_config = DPDConfig(
         arm_enable=True,
@@ -315,6 +316,7 @@ async def trigger_and_wait_cycle(dut, config: DPDConfig):
         sw_trigger=True,
     )
     ctrl = create_control(dut)
+    await ctrl.set_control(0, trigger_config._build_cr0())  # FORGE + sw_trigger
     await ctrl.set_control(1, trigger_config._build_cr1())
 
     # Wait for cycle to complete

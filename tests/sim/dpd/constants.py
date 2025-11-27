@@ -2,11 +2,11 @@
 Demo Probe Driver (DPD) Simulation Test Constants
 ==================================================
 
-Simulation-specific constants that extend the shared test infrastructure.
-Imports from tests/shared/constants.py for common values.
+Simulation-specific constants that extend the test infrastructure.
+Imports from tests/lib (API v4.0).
 
 Author: Moku Instrument Forge Team
-Date: 2025-11-26 (refactored to use shared infrastructure)
+Date: 2025-11-26 (refactored for API v4.0)
 """
 
 import sys
@@ -19,40 +19,32 @@ sys.path.insert(0, str(PROJECT_ROOT / "py_tools"))
 sys.path.insert(0, str(TESTS_PATH))
 
 # =============================================================================
-# Re-export from shared constants (single source of truth)
+# Re-export from tests.lib (API v4.0 single source of truth)
 # =============================================================================
-from shared.constants import (
-    # Hardware constants from py_tools
-    CR1,
+from lib import (
+    # Hardware constants
+    CR0,
+    CR8,
     FSMState,
     HVS,
     Platform,
     DefaultTiming,
-    cr1_build,
-    cr1_extract,
+    cr0_build,
+    cr0_extract,
+    cr8_build,
     # FORGE control
     MCC_CR0_ALL_ENABLED,
     MCC_CR0_FORGE_READY,
     MCC_CR0_USER_ENABLE,
     MCC_CR0_CLK_ENABLE,
-    FORGE_READY_BIT,
-    USER_ENABLE_BIT,
-    CLK_ENABLE_BIT,
     # Voltage conversion
     mv_to_digital,
     digital_to_mv,
     us_to_cycles,
     cycles_to_us,
-    V_MAX_MV,
-    DIGITAL_MAX,
     # Test timing
     P1Timing,
     P2Timing,
-    # Trigger values
-    TRIGGER_THRESHOLD_MV,
-    TRIGGER_TEST_VOLTAGE_MV,
-    TRIGGER_THRESHOLD_DIGITAL,
-    TRIGGER_TEST_VOLTAGE_DIGITAL,
     # HVS state values
     HVS_DIGITAL_INITIALIZING,
     HVS_DIGITAL_IDLE,
@@ -63,6 +55,11 @@ from shared.constants import (
     SIM_HVS_TOLERANCE,
     # Timeouts
     Timeouts,
+    # Trigger values
+    TRIGGER_THRESHOLD_MV,
+    TRIGGER_TEST_VOLTAGE_MV,
+    TRIGGER_THRESHOLD_DIGITAL,
+    TRIGGER_TEST_VOLTAGE_DIGITAL,
 )
 
 # =============================================================================
@@ -92,7 +89,6 @@ CLK_FREQ_HZ = Platform.CLK_FREQ_HZ
 # =============================================================================
 # Backward-Compatible Aliases
 # =============================================================================
-# These maintain compatibility with existing test code
 
 # FSM States
 STATE_INITIALIZING = FSMState.INITIALIZING
@@ -102,7 +98,7 @@ STATE_FIRING = FSMState.FIRING
 STATE_COOLDOWN = FSMState.COOLDOWN
 STATE_FAULT = FSMState.FAULT
 
-# HVS values (already exported above, but alias for compatibility)
+# HVS values
 HVS_DIGITAL_UNITS_PER_STATE = HVS.DIGITAL_UNITS_PER_STATE
 HVS_DIGITAL_TOLERANCE = SIM_HVS_TOLERANCE
 
@@ -112,22 +108,11 @@ DEFAULT_INTENSITY_DURATION = DefaultTiming.INTENSITY_DURATION
 DEFAULT_COOLDOWN_INTERVAL = DefaultTiming.COOLDOWN_INTERVAL
 DEFAULT_TRIGGER_WAIT_TIMEOUT = DefaultTiming.TRIGGER_WAIT_TIMEOUT
 
-# =============================================================================
-# Backward-Compatible Aliases for P1TestValues/P2TestValues
-# =============================================================================
-# These aliases allow old code using P1TestValues.X to continue working
-# New code should import P1Timing/P2Timing directly from shared.constants
-
-# P1TestValues is now an alias for P1Timing (with trigger constants available at module level)
+# P1/P2 test values
 P1TestValues = P1Timing
-
-# P2TestValues is now an alias for P2Timing
 P2TestValues = P2Timing
 
-# =============================================================================
-# Module-level convenience exports
-# =============================================================================
-TRIG_THRESHOLD_MV = TRIGGER_THRESHOLD_MV
-TRIG_TEST_VOLTAGE_MV = TRIGGER_TEST_VOLTAGE_MV
-TRIG_THRESHOLD_DIGITAL = TRIGGER_THRESHOLD_DIGITAL
-TRIG_TEST_VOLTAGE_DIGITAL = TRIGGER_TEST_VOLTAGE_DIGITAL
+# FORGE control bits
+FORGE_READY_BIT = CR0.FORGE_READY
+USER_ENABLE_BIT = CR0.USER_ENABLE
+CLK_ENABLE_BIT = CR0.CLK_ENABLE

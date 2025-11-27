@@ -319,3 +319,127 @@ async def test_jitter_validates_sync_protocol(dut):
     dut._log.info(f"  ✓ Phase 3: FSM completed (used original timing), now in {state}")
 
     dut._log.info("  ✓ PASS - STATE_SYNC_SAFE correctly gates config updates")
+
+
+# =============================================================================
+# Hardware Test Entry Point
+# =============================================================================
+# When running via unified runner with --backend hw, these functions are called
+# with a MokuAsyncHarness instead of CocoTBAsyncHarness.
+
+
+async def _test_basic_async(harness, log_fn):
+    """Backend-agnostic basic async test."""
+    log_fn("Testing async adapter - basic mode")
+
+    # Wait for IDLE (hardware may need more time)
+    success = await harness.wait_for_state("IDLE", timeout_us=500000)
+    if not success:
+        # Try reset
+        await harness.reset_to_idle(timeout_us=500000)
+        success = await harness.wait_for_state("IDLE", timeout_us=500000)
+    assert success, "FSM should reach IDLE"
+    log_fn("  ✓ FSM in IDLE")
+
+    # Arm FSM
+    await harness.controller.set_cr1(arm_enable=True)
+    await harness.controller.wait_ms(100)
+
+    success = await harness.wait_for_state("ARMED", timeout_us=500000)
+    assert success, "FSM should reach ARMED"
+    log_fn("  ✓ FSM in ARMED")
+
+    # Software trigger
+    await harness.software_trigger()
+    await harness.controller.wait_ms(200)
+
+    state, _ = await harness.state_reader.get_state()
+    assert state != "ARMED", f"FSM should leave ARMED after trigger, got {state}"
+    log_fn(f"  ✓ FSM triggered, now in {state}")
+
+    log_fn("  ✓ PASS - Basic async adapter works")
+    return True
+
+
+async def _test_unified_api(harness, log_fn):
+    """Backend-agnostic unified API test."""
+    log_fn("Testing unified API pattern")
+
+    # Reset to known state
+    await harness.reset_to_idle(timeout_us=500000)
+
+    success = await harness.wait_for_state("IDLE", timeout_us=500000)
+    assert success, "FSM should be in IDLE after reset"
+    log_fn("  ✓ FSM in IDLE")
+
+    # Arm
+    await harness.controller.set_cr1(arm_enable=True)
+    await harness.controller.wait_ms(100)
+
+    success = await harness.wait_for_state("ARMED", timeout_us=500000)
+    assert success, "Unified arm should work"
+    log_fn("  ✓ Unified arm works")
+
+    # Trigger
+    await harness.software_trigger()
+    await harness.controller.wait_ms(200)
+
+    state, _ = await harness.state_reader.get_state()
+    assert state != "ARMED", "Unified software_trigger should work"
+    log_fn(f"  ✓ software_trigger() works, FSM in {state}")
+
+    log_fn("  ✓ PASS - Unified API works")
+    return True
+
+
+async def run_hardware_tests(harness) -> bool:
+    """
+    Entry point for hardware testing via unified runner.
+
+    This function is called by tests/run.py when --backend hw is specified.
+    It runs the same test logic as the CocoTB tests but with MokuAsyncHarness.
+
+    Args:
+        harness: MokuAsyncHarness instance
+
+    Returns:
+        True if all tests pass, False otherwise
+    """
+    def log_fn(msg):
+        print(f"  {msg}")
+
+    print("\n" + "=" * 60)
+    print("P1 Async Adapter Tests - Hardware Backend")
+    print("=" * 60)
+
+    all_passed = True
+
+    # Initialize FSM (sets config, enables FORGE, clears fault → IDLE)
+    print("\nInitializing FSM...")
+    await harness.initialize_fsm()
+    print("  ✓ FSM initialized")
+
+    # Test 1: Basic async
+    print("\n--- Test 1: Basic Async Adapter ---")
+    try:
+        await _test_basic_async(harness, log_fn)
+    except AssertionError as e:
+        print(f"  ❌ FAILED: {e}")
+        all_passed = False
+
+    # Test 2: Unified API
+    print("\n--- Test 2: Unified API Pattern ---")
+    try:
+        await _test_unified_api(harness, log_fn)
+    except AssertionError as e:
+        print(f"  ❌ FAILED: {e}")
+        all_passed = False
+
+    print("\n" + "=" * 60)
+    if all_passed:
+        print("✅ ALL HARDWARE TESTS PASSED")
+    else:
+        print("❌ SOME HARDWARE TESTS FAILED")
+    print("=" * 60)
+
+    return all_passed
