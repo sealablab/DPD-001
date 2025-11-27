@@ -21,7 +21,7 @@ Usage:
     python run.py --backend hw --debug             # Enable Moku debug logging
 
 Environment Variables:
-    TEST_MODULE: Test module to run (default: dpd.P1_async_adapter_test)
+    TEST_MODULE: Test module to run (default: dpd.P1_basic)
     COCOTB_VERBOSITY: Sim verbosity (MINIMAL, NORMAL, VERBOSE, DEBUG)
 
 Architecture:
@@ -136,8 +136,18 @@ def run_simulation(args):
     else:
         os.environ.setdefault("COCOTB_VERBOSITY", "MINIMAL")
 
-    # Import sim-specific modules (must be after chdir and path setup)
-    from sim.dpd.constants import HDL_SOURCES, HDL_TOPLEVEL
+    # HDL configuration (inlined - previously in sim/dpd/constants.py)
+    RTL_DIR = PROJECT_ROOT / "rtl"
+    HDL_TOPLEVEL = "customwrapper"  # GHDL lowercases entity names
+    HDL_SOURCES = [
+        RTL_DIR / "CustomWrapper_test_stub.vhd",
+        RTL_DIR / "forge_common_pkg.vhd",
+        RTL_DIR / "forge_hierarchical_encoder.vhd",
+        RTL_DIR / "moku_voltage_threshold_trigger_core.vhd",
+        RTL_DIR / "DPD_main.vhd",
+        RTL_DIR / "DPD_shim.vhd",
+        RTL_DIR / "DPD.vhd",
+    ]
 
     logger.info("=" * 70)
     logger.info("DPD Unified Test Runner - SIMULATION")
@@ -253,7 +263,7 @@ async def _run_hardware_async(args):
 
 
 async def _basic_hardware_test(harness):
-    """Basic connectivity and state read test."""
+    """Basic connectivity and state read test (API v4.0)."""
     # Debug: Check raw oscilloscope data
     try:
         raw_data = harness.osc.get_data()
@@ -270,23 +280,21 @@ async def _basic_hardware_test(harness):
     voltage = await harness.state_reader.read_state_voltage()
     logger.info(f"Current FSM state: {state} (digital={digital}, voltage={voltage:.3f}V)")
 
-    # Enable FORGE
+    # Enable FORGE (v4.0: CR0 = 0xE0000000)
     logger.info("Enabling FORGE control...")
-    await harness.controller.set_forge_ready()
-    await harness.controller.wait_ms(200)
+    await harness.controller.enable_forge()
+    await harness.controller.wait_cycles(25000)  # 200ms @ 125MHz
 
     # Read state again
     state, digital = await harness.state_reader.get_state()
     voltage = await harness.state_reader.read_state_voltage()
     logger.info(f"After FORGE enable: {state} (digital={digital}, voltage={voltage:.3f}V)")
 
-    # If in FAULT, try to clear it
+    # If in FAULT, try to clear it (v4.0: fault_clear is CR0[1])
     if state == "FAULT":
         logger.warning("FSM in FAULT, attempting fault_clear...")
-        await harness.controller.set_cr1(fault_clear=True)
-        await harness.controller.wait_ms(100)
-        await harness.controller.set_cr1(fault_clear=False)
-        await harness.controller.wait_ms(200)
+        await harness.controller.clear_fault()  # v4.0 API
+        await harness.controller.wait_cycles(25000)  # 200ms
 
         state, digital = await harness.state_reader.get_state()
         voltage = await harness.state_reader.read_state_voltage()
@@ -310,7 +318,7 @@ def main():
 Examples:
   # Simulation
   python run.py
-  python run.py --backend sim --test-module dpd.P1_async_adapter_test
+  python run.py --backend sim --test-module dpd.P1_basic
 
   # Hardware
   python run.py --backend hw --device 192.168.31.41 --bitstream dpd-bits.tar
@@ -338,8 +346,8 @@ Examples:
     parser.add_argument(
         '--test-module', '-m',
         type=str,
-        default=os.environ.get('TEST_MODULE', 'sim.dpd.P1_async_adapter_test'),
-        help='Test module to run (default: sim.dpd.P1_async_adapter_test)'
+        default=os.environ.get('TEST_MODULE', 'dpd.P1_basic'),
+        help='Test module to run (default: dpd.P1_basic)'
     )
     parser.add_argument(
         '--verbose', '-v',
