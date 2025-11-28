@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nchore: obsidian vault config - fonts, sync ignore, readable line width off\n\n- Set monospace font to FiraCode Nerd Font Mono\n- Set interface font to Monaco\n- Add .obsidianignore to exclude build artifacts from sync\n- Remove wide-code.css snippet (using readable line width off instead)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,4 +1,9 @@
 {
+  "cssSnippets": [
+    "wide-code",
+    "fonts",
+    "overrides"
+  ],
   "trashOption": "local",
   "alwaysUpdateLinks": true,
   "newFileLocation": "current",
@@ -39,5 +44,8 @@
     "notes",
     "scratch"
   ],
-  "promptDelete": false
+  "promptDelete": false,
+  "readableLineLength": false,
+  "interfaceFont": "SF Pro",
+  "monoFont": "SF Mono"
 }
