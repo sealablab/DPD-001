@@ -1,6 +1,6 @@
 # DPD-001 Documentation Index
 
-**Last Updated:** 2025-11-26
+**Last Updated:** 2025-11-28
 **Project:** DPD-001 (Demo Probe Driver) - FPGA-based probe controller for Moku:Go
 **API Version:** 4.0
 
@@ -111,6 +111,16 @@ Quick start guide for using specialized agents to generate CocoTB test suites:
 
 Includes invocation examples, phase contracts, and common workflows.
 
+### Obsidian Templater System
+[Templater/README.md](../Templater/README.md) - **VHDL Component Templates**
+
+Obsidian Templater integration for rapid VHDL component creation:
+- **`new_vhdl_component`** - Create paired .vhd + _doc.vhd files with boilerplate
+- **`base`** - Standard note template with frontmatter
+- Auto-managed `created`/`modified` timestamps
+
+Configuration: Set Templater folder to `Templater/Templates` in Obsidian settings. See [Templater/docs/](../Templater/docs/) for detailed guides.
+
 ---
 
 ## File Organization
@@ -140,8 +150,12 @@ docs/
 │   ├── hardware-debug-checklist.md   # Hardware debugging workflow
 │   └── ghdl-output-filter.md         # GHDL verbosity filtering
 │
-└── Development Workflows
-    └── AGENTS.md                     # CocoTB agent pipeline
+├── Development Workflows
+│   ├── AGENTS.md                     # CocoTB agent pipeline
+│   └── ../Templater/                 # Obsidian VHDL templates
+│
+└── Platform Boot-Up
+    └── platform-boot-up.md           # P0/P1/P2 initialization phases
 ```
 
 ---
@@ -178,5 +192,5 @@ The following historic documents describe the **pre-v4.0 API** with CR1-based li
 ---
 
 **Maintainer:** Moku Instrument Forge Team
-**Last Updated:** 2025-11-26
+**Last Updated:** 2025-11-28
 **API Version:** 4.0
