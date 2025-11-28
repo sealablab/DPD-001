@@ -254,7 +254,6 @@ module.exports = {
     }
     
     // Update all three links for consistency (use wikilink format with quotes)
-    const vhdFileName = `${baseName}.vhd`;
     existingFields.code_link = `"[[${filePath}|${vhdFileName}]]"`; // Code file (points to self for .vhd) - wikilink with quotes
     existingFields.doc_link = `"[[${pairedPath}|${baseName}.vhd.md]]"`; // Doc file - wikilink with quotes
     existingFields.self_link = `"[[${filePath}|${vhdFileName}]]"`; // Self-reference - wikilink with quotes
