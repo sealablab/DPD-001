@@ -86,3 +86,6 @@ WIP/
 
 # External reference docs (can be fetched separately)
 moku_md/
+
+# Obsidian trash
+.trash/
