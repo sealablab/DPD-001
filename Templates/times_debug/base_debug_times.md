@@ -4,9 +4,12 @@ type: documentation
 created: ""
 modified: ""
 accessed: ""
+debug_hook_ran: false
 tags: []
 ---
 # <% tp.file.title %>
+
+> DEBUG: base_debug_times applied at <% tp.date.now("YYYY-MM-DD HH:mm:ss") %>
 
 ## Overview
 
@@ -20,7 +23,7 @@ tags: []
 - 💻 [GitHub](https://github.com/sealablab/DPD-001/blob/main/<% tp.file.path(true).replace(/ /g, '%20') %>)
 - ✏️ [Edit on GitHub](https://github.com/sealablab/DPD-001/edit/main/<% tp.file.path(true).replace(/ /g, '%20') %>)
 
-<%*
-  // Ensure created/modified/accessed are populated on manual template apply.
-  await tp.user.templater_times.touch_current_file(tp);
+<%* 
+  console.log("[DEBUG] base_debug_times: calling ensure_file_times for", tp.file.path(true));
+  await tp.user.templater_internal_module_debug.ensure_file_times(tp);
 %>

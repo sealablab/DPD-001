@@ -1,36 +1,43 @@
-// .obsidian/plugins/templater/user_scripts/templater_internal_module.js
-// Manage created / modified / accessed frontmatter fields in a consistent way.
+// Templates/user_scripts/templater_internal_module.js
+// Manage created / modified / accessed frontmatter fields.
 //
 // - created: set once from filesystem ctime/mtime if missing; never touched again.
-// - modified: synced from filesystem mtime on each run.
-// - accessed: logical "last opened in Obsidian" time, updated on open with a throttle.
+// - modified: mirrored from filesystem mtime on each run.
+// - accessed: logical "last opened in Obsidian" time, throttled.
 //
-// You probably want to call ensure_file_times() from a small "on-open" template.
+// Uses Obsidian's app.fileManager.processFrontMatter instead of tp.file.update_frontmatter,
+// so it works on older Templater versions.
 
-const THRESHOLD_MINUTES_ACCESS = 15; // don't bump `accessed` more often than this; set to 0 to always update
+const THRESHOLD_MINUTES_ACCESS = 15; // set to 0 to always bump `accessed`
 
 function parseDateTime(str) {
   if (!str || typeof str !== "string") return NaN;
-  // Accept "YYYY-MM-DD" or "YYYY-MM-DD HH:mm"
   const normalized = str.includes("T") ? str : str.replace(" ", "T");
-  const d = new Date(normalized);
-  return d.getTime();
+  return new Date(normalized).getTime();
+}
+
+// Small helper: mutate frontmatter via Obsidian's fileManager API.
+async function withFrontmatter(tp, updater) {
+  const relPath = tp.file.path(true);           // vault-relative path of current file
+  const file = app.vault.getAbstractFileByPath(relPath);
+
+  if (!file || !file.extension) {
+    console.error("withFrontmatter(): not a TFile for path", relPath, file);
+    return;
+  }
+
+  // processFrontMatter is sync, but we wrap it in a Promise so callers can await.
+  await new Promise(resolve => {
+    app.fileManager.processFrontMatter(file, fm => {
+      updater(fm);
+      resolve();
+    });
+  });
 }
 
 module.exports = {
-  /**
-   * Ensure frontmatter.created / modified / accessed are populated.
-   *
-   * @param {any} tp - Templater tp object (must be passed from the template)
-   * @param {Object} opts
-   * @param {string|null} opts.baseTemplate - Optional template (relative to Templates folder)
-   *                                         to apply if frontmatter update fails.
-   */
-  async ensure_file_times(tp, opts = {}) {
-    const baseTemplate = opts.baseTemplate || null;
-
-    // Compute filesystem metadata up front.
-    const relPath = tp.file.path(true); // vault-relative
+  async ensure_file_times(tp) {
+    const relPath = tp.file.path(true);
     let stat = null;
 
     try {
@@ -39,8 +46,9 @@ module.exports = {
       console.error("ensure_file_times(): stat failed for", relPath, e);
     }
 
-    const now      = new Date();
-    const nowStr   = tp.date.now("YYYY-MM-DD HH:mm", now);
+    const now    = new Date();
+    const nowStr = tp.date.now("YYYY-MM-DD HH:mm", now);
+
     const createdStrFromFs = (() => {
       if (!stat) return tp.date.now("YYYY-MM-DD", now);
       const src = stat.ctime || stat.mtime || Date.now();
@@ -53,49 +61,29 @@ module.exports = {
       return tp.date.now("YYYY-MM-DD HH:mm", new Date(src));
     })();
 
-    const doUpdate = async () => {
-      await tp.file.update_frontmatter(fm => {
-        // created: set once if missing/empty, never touched again.
-        if (!fm.created || fm.created === "") {
-          fm.created = createdStrFromFs;
-        }
-
-        // modified: always aligned to filesystem mtime when stat is available.
-        if (modifiedStrFromFs) {
-          if (fm.modified !== modifiedStrFromFs) {
-            fm.modified = modifiedStrFromFs;
-          }
-        }
-
-        // accessed: logical last-opened time, throttled.
-        const prevAccessed = fm.accessed;
-        const prevMs = parseDateTime(prevAccessed);
-        const nowMs  = now.getTime();
-
-        if (
-          THRESHOLD_MINUTES_ACCESS <= 0 ||
-          Number.isNaN(prevMs) ||
-          ((nowMs - prevMs) / 60000) >= THRESHOLD_MINUTES_ACCESS
-        ) {
-          fm.accessed = nowStr;
-        }
-      });
-    };
-
-    try {
-      await doUpdate();
-    } catch (e) {
-      console.error("ensure_file_times(): frontmatter update failed", e);
-
-      if (baseTemplate) {
-        try {
-          await tp.templates.apply_template(baseTemplate);
-          await doUpdate();
-        } catch (e2) {
-          console.error("ensure_file_times(): failed even after baseTemplate", e2);
-        }
+    await withFrontmatter(tp, fm => {
+      // created: set once if missing / empty
+      if (!fm.created || fm.created === "") {
+        fm.created = createdStrFromFs;
       }
-    }
+
+      // modified: mirror filesystem mtime
+      if (modifiedStrFromFs && fm.modified !== modifiedStrFromFs) {
+        fm.modified = modifiedStrFromFs;
+      }
+
+      // accessed: logical last-opened time with throttle
+      const prevMs = parseDateTime(fm.accessed);
+      const nowMs  = now.getTime();
+
+      if (
+        THRESHOLD_MINUTES_ACCESS <= 0 ||
+        Number.isNaN(prevMs) ||
+        ((nowMs - prevMs) / 60000) >= THRESHOLD_MINUTES_ACCESS
+      ) {
+        fm.accessed = nowStr;
+      }
+    });
 
     return nowStr;
   }
