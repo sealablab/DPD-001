@@ -66,7 +66,13 @@ code: <%= fields.code %>
 
 [Usage instructions]
 
-## See Also
+<%*
+  // Generate See Also section
+  const pairedPath = vhdlPair.getPairedFilePath(currentPath);
+  const pairedName = `${baseName}.vhd`;
+%>
+# See Also
+## [<%= pairedName %>](<%= pairedPath %>)
 
 ---
 

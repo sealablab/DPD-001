@@ -356,7 +356,8 @@ module.exports = {
       self_link: `"[[${vhdPath}|${vhdFileName}]]"` // Self-reference - wikilink with quotes
     };
     const vhdFrontmatter = generateVhdlFrontmatter(vhdFields);
-    const vhdContent = `${vhdFrontmatter}\n\n\n-- TODO: Add VHDL code here\n-- This is a placeholder template for the .vhd file\n`;
+    const vhdSeeAlso = `-- See Also\n-- ## [${mdFileName}](${mdPath})`;
+    const vhdContent = `${vhdFrontmatter}\n\n\n-- TODO: Add VHDL code here\n-- This is a placeholder template for the .vhd file\n\n${vhdSeeAlso}\n`;
     
     // Generate markdown file content
     // All files have code_link, doc_link, and self_link for consistency (orthogonality)
@@ -375,7 +376,8 @@ module.exports = {
     const mdFrontmatter = `---\nfile: ${mdFields.file}\ntype: ${mdFields.type}\nauthor: ${mdFields.author}\ncreated: ${mdFields.created}\nmodified: ${mdFields.modified}\naccessed: ${mdFields.accessed}\ncode_link: ${mdFields.code_link}\ndoc_link: ${mdFields.doc_link}\nself_link: ${mdFields.self_link}\n\n---`;
     // Extract wikilink from self_link (remove quotes) for heading
     const selfLinkForHeading = mdFields.self_link.replace(/^"|"$/g, ''); // Remove surrounding quotes
-    const mdContent = `${mdFrontmatter}\n\n# ${selfLinkForHeading}\n\n## Overview\n\n[Description of this VHDL component]\n\n## Architecture\n\n[Architecture details]\n\n## Usage\n\n[Usage instructions]\n\n## See Also\n\n---\n`;
+    const mdSeeAlso = `# See Also\n## [${vhdFileName}](${vhdPath})`;
+    const mdContent = `${mdFrontmatter}\n\n# ${selfLinkForHeading}\n\n## Overview\n\n[Description of this VHDL component]\n\n## Architecture\n\n[Architecture details]\n\n## Usage\n\n[Usage instructions]\n\n${mdSeeAlso}\n\n---\n`;
     
     // Create both files
     try {

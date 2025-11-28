@@ -45,3 +45,11 @@
 -- TODO: Add VHDL code here
 -- This is a placeholder template for the .vhd file
 
+<%*
+  // Generate See Also section
+  const pairedPath = vhdlPair.getPairedFilePath(currentPath);
+  const pairedName = `${baseName}.vhd.md`;
+%>
+-- See Also
+-- ## [<%= pairedName %>](<%= pairedPath %>)
+
