@@ -173,78 +173,54 @@ function getAllDirectories() {
  * Returns updated content, or null if README format not recognized
  */
 function appendToReadme(existingContent, vhdFileName, mdFileName, vhdPath, mdPath) {
-  // Check for expected structure: table and See Also section
-  if (!existingContent.includes('| filename') || !existingContent.includes('# See Also')) {
+  // Check for expected structure: has ## [...](path) entries
+  if (!existingContent.includes('## [')) {
     return null; // Format not recognized, skip update
   }
 
-  // Build new table rows
-  const vhdLinkDisplay = `[[${vhdPath}|${vhdFileName}]]`;
-  const mdLinkDisplay = `[[${mdPath}|${mdFileName}]]`;
-  const newTableRows = `| \`${vhdFileName}\`    | \`rtl_vhdl\` | ${vhdLinkDisplay}       | [XXX fill me in] | [XXX fill me in] |
-| \`${mdFileName}\` | \`rtl_md\`   | ${mdLinkDisplay} |                  |                  |`;
+  // Build new entries (markdown links for Obsidian tracking)
+  const newEntries = `## [${vhdFileName}](${vhdPath})
+_fill me in_
 
-  // Build new See Also entries
-  const vhdMarkdownLink = `[${vhdFileName}](${vhdPath})`;
-  const mdMarkdownLink = `[${mdFileName}](${mdPath})`;
-  const newSeeAlso = `## ${vhdMarkdownLink} \n## ${mdMarkdownLink}`;
+## [${mdFileName}](${mdPath})
+_fill me in_
 
-  // Insert table rows before "# See Also"
-  let updated = existingContent.replace(
-    /# See Also/,
-    `${newTableRows}\n# See Also`
-  );
+`;
 
-  // Append See Also entries (find last ## entry and add after it)
-  // Look for the pattern of ## [...] at end of file
-  updated = updated.replace(
-    /(## \[.*?\]\(.*?\)[ ]*\n)((?:\s*$|\s*---))/,
-    `$1${newSeeAlso}\n$2`
-  );
+  // Find the last ## [...] entry and append after its description
+  // Pattern: ## [file](path) followed by description line(s) and blank line
+  const lastEntryPattern = /(## \[.*?\]\(.*?\)\n(?:.*\n)*?)(\n---|\n*$)/;
 
-  // If the simple replace didn't work, try appending before final ---
-  if (updated === existingContent.replace(/# See Also/, `${newTableRows}\n# See Also`)) {
-    // Fallback: append before trailing whitespace/---
-    updated = updated.replace(/(\n---\s*$|\s*$)/, `\n${newSeeAlso}\n$1`);
+  if (lastEntryPattern.test(existingContent)) {
+    return existingContent.replace(lastEntryPattern, `$1\n${newEntries}$2`);
   }
 
-  return updated;
+  // Fallback: append before --- or at end
+  if (existingContent.includes('\n---')) {
+    return existingContent.replace(/\n---/, `\n${newEntries}---`);
+  }
+
+  return existingContent.trimEnd() + '\n\n' + newEntries;
 }
 
 /**
  * Generate README.md content for a VHDL component directory
- * Uses wikilinks with quotes for consistency with frontmatter pattern
+ * Simple format with H2 links - easy to append and Obsidian-friendly
  */
 function generateReadme(dirPath, baseName, vhdFileName, mdFileName, vhdPath, mdPath) {
   const readmePath = dirPath === '.' ? 'README.md' : `${dirPath}/README.md`;
-  const componentName = baseName.replace(/_/g, ' ');
-  
-  // Use the same wikilink format with quotes as frontmatter
-  const vhdLink = `"[[${vhdPath}|${vhdFileName}]]"`;
-  const mdLink = `"[[${mdPath}|${mdFileName}]]"`;
-  const readmeLink = `"[[${readmePath}|README]]"`;
-  
-  // Extract wikilinks without quotes for display in headings
-  const vhdLinkDisplay = `[[${vhdPath}|${vhdFileName}]]`;
-  const mdLinkDisplay = `[[${mdPath}|${mdFileName}]]`;
   const readmeLinkDisplay = `[[${readmePath}|README]]`;
-  
-  // Use markdown links in "See Also" section (intentional - testing Obsidian's handling)
-  const vhdMarkdownLink = `[${vhdFileName}](${vhdPath})`;
-  const mdMarkdownLink = `[${mdFileName}](${mdPath})`;
-  
+
+  // Use markdown links for file entries (Obsidian tracks these on rename)
   const readme = `# ${readmeLinkDisplay}
 
-This directory houses the __${componentName}__ component. It contains:
+## [${vhdFileName}](${vhdPath})
+_fill me in_
 
+## [${mdFileName}](${mdPath})
+_fill me in_
 
-| filename                    | type       | link                                                           | GH               | Publish          |
-| --------------------------- | ---------- | -------------------------------------------------------------- | ---------------- | ---------------- |
-| \`${vhdFileName}\`    | \`rtl_vhdl\` | ${vhdLinkDisplay}       | [XXX fill me in] | [XXX fill me in] |
-| \`${mdFileName}\` | \`rtl_md\`   | ${mdLinkDisplay} |                  |                  |
-# See Also
-## ${vhdMarkdownLink} 
-## ${mdMarkdownLink}
+---
 `;
 
   return readme;
