@@ -169,6 +169,49 @@ function getAllDirectories() {
 }
 
 /**
+ * Append new component entries to an existing README.md
+ * Returns updated content, or null if README format not recognized
+ */
+function appendToReadme(existingContent, vhdFileName, mdFileName, vhdPath, mdPath) {
+  // Check for expected structure: table and See Also section
+  if (!existingContent.includes('| filename') || !existingContent.includes('# See Also')) {
+    return null; // Format not recognized, skip update
+  }
+
+  // Build new table rows
+  const vhdLinkDisplay = `[[${vhdPath}|${vhdFileName}]]`;
+  const mdLinkDisplay = `[[${mdPath}|${mdFileName}]]`;
+  const newTableRows = `| \`${vhdFileName}\`    | \`rtl_vhdl\` | ${vhdLinkDisplay}       | [XXX fill me in] | [XXX fill me in] |
+| \`${mdFileName}\` | \`rtl_md\`   | ${mdLinkDisplay} |                  |                  |`;
+
+  // Build new See Also entries
+  const vhdMarkdownLink = `[${vhdFileName}](${vhdPath})`;
+  const mdMarkdownLink = `[${mdFileName}](${mdPath})`;
+  const newSeeAlso = `## ${vhdMarkdownLink} \n## ${mdMarkdownLink}`;
+
+  // Insert table rows before "# See Also"
+  let updated = existingContent.replace(
+    /# See Also/,
+    `${newTableRows}\n# See Also`
+  );
+
+  // Append See Also entries (find last ## entry and add after it)
+  // Look for the pattern of ## [...] at end of file
+  updated = updated.replace(
+    /(## \[.*?\]\(.*?\)[ ]*\n)((?:\s*$|\s*---))/,
+    `$1${newSeeAlso}\n$2`
+  );
+
+  // If the simple replace didn't work, try appending before final ---
+  if (updated === existingContent.replace(/# See Also/, `${newTableRows}\n# See Also`)) {
+    // Fallback: append before trailing whitespace/---
+    updated = updated.replace(/(\n---\s*$|\s*$)/, `\n${newSeeAlso}\n$1`);
+  }
+
+  return updated;
+}
+
+/**
  * Generate README.md content for a VHDL component directory
  * Uses wikilinks with quotes for consistency with frontmatter pattern
  */
@@ -395,13 +438,21 @@ module.exports = {
       // Create .vhd.md file
       await app.vault.create(mdPath, mdContent);
       
-      // Create README.md file in the same directory
+      // Create or update README.md file in the same directory
       const readmePath = normalizedDir === '.' ? 'README.md' : `${normalizedDir}/README.md`;
-      const readmeContent = generateReadme(normalizedDir, normalizedBase, vhdFileName, mdFileName, vhdPath, mdPath);
-      
-      // Only create README if it doesn't exist (don't overwrite existing)
       const existingReadme = app.vault.getAbstractFileByPath(readmePath);
-      if (!existingReadme) {
+
+      if (existingReadme) {
+        // Try to append to existing README
+        const existingContent = await app.vault.read(existingReadme);
+        const updatedContent = appendToReadme(existingContent, vhdFileName, mdFileName, vhdPath, mdPath);
+        if (updatedContent) {
+          await app.vault.modify(existingReadme, updatedContent);
+        }
+        // If format not recognized, leave README unchanged
+      } else {
+        // Create new README
+        const readmeContent = generateReadme(normalizedDir, normalizedBase, vhdFileName, mdFileName, vhdPath, mdPath);
         await app.vault.create(readmePath, readmeContent);
       }
       
