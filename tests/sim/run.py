@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CocoTB Test Runner for Demo Probe Driver and BOOT Subsystem
+CocoTB Test Runner for Demo Probe Driver (DPD)
 
 Runs P1 (BASIC) tests with GHDL simulator with intelligent output filtering.
 
@@ -8,30 +8,27 @@ The filter automatically reduces GHDL output by ~99.4% (12,589 → 73 lines)
 by suppressing repetitive warnings while preserving test results and errors.
 
 Usage:
-    python run.py                           # Run DPD P1 tests with automatic filtering
+    python run.py                           # Run P1 tests with automatic filtering
     COCOTB_VERBOSITY=NORMAL python run.py   # More verbose output
     TEST_LEVEL=P2_INTERMEDIATE python run.py  # Run P2 tests (when implemented)
     GHDL_FILTER=none python run.py          # Disable GHDL output filtering
 
-    # DPD debug tests (for FSM trigger investigation)
+    # Debug tests (for FSM trigger investigation)
     TEST_MODULE=dpd.P1_dpd_trigger_debug python run.py
     WAVES=true TEST_MODULE=dpd.P1_dpd_trigger_debug python run.py
 
-    # BOOT subsystem tests
-    TARGET=boot TEST_MODULE=boot_fsm.P1_basic python run.py   # BOOT FSM tests
-    TARGET=boot TEST_MODULE=loader.P1_basic python run.py     # LOADER tests
+For BOOT subsystem tests, use boot_run.py instead.
 
 Environment Variables:
-    TARGET: Target to test (dpd, boot). Default: dpd
     COCOTB_VERBOSITY: Test output level (MINIMAL, NORMAL, VERBOSE, DEBUG)
     TEST_LEVEL: Test suite level (P1_BASIC, P2_INTERMEDIATE, etc.)
-    TEST_MODULE: Test module to run (default: dpd.P1_basic for DPD, boot_fsm.P1_basic for BOOT)
+    TEST_MODULE: Test module to run (default: dpd.P1_basic)
     WAVES: Enable waveform capture (true/false, default: false)
     GHDL_FILTER: GHDL output filter level (aggressive, normal, minimal, none)
                  Default: auto-selected based on COCOTB_VERBOSITY
 
 Author: Moku Instrument Forge Team
-Date: 2025-11-29 (updated for BOOT subsystem support)
+Date: 2025-11-25 (updated for debug test support)
 """
 
 import os
@@ -46,45 +43,22 @@ os.chdir(Path(__file__).parent)
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# HDL configuration
+# HDL configuration (previously in dpd/constants.py)
 PROJECT_ROOT = Path(__file__).parent.parent.parent  # DPD-001/
 RTL_DIR = PROJECT_ROOT / "rtl"
 
-# DPD target configuration
-DPD_CONFIG = {
-    "module_name": "dpd_wrapper",
-    "hdl_toplevel": "customwrapper",  # GHDL lowercases entity names
-    "default_test_module": "dpd.P1_basic",
-    "hdl_sources": [
-        RTL_DIR / "CustomWrapper_test_stub.vhd",
-        RTL_DIR / "forge_common_pkg.vhd",
-        RTL_DIR / "forge_hierarchical_encoder.vhd",
-        RTL_DIR / "moku_voltage_threshold_trigger_core.vhd",
-        RTL_DIR / "DPD_main.vhd",
-        RTL_DIR / "DPD_shim.vhd",
-        RTL_DIR / "DPD.vhd",
-    ],
-}
+MODULE_NAME = "dpd_wrapper"
+HDL_TOPLEVEL = "customwrapper"  # GHDL lowercases entity names
 
-# BOOT target configuration
-BOOT_CONFIG = {
-    "module_name": "boot_wrapper",
-    "hdl_toplevel": "bootwrapper",  # GHDL lowercases entity names
-    "default_test_module": "boot_fsm.P1_basic",
-    "hdl_sources": [
-        RTL_DIR / "forge_common_pkg.vhd",
-        RTL_DIR / "boot" / "loader_crc16.vhd",
-        RTL_DIR / "boot" / "L2_BUFF_LOADER.vhd",
-        RTL_DIR / "boot" / "BootWrapper_test_stub.vhd",
-        RTL_DIR / "boot" / "B0_BOOT_TOP.vhd",
-    ],
-}
-
-# Available targets
-TARGETS = {
-    "dpd": DPD_CONFIG,
-    "boot": BOOT_CONFIG,
-}
+HDL_SOURCES = [
+    RTL_DIR / "CustomWrapper_test_stub.vhd",
+    RTL_DIR / "forge_common_pkg.vhd",
+    RTL_DIR / "forge_hierarchical_encoder.vhd",
+    RTL_DIR / "moku_voltage_threshold_trigger_core.vhd",
+    RTL_DIR / "DPD_main.vhd",
+    RTL_DIR / "DPD_shim.vhd",
+    RTL_DIR / "DPD.vhd",
+]
 
 # Import GHDL filter
 from ghdl_filter import GHDLOutputFilter, FilterLevel
