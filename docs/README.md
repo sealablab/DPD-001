@@ -185,17 +185,18 @@ Many of these documents were migrated from the FORGE-V5 project (`/Users/johnycs
 
 ---
 
-## Obsolete Documentation
+## Archived Documentation
 
-The following historic documents describe the **pre-v4.0 API** with CR1-based lifecycle controls. They should be deleted or archived:
+Historic documents from the **pre-v4.0 API** (CR1-based lifecycle controls) have been moved to:
 
-- `HANDOFF_SW_TRIGGER_DEBUG.md` - Debug notes for CR1→CR0 migration
-- `handoffs/20251125/HANDOFF_FSM_TRIGGER_DEBUG.md` - Historic trigger debugging
-- `handoffs/20251125/HANDOFF_FSM_DEBUG_CONTINUATION.md` - Historic FSM debugging
-- Any test code referencing `sw_trigger_enable`, `hw_trigger_enable`, or CR1 lifecycle bits
+```
+handoffs/archive/20251125-cr1-migration/
+```
+
+These are preserved for reference but describe deprecated interfaces.
 
 ---
 
 **Maintainer:** Moku Instrument Forge Team
-**Last Updated:** 2025-11-28
+**Last Updated:** 2025-11-29
 **API Version:** 4.0

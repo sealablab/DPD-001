@@ -48,11 +48,25 @@ import sys
 
 # Import BOOT constants
 try:
-    from boot_constants import CMD, BOOTState, LOADState, BOOT_HVS, RET
+    from boot_constants import (
+        CMD, BOOTState, LOADState, RET,
+        decode_pre_prog, encode_pre_prog, digital_to_volts,
+        HVS_PRE_STATE_UNITS, HVS_PRE_STATUS_UNITS,
+        BOOT_HVS_S_P0, BOOT_HVS_S_P1, BOOT_HVS_S_FAULT,
+        BIOS_HVS_S_IDLE, BIOS_HVS_S_RUN, BIOS_HVS_S_DONE,
+        LOADER_HVS_S_P0, LOADER_HVS_S_P1, LOADER_HVS_S_P2, LOADER_HVS_S_P3,
+    )
 except ImportError:
     # Running from different directory
     sys.path.insert(0, str(__file__).rsplit('/', 1)[0])
-    from boot_constants import CMD, BOOTState, LOADState, BOOT_HVS, RET
+    from boot_constants import (
+        CMD, BOOTState, LOADState, RET,
+        decode_pre_prog, encode_pre_prog, digital_to_volts,
+        HVS_PRE_STATE_UNITS, HVS_PRE_STATUS_UNITS,
+        BOOT_HVS_S_P0, BOOT_HVS_S_P1, BOOT_HVS_S_FAULT,
+        BIOS_HVS_S_IDLE, BIOS_HVS_S_RUN, BIOS_HVS_S_DONE,
+        LOADER_HVS_S_P0, LOADER_HVS_S_P1, LOADER_HVS_S_P2, LOADER_HVS_S_P3,
+    )
 
 
 # =============================================================================
@@ -120,32 +134,41 @@ class ShellState:
 class HVSMonitor(threading.Thread):
     """Background thread that continuously reads OutputC and interprets it.
 
-    Key design: The CONTEXT is client-authoritative (we assume RUN+X commands
-    work). The HVS just tells us sub-state within that context.
+    Pre-PROG HVS Encoding (from docs/HVS-encoding-scheme.md):
+    - 197 digital units per state (~30mV @ ±5V FS)
+    - 11 digital units per status LSB (~1.7mV)
+    - gcd(197, 11) = 1 ensures unique decoding
 
-    Same voltage, different meaning:
-        0.2V in BOOT context  → BOOT_P1
-        0.2V in LOADER context → LOAD_P1
-        0.5V in PROG context   → DPD_IDLE
+    Context Voltage Bands:
+    - BOOT (S=0-7):   0.00-0.22V
+    - BIOS (S=8-15):  0.24-0.46V
+    - LOADER (S=16-23): 0.48-0.70V
+
+    The decode_pre_prog() function handles all pre-PROG decoding using
+    number theory (finds unique S, T pair from digital value).
+
+    Post-PROG (DPD): Uses different encoding (3277 units/state = 0.5V steps)
     """
 
-    # Interpretation tables per context
-    # {context: {digital_value: state_name}}
-    # Using ranges with tolerance of ±150 digital units
+    # Pre-PROG state digital values (using 197 units/state, 11 units/status)
+    # These are computed from encode_pre_prog(S, T=0)
+    BOOT_DIGITAL_P0 = encode_pre_prog(BOOT_HVS_S_P0, 0)       # 0
+    BOOT_DIGITAL_P1 = encode_pre_prog(BOOT_HVS_S_P1, 0)       # 197
+    BIOS_DIGITAL_IDLE = encode_pre_prog(BIOS_HVS_S_IDLE, 0)   # 1576
+    BIOS_DIGITAL_RUN = encode_pre_prog(BIOS_HVS_S_RUN, 0)     # 1773
+    BIOS_DIGITAL_DONE = encode_pre_prog(BIOS_HVS_S_DONE, 0)   # 1970
+    LOADER_DIGITAL_P0 = encode_pre_prog(LOADER_HVS_S_P0, 0)   # 3152
+    LOADER_DIGITAL_P1 = encode_pre_prog(LOADER_HVS_S_P1, 0)   # 3349
+    LOADER_DIGITAL_P2 = encode_pre_prog(LOADER_HVS_S_P2, 0)   # 3546
+    LOADER_DIGITAL_P3 = encode_pre_prog(LOADER_HVS_S_P3, 0)   # 3743
 
-    BOOT_STATES = {
-        0: "P0", 1311: "P1", 2622: "BIOS", 3933: "LOAD", 5244: "PROG"
-    }
-    LOADER_STATES = {
-        0: "P0:SETUP", 1311: "P1:XFER", 2622: "P2:VALIDATE", 3933: "P3:DONE"
-    }
-    # DPD uses 3277 units/state (0.5V steps)
+    # DPD uses different encoding (3277 units/state = 0.5V steps)
     DPD_STATES = {
         0: "INIT", 3277: "IDLE", 6554: "ARMED", 9831: "FIRING",
         13108: "COOL", -3277: "FAULT"
     }
 
-    TOLERANCE = 200  # ±200 digital units for matching
+    TOLERANCE = 150  # ±150 digital units for matching (tighter for pre-PROG)
 
     def __init__(self, state: ShellState, hw: Optional["HardwareInterface"] = None,
                  poll_hz: float = 20.0):
@@ -166,7 +189,7 @@ class HVSMonitor(threading.Thread):
                     # Simulation: derive from last CR0
                     digital = self._simulate_hvs()
 
-                voltage = self._digital_to_volts(digital)
+                voltage = digital_to_volts(digital)
                 is_fault = digital < -self.TOLERANCE
                 state_name = self._interpret(digital, self.state.context)
 
@@ -182,54 +205,80 @@ class HVSMonitor(threading.Thread):
         self.running = False
 
     def _simulate_hvs(self) -> int:
-        """Simulate HVS output based on assumed context."""
-        # In simulation, just return the "expected" value for current context
+        """Simulate HVS output based on assumed context.
+
+        Uses pre-PROG encoding (197 units/state) for BOOT/BIOS/LOADER,
+        and DPD encoding (3277 units/state) for PROG context.
+        """
         context = self.state.context
         if context == ShellContext.BOOT_P0:
-            return 0
+            return self.BOOT_DIGITAL_P0      # 0
         elif context == ShellContext.BOOT_P1:
-            return 1311
+            return self.BOOT_DIGITAL_P1      # 197
         elif context == ShellContext.BIOS:
-            return 2622
+            return self.BIOS_DIGITAL_RUN     # 1773 (RUN state)
         elif context == ShellContext.LOADER:
-            # Could add offset-based simulation here
-            return 1311  # LOAD_P1 (transfer phase)
+            return self.LOADER_DIGITAL_P1    # 3349 (P1: transfer phase)
         elif context == ShellContext.PROG:
-            return 3277  # DPD_IDLE
+            return 3277                      # DPD_IDLE (different encoding)
         elif context == ShellContext.FAULT:
-            return -1311
+            return -self.BOOT_DIGITAL_P1     # Negative = fault
         return 0
-
-    def _digital_to_volts(self, digital: int) -> float:
-        """Convert digital units to voltage."""
-        return (digital / 32768.0) * 5.0
 
     def _interpret(self, digital: int, context: ShellContext) -> str:
         """Interpret HVS reading based on current context.
 
-        This is where the "same voltage, different meaning" logic lives.
+        Pre-PROG contexts use decode_pre_prog() for number-theory decoding.
+        PROG context uses the DPD encoding table (3277 units/state).
         """
-        # Select interpretation table based on context
-        if context in (ShellContext.BOOT_P0, ShellContext.BOOT_P1):
-            table = self.BOOT_STATES
-        elif context == ShellContext.BIOS:
-            table = self.BOOT_STATES  # BIOS shows as BIOS in BOOT encoding
-        elif context == ShellContext.LOADER:
-            table = self.LOADER_STATES
-        elif context == ShellContext.PROG:
-            table = self.DPD_STATES
-        elif context == ShellContext.FAULT:
+        # Fault detection: negative voltage
+        if digital < -self.TOLERANCE:
             return "FAULT"
-        else:
-            table = self.BOOT_STATES
 
-        # Find closest match
-        for expected, name in table.items():
-            if abs(digital - expected) <= self.TOLERANCE:
-                return name
+        # PROG context uses different encoding (DPD: 3277 units/state)
+        if context == ShellContext.PROG:
+            for expected, name in self.DPD_STATES.items():
+                if abs(digital - expected) <= self.TOLERANCE:
+                    return name
+            return f"?{digital}"
 
-        # No match - show raw value
-        return f"?{digital}"
+        # Pre-PROG contexts: use decode_pre_prog() for unified decoding
+        ctx_name, S, T = decode_pre_prog(digital)
+
+        if ctx_name == "UNKNOWN":
+            return f"?{digital}"
+
+        # Map global S value to human-readable state name
+        if ctx_name == "BOOT":
+            if S == BOOT_HVS_S_P0:
+                return "BOOT_P0"
+            elif S == BOOT_HVS_S_P1:
+                return "BOOT_P1"
+            elif S == BOOT_HVS_S_FAULT:
+                return "BOOT_FAULT"
+            return f"BOOT_S{S}"
+
+        elif ctx_name == "BIOS":
+            if S == BIOS_HVS_S_IDLE:
+                return "BIOS_IDLE"
+            elif S == BIOS_HVS_S_RUN:
+                return "BIOS_RUN"
+            elif S == BIOS_HVS_S_DONE:
+                return "BIOS_DONE"
+            return f"BIOS_S{S}"
+
+        elif ctx_name == "LOADER":
+            if S == LOADER_HVS_S_P0:
+                return "LOAD_P0"
+            elif S == LOADER_HVS_S_P1:
+                return "LOAD_P1"
+            elif S == LOADER_HVS_S_P2:
+                return "LOAD_P2"
+            elif S == LOADER_HVS_S_P3:
+                return "LOAD_P3"
+            return f"LOAD_S{S}"
+
+        return f"{ctx_name}_S{S}"
 
 
 # =============================================================================
@@ -624,7 +673,7 @@ class BootShell:
 
     def run(self):
         """Run the interactive shell."""
-        print("BOOT Shell v0.2 (with live HVS monitor)")
+        print("BOOT Shell v0.3 (pre-PROG HVS encoding: 197/11 units)")
         print("Type 'help' for commands, Ctrl+C to quit")
 
         if self.state.device_ip:
