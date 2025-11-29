@@ -37,9 +37,10 @@ use IEEE.numeric_std.all;
 library WORK;
 use WORK.forge_common_pkg.all;
 
--- This is the CustomWrapper architecture for BOOT
+-- This is the BootWrapper architecture for BOOT subsystem
 -- Implements the standard Moku CloudCompile interface
-architecture boot_forge of CustomWrapper is
+-- Note: Uses BootWrapper entity (not CustomWrapper) to avoid GHDL collision
+architecture boot_forge of BootWrapper is
 
     -- BOOT FSM state
     signal boot_state      : std_logic_vector(5 downto 0);
@@ -53,7 +54,7 @@ architecture boot_forge of CustomWrapper is
     signal sel_bios   : std_logic;
     signal sel_loader : std_logic;
     signal sel_reset  : std_logic;
-    signal ret_bit    : std_logic;
+    signal ret_active : std_logic;
 
     -- LOADER signals
     signal loader_state    : std_logic_vector(5 downto 0);
@@ -100,7 +101,7 @@ begin
     sel_bios   <= Control0(SEL_BIOS_BIT);
     sel_loader <= Control0(SEL_LOADER_BIT);
     sel_reset  <= Control0(SEL_RESET_BIT);
-    ret_bit    <= Control0(RET_BIT);
+    ret_active <= Control0(RET_BIT);
 
     ----------------------------------------------------------------------------
     -- LOADER Instantiation
@@ -174,7 +175,7 @@ begin
     -- BOOT FSM Next State Logic
     ----------------------------------------------------------------------------
     process(boot_state, run_active, sel_prog, sel_bios, sel_loader, sel_reset,
-            ret_bit, loader_complete, loader_fault)
+            ret_active, loader_complete, loader_fault)
     begin
         boot_state_next <= boot_state;  -- Default: hold state
 
@@ -208,7 +209,7 @@ begin
                 -- BIOS active: wait for RET
                 if run_active = '0' then
                     boot_state_next <= BOOT_STATE_P0;
-                elsif ret_bit = '1' then
+                elsif ret_active = '1' then
                     boot_state_next <= BOOT_STATE_P1;
                 end if;
 
@@ -218,7 +219,7 @@ begin
                     boot_state_next <= BOOT_STATE_P0;
                 elsif loader_fault = '1' then
                     boot_state_next <= BOOT_STATE_FAULT;
-                elsif ret_bit = '1' and loader_complete = '1' then
+                elsif ret_active = '1' and loader_complete = '1' then
                     -- Only allow return after LOADER completes
                     boot_state_next <= BOOT_STATE_P1;
                 end if;
