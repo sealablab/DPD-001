@@ -76,9 +76,9 @@ We allocate 32 states (S = 0-31) across pre-PROG contexts:
 
 | S Range | Context  | States | Description                                                 |
 | ------- | -------- | ------ | ----------------------------------------------------------- |
-| 0-3     | BOOT     | 4      | BOOT_P0, BOOT_P1, BOOT_FAULT, reserved                      |
-| 4-11    | BIOS     | 8      | BIOS states (diagnostics, tests, etc.)                      |
-| 12-23   | LOADER   | 12     | LOAD_P0, LOAD_P1, LOAD_P2, LOAD_P3, LOAD_FAULT, +7 reserved |
+| 0-7     | BOOT     | 8      | BOOT_P0, BOOT_P1, BOOT_FAULT, +5 reserved                   |
+| 8-15    | BIOS     | 8      | BIOS states (diagnostics, tests, etc.)                      |
+| 16-23   | LOADER   | 8      | LOAD_P0, LOAD_P1, LOAD_P2, LOAD_P3, LOAD_FAULT, +3 reserved |
 | 24-31   | Reserved | 8      | Future pre-PROG contexts                                    |
 
 ### Status Bits (T values)
@@ -118,9 +118,9 @@ def decode_pre_prog(digital_value):
             T = remainder // 11
             if T <= 127:  # Valid status range
                 # Determine context from S
-                if S <= 3:
+                if S <= 7:
                     context = "BOOT"
-                elif S <= 11:
+                elif S <= 15:
                     context = "BIOS"
                 elif S <= 23:
                     context = "LOADER"
@@ -133,32 +133,46 @@ def decode_pre_prog(digital_value):
 
 ## Context-Specific Mappings
 
-### BOOT (S = 0-3)
+### BOOT (S = 0-7)
 
 | S | T | Digital | Voltage | BOOT State |
 |---|---|---------|---------|------------|
 | 0 | 0 | 0 | 0.0V | BOOT_P0 |
 | 1 | 0 | 197 | 0.030V | BOOT_P1 |
 | 2 | 0 | 394 | 0.060V | BOOT_FAULT (if status[7]=1, negated) |
-| 3 | 0-3 | 591-624 | 0.090-0.095V | Reserved/BOOT sub-states |
+| 3-7 | 0-7 | 591-1456 | 0.090-0.222V | Reserved/BOOT sub-states |
 
-### BIOS (S = 4-11)
+**BOOT voltage range:** 0.0V - 0.222V (with max status)
+
+### BIOS (S = 8-15)
 
 | S | T | Digital | Voltage | BIOS State |
 |---|---|---------|---------|------------|
-| 4 | 0 | 788 | 0.120V | BIOS_ACTIVE (base) |
-| 4-11 | 0-7 | 788-2304 | 0.120-0.351V | BIOS internal states |
+| 8 | 0 | 1576 | 0.240V | BIOS_ACTIVE (base) |
+| 9-15 | 0-7 | 1773-3032 | 0.270-0.462V | BIOS internal states |
 
-### LOADER (S = 12-23)
+**BIOS voltage range:** 0.240V - 0.462V (with max status)
+
+### LOADER (S = 16-23)
 
 | S | T | Digital | Voltage | LOADER State |
 |---|---|---------|---------|-------------|
-| 12 | 0 | 2364 | 0.361V | LOAD_P0 (setup) |
-| 13 | 0 | 2561 | 0.390V | LOAD_P1 (transfer) |
-| 14 | 0 | 2758 | 0.420V | LOAD_P2 (validate) |
-| 15 | 0 | 2955 | 0.451V | LOAD_P3 (complete) |
-| 16 | 0 | 3152 | 0.480V | LOAD_FAULT (if status[7]=1, negated) |
-| 17-23 | 0-7 | 3349-4604 | 0.510-0.702V | Reserved/LOADER sub-states |
+| 16 | 0 | 3152 | 0.480V | LOAD_P0 (setup) |
+| 17 | 0 | 3349 | 0.510V | LOAD_P1 (transfer) |
+| 18 | 0 | 3546 | 0.541V | LOAD_P2 (validate) |
+| 19 | 0 | 3743 | 0.571V | LOAD_P3 (complete) |
+| 20 | 0 | 3940 | 0.601V | LOAD_FAULT (if status[7]=1, negated) |
+| 21-23 | 0-7 | 4137-4604 | 0.631-0.702V | Reserved/LOADER sub-states |
+
+**LOADER voltage range:** 0.480V - 0.702V (with max status T=7)
+
+### Reserved (S = 24-31)
+
+| S | T | Digital | Voltage | Description |
+|---|---|---------|---------|-------------|
+| 24-31 | 0-7 | 4728-6184 | 0.721-0.943V | Future pre-PROG contexts |
+
+**Reserved voltage range:** 0.721V - 0.943V (with max status)
 
 ## PROG Encoding (Out of Scope)
 
