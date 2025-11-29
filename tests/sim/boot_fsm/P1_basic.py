@@ -23,16 +23,21 @@ from cocotb.triggers import RisingEdge, ClockCycles
 import sys
 from pathlib import Path
 
-# Add paths
-BOOT_TESTS_DIR = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(BOOT_TESTS_DIR))
+# Add project root to path for imports
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
-from lib import (
-    CMD, BOOTState, BOOT_HVS,
-    BOOT_DIGITAL_P0, BOOT_DIGITAL_P1,
-    BOOT_DIGITAL_LOAD_ACTIVE, BOOT_DIGITAL_BIOS_ACTIVE, BOOT_DIGITAL_PROG_ACTIVE,
-    BOOT_SIM_HVS_TOLERANCE,
-)
+from py_tools.boot_constants import CMD, BOOTState, BOOT_HVS
+
+# BOOT HVS digital values (0.2V steps = 1311 units per state)
+BOOT_DIGITAL_P0 = BOOT_HVS.DIGITAL_P0
+BOOT_DIGITAL_P1 = BOOT_HVS.DIGITAL_P1
+BOOT_DIGITAL_BIOS_ACTIVE = BOOT_HVS.DIGITAL_BIOS_ACTIVE
+BOOT_DIGITAL_LOAD_ACTIVE = BOOT_HVS.DIGITAL_LOAD_ACTIVE
+BOOT_DIGITAL_PROG_ACTIVE = BOOT_HVS.DIGITAL_PROG_ACTIVE
+
+# Tolerance for simulation (tighter than HW)
+BOOT_SIM_HVS_TOLERANCE = 150  # +/-150 digital units (~23mV)
 
 
 # Clock period (8ns = 125MHz)
