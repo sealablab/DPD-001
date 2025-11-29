@@ -1,7 +1,8 @@
 ---
 created: 2025-11-28
-modified: 2025-11-28
-status: DRAFT
+modified: 2025-11-28 17:42:28
+status: AUTHORITATIVE
+accessed: 2025-11-28 17:42:58
 ---
 # LOAD-FSM Specification
 
