@@ -103,26 +103,51 @@ package forge_common_pkg is
     ----------------------------------------------------------------------------
     -- BOOT FSM States (6-bit encoding)
     --
-    -- Used by BOOT module and for HVS encoding on OutputC.
-    -- HVS voltage = state * 0.2V (using DIGITAL_UNITS_PER_STATE = 1311)
+    -- Internal BOOT FSM states. For HVS encoding, these map to global S values:
+    --   BOOT_P0          -> S=0 (0.0V)
+    --   BOOT_P1          -> S=1 (0.030V)
+    --   BOOT_FAULT       -> S=2 (0.060V, negated if status[7]=1)
+    --   BOOT_BIOS_ACTIVE -> S=8 (BIOS context, not BOOT)
+    --   BOOT_LOAD_ACTIVE -> S=16 (LOADER context, not BOOT)
+    --   BOOT_PROG_ACTIVE -> PROG context (out of scope)
     ----------------------------------------------------------------------------
-    constant BOOT_STATE_P0          : std_logic_vector(5 downto 0) := "000000";  -- 0.0V
-    constant BOOT_STATE_P1          : std_logic_vector(5 downto 0) := "000001";  -- 0.2V
-    constant BOOT_STATE_BIOS_ACTIVE : std_logic_vector(5 downto 0) := "000010";  -- 0.4V
-    constant BOOT_STATE_LOAD_ACTIVE : std_logic_vector(5 downto 0) := "000011";  -- 0.6V
-    constant BOOT_STATE_PROG_ACTIVE : std_logic_vector(5 downto 0) := "000100";  -- 0.8V
-    constant BOOT_STATE_FAULT       : std_logic_vector(5 downto 0) := "111111";  -- Negative
+    constant BOOT_STATE_P0          : std_logic_vector(5 downto 0) := "000000";
+    constant BOOT_STATE_P1          : std_logic_vector(5 downto 0) := "000001";
+    constant BOOT_STATE_BIOS_ACTIVE : std_logic_vector(5 downto 0) := "000010";
+    constant BOOT_STATE_LOAD_ACTIVE : std_logic_vector(5 downto 0) := "000011";
+    constant BOOT_STATE_PROG_ACTIVE : std_logic_vector(5 downto 0) := "000100";
+    constant BOOT_STATE_FAULT       : std_logic_vector(5 downto 0) := "111111";
+    
+    -- BOOT HVS global state mapping (S values 0-7)
+    constant BOOT_HVS_S_P0    : natural := 0;
+    constant BOOT_HVS_S_P1    : natural := 1;
+    constant BOOT_HVS_S_FAULT : natural := 2;
+    -- S=3-7 reserved for BOOT expansion
 
     ----------------------------------------------------------------------------
     -- LOADER FSM States (6-bit encoding)
     --
-    -- Used by LOADER module for internal state tracking and HVS.
+    -- Internal LOADER FSM states. For HVS encoding, these map to global S values:
+    --   LOAD_P0    -> S=16 (0.480V)
+    --   LOAD_P1    -> S=17 (0.510V)
+    --   LOAD_P2    -> S=18 (0.541V)
+    --   LOAD_P3    -> S=19 (0.571V)
+    --   LOAD_FAULT -> S=20 (0.601V, negated if status[7]=1)
+    --   S=21-23 reserved for LOADER expansion
     ----------------------------------------------------------------------------
     constant LOAD_STATE_P0    : std_logic_vector(5 downto 0) := "000000";  -- Setup
     constant LOAD_STATE_P1    : std_logic_vector(5 downto 0) := "000001";  -- Transfer
     constant LOAD_STATE_P2    : std_logic_vector(5 downto 0) := "000010";  -- Validate
     constant LOAD_STATE_P3    : std_logic_vector(5 downto 0) := "000011";  -- Complete
     constant LOAD_STATE_FAULT : std_logic_vector(5 downto 0) := "111111";  -- CRC error
+    
+    -- LOADER HVS global state mapping (S values 16-23)
+    constant LOADER_HVS_S_P0    : natural := 16;
+    constant LOADER_HVS_S_P1    : natural := 17;
+    constant LOADER_HVS_S_P2    : natural := 18;
+    constant LOADER_HVS_S_P3    : natural := 19;
+    constant LOADER_HVS_S_FAULT : natural := 20;
+    -- S=21-23 reserved for LOADER expansion
 
     ----------------------------------------------------------------------------
     -- ENV_BBUF Parameters
@@ -137,13 +162,23 @@ package forge_common_pkg is
     constant ENV_BBUF_DATA_WIDTH : natural := 32;
 
     ----------------------------------------------------------------------------
-    -- HVS Parameters
+    -- HVS Parameters (Pre-PROG Band)
     --
-    -- BOOT subsystem uses compressed 0.2V steps (0-1V range for 5 states).
-    -- Standard PROG applications use 0.5V steps.
+    -- Pre-PROG encoding uses number-theory properties for easy decoding:
+    --   DIGITAL_UNITS_PER_STATE = 197 (prime)
+    --   DIGITAL_UNITS_PER_STATUS = 11 (prime, coprime with 197)
+    --
+    -- This ensures all pre-PROG states (BOOT/BIOS/LOADER) stay under 1.0V.
+    -- PROG applications use their own encoding (out of scope).
+    --
+    -- Reference: docs/HVS-encoding-scheme.md
     ----------------------------------------------------------------------------
-    constant HVS_BOOT_UNITS_PER_STATE : natural := 1311;  -- ~0.2V @ ±5V FS
-    constant HVS_PROG_UNITS_PER_STATE : natural := 3277;  -- ~0.5V @ ±5V FS
+    constant HVS_PRE_STATE_UNITS  : natural := 197;  -- Digital units per state (~30mV @ ±5V FS)
+    constant HVS_PRE_STATUS_UNITS : natural := 11;   -- Digital units per status LSB (~1.7mV)
+    
+    -- Legacy constants (for backward compatibility during migration)
+    constant HVS_BOOT_UNITS_PER_STATE : natural := 1311;  -- Deprecated: use HVS_PRE_STATE_UNITS
+    constant HVS_PROG_UNITS_PER_STATE : natural := 3277;  -- PROG encoding (out of scope)
 
     ----------------------------------------------------------------------------
     -- CRC-16-CCITT Parameters
