@@ -1,22 +1,36 @@
-# DPD Test Suite
+# DPD / BOOT Test Suite
 
-Unified test runner for Demo Probe Driver - runs the same tests against simulation (CocoTB/GHDL) or real hardware (Moku).
+Unified test infrastructure for Demo Probe Driver (DPD) and the BOOT subsystem.
+The same high‑level test patterns are used for simulation (CocoTB/GHDL) and
+hardware (Moku), with async adapters hiding backend differences.
 
 ## Quick Start
 
-### Simulation (Default)
+### Simulation – DPD (application)
 
 ```bash
 cd /Users/johnycsh/DPD/DPD-001/tests
 
-# Run P1 basic tests
+# Run P1 basic DPD tests via unified runner
 uv run python run.py
 
 # Verbose output
 uv run python run.py -v
 ```
 
-### Hardware Testing
+### Simulation – BOOT / LOADER
+
+```bash
+cd /Users/johnycsh/DPD/DPD-001/tests/sim
+
+# BOOT dispatcher P1 tests
+uv run python boot_run.py
+
+# LOADER P1 tests
+TEST_MODULE=loader.P1_basic uv run python boot_run.py
+```
+
+### Hardware – DPD (application)
 
 ```bash
 cd /Users/johnycsh/DPD/DPD-001/tests
@@ -34,7 +48,10 @@ uv run python run.py --backend hw --device YOUR_IP --bitstream ../dpd-bits.tar -
 uv run python run.py --backend hw --device YOUR_IP --bitstream ../dpd-bits.tar --debug
 ```
 
-## Command Line Options
+> **Note:** BOOT hardware tests will share the same adapters and hardware
+> plumbing (`tests/hw/plumbing.py`) but are not wired into `run.py` yet.
+
+## Command Line Options (DPD unified runner)
 
 | Option | Description |
 |--------|-------------|
@@ -50,10 +67,9 @@ uv run python run.py --backend hw --device YOUR_IP --bitstream ../dpd-bits.tar -
 
 ## Test Structure
 
-```
+```text
 tests/
-├── run.py              # Unified test runner (DPD)
-├── run_boot.py         # Unified test runner (BOOT subsystem) [PLANNED]
+├── run.py              # Unified runner for DPD (sim + hw)
 ├── lib/                # Constants, utilities, test base classes (API v4.0)
 │   ├── __init__.py     # Re-exports from py_tools + test-specific constants
 │   ├── hw.py           # DPD hardware constants
@@ -63,28 +79,30 @@ tests/
 │   └── tolerances.py   # HVS tolerances (sim vs hw)
 ├── adapters/           # Async adapters for sim/hw convergence
 │   ├── base.py         # Abstract interfaces (configurable units_per_state)
-│   ├── cocotb.py       # CocoTB implementation
-│   └── moku.py         # Moku hardware implementation
+│   ├── cocotb.py       # CocoTB implementation (simulation harness)
+│   └── moku.py         # Moku hardware implementation (hardware harness)
 ├── shared/             # Control interface abstractions
 ├── hw/                 # Hardware-specific plumbing
-│   └── plumbing.py     # MokuSession context manager
-└── sim/                # Simulation tests
-    ├── run.py          # Sim-only runner (alternative)
+│   ├── __init__.py
+│   └── plumbing.py     # MokuSession context manager + routing for HVS
+└── sim/                # Simulation tests and runners
+    ├── run.py          # Sim-only DPD runner (alternative to tests/run.py --backend sim)
+    ├── boot_run.py     # Sim-only BOOT/LOADER runner (CocoTB + GHDL)
     ├── dpd/            # DPD application tests
     │   └── P1_basic.py # P1 test suite (5 tests)
-    ├── boot_fsm/       # BOOT dispatcher tests [PLANNED]
-    │   └── P1_basic.py # BOOT state transitions
-    └── loader/         # LOADER module tests [PLANNED]
-        ├── P1_basic.py # LOADER state transitions
-        └── P2_crc.py   # CRC validation tests
+    ├── boot_fsm/       # BOOT dispatcher tests
+    │   └── P1_basic.py # BOOT state transitions + HVS checks
+    └── loader/         # LOADER module tests
+        └── P1_basic.py # LOADER state transitions + CRC happy-path
 ```
 
 ## API v4.0
 
 All tests use the v4.0 API where lifecycle controls are in CR0:
-- `CR0[31:29]` - FORGE control (forge_ready, user_enable, clk_enable)
-- `CR0[2]` - arm_enable (level-sensitive)
-- `CR0[1]` - fault_clear (edge-triggered, auto-clear)
-- `CR0[0]` - sw_trigger (edge-triggered, auto-clear)
 
-See [docs/api-v4.md](../docs/api-v4.md) for the complete calling convention.
+- `CR0[31:29]` – FORGE control (forge_ready, user_enable, clk_enable)
+- `CR0[2]` – arm_enable (level-sensitive)
+- `CR0[1]` – fault_clear (edge-triggered, auto-clear)
+- `CR0[0]` – sw_trigger (edge-triggered, auto-clear)
+
+See `docs/api-v4.md` for the complete calling convention.

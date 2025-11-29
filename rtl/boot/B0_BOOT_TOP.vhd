@@ -78,11 +78,13 @@ architecture boot_forge of BootWrapper is
     signal prog_output_b   : signed(15 downto 0);
     signal prog_output_c   : signed(15 downto 0);
 
-    -- HVS encoder for BOOT state
-    signal boot_hvs_output : signed(15 downto 0);
-
-    -- Status vector for HVS
-    signal boot_status : std_logic_vector(7 downto 0);
+    -- HVS encoding: map internal states to global S values
+    signal boot_hvs_s_global   : std_logic_vector(5 downto 0);  -- BOOT: S=0-7
+    signal boot_status         : std_logic_vector(7 downto 0);   -- BOOT status
+    signal boot_hvs_output     : signed(15 downto 0);             -- BOOT encoded HVS
+    signal loader_hvs_s_global : std_logic_vector(5 downto 0);  -- LOADER: S=16-23
+    signal bios_hvs_s_global  : std_logic_vector(5 downto 0);  -- BIOS: S=8-15
+    signal bios_status        : std_logic_vector(7 downto 0);   -- BIOS status
 
     -- PROG enable (for DPD_shim)
     signal prog_enable : std_logic;
@@ -124,17 +126,61 @@ begin
             bram_rd_data => bram_rd_data
         );
 
-    -- LOADER HVS output (using BOOT's compressed 0.2V/state scale)
-    loader_output_c <= to_signed(
-        to_integer(unsigned(loader_state)) * HVS_BOOT_UNITS_PER_STATE,
-        16
-    );
+    ----------------------------------------------------------------------------
+    -- LOADER HVS Encoding: Map internal states to global S values (16-23)
+    ----------------------------------------------------------------------------
+    process(loader_state)
+    begin
+        case loader_state is
+            when LOAD_STATE_P0 =>
+                loader_hvs_s_global <= std_logic_vector(to_unsigned(LOADER_HVS_S_P0, 6));
+            when LOAD_STATE_P1 =>
+                loader_hvs_s_global <= std_logic_vector(to_unsigned(LOADER_HVS_S_P1, 6));
+            when LOAD_STATE_P2 =>
+                loader_hvs_s_global <= std_logic_vector(to_unsigned(LOADER_HVS_S_P2, 6));
+            when LOAD_STATE_P3 =>
+                loader_hvs_s_global <= std_logic_vector(to_unsigned(LOADER_HVS_S_P3, 6));
+            when LOAD_STATE_FAULT =>
+                loader_hvs_s_global <= std_logic_vector(to_unsigned(LOADER_HVS_S_FAULT, 6));
+            when others =>
+                loader_hvs_s_global <= std_logic_vector(to_unsigned(LOADER_HVS_S_P0, 6));
+        end case;
+    end process;
+
+    -- LOADER HVS Encoder
+    LOADER_HVS_ENCODER: entity WORK.forge_hierarchical_encoder
+        generic map (
+            DIGITAL_UNITS_PER_STATE  => HVS_PRE_STATE_UNITS,
+            DIGITAL_UNITS_PER_STATUS => real(HVS_PRE_STATUS_UNITS)
+        )
+        port map (
+            clk           => Clk,
+            reset         => Reset,
+            state_vector  => loader_hvs_s_global,
+            status_vector => loader_status,
+            voltage_out   => loader_output_c
+        );
 
     ----------------------------------------------------------------------------
     -- BIOS Stub (placeholder for future implementation)
     ----------------------------------------------------------------------------
-    -- For now, BIOS just outputs a fixed HVS voltage
-    bios_output_c <= to_signed(2 * HVS_BOOT_UNITS_PER_STATE, 16);  -- 0.4V
+    -- For now, BIOS outputs HVS using global S=8 (BIOS_ACTIVE base state)
+    -- TODO: When BIOS is implemented, map its internal states to S=8-15
+    bios_hvs_s_global <= std_logic_vector(to_unsigned(8, 6));  -- S=8: BIOS_ACTIVE
+    bios_status <= (others => '0');
+    
+    BIOS_HVS_ENCODER: entity WORK.forge_hierarchical_encoder
+        generic map (
+            DIGITAL_UNITS_PER_STATE  => HVS_PRE_STATE_UNITS,
+            DIGITAL_UNITS_PER_STATUS => real(HVS_PRE_STATUS_UNITS)
+        )
+        port map (
+            clk           => Clk,
+            reset         => Reset,
+            state_vector  => bios_hvs_s_global,
+            status_vector => bios_status,
+            voltage_out   => bios_output_c
+        );
 
     ----------------------------------------------------------------------------
     -- PROG (DPD_shim) Instantiation
@@ -251,17 +297,40 @@ begin
     boot_status(3 downto 0) <= boot_state(3 downto 0);
 
     ----------------------------------------------------------------------------
-    -- BOOT HVS Encoder
+    -- BOOT HVS Encoding: Map internal states to global S values (0-7)
     ----------------------------------------------------------------------------
-    boot_hvs_output <= to_signed(
-        to_integer(unsigned(boot_state)) * HVS_BOOT_UNITS_PER_STATE,
-        16
-    );
+    process(boot_state)
+    begin
+        case boot_state is
+            when BOOT_STATE_P0 =>
+                boot_hvs_s_global <= std_logic_vector(to_unsigned(BOOT_HVS_S_P0, 6));
+            when BOOT_STATE_P1 =>
+                boot_hvs_s_global <= std_logic_vector(to_unsigned(BOOT_HVS_S_P1, 6));
+            when BOOT_STATE_FAULT =>
+                boot_hvs_s_global <= std_logic_vector(to_unsigned(BOOT_HVS_S_FAULT, 6));
+            when others =>
+                -- BIOS_ACTIVE, LOAD_ACTIVE, PROG_ACTIVE don't use BOOT HVS
+                -- (they use their own encoders or are out of scope)
+                boot_hvs_s_global <= std_logic_vector(to_unsigned(BOOT_HVS_S_P0, 6));
+        end case;
+    end process;
 
-    -- Fault state gets negative voltage
-    boot_output_c <= to_signed(-HVS_BOOT_UNITS_PER_STATE, 16)
-                     when boot_state = BOOT_STATE_FAULT
-                     else boot_hvs_output;
+    -- BOOT HVS Encoder
+    BOOT_HVS_ENCODER: entity WORK.forge_hierarchical_encoder
+        generic map (
+            DIGITAL_UNITS_PER_STATE  => HVS_PRE_STATE_UNITS,
+            DIGITAL_UNITS_PER_STATUS => real(HVS_PRE_STATUS_UNITS)
+        )
+        port map (
+            clk           => Clk,
+            reset         => Reset,
+            state_vector  => boot_hvs_s_global,
+            status_vector => boot_status,
+            voltage_out   => boot_hvs_output
+        );
+
+    -- BOOT HVS output (fault handling via status[7] sign flip in encoder)
+    boot_output_c <= boot_hvs_output;
 
     -- BOOT doesn't drive OutputA/B
     boot_output_a <= (others => '0');

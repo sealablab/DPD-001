@@ -51,6 +51,7 @@ HDL_TOPLEVEL = "bootwrapper"  # GHDL lowercases entity names
 
 HDL_SOURCES = [
     RTL_DIR / "forge_common_pkg.vhd",
+    RTL_DIR / "forge_hierarchical_encoder.vhd",
     RTL_DIR / "boot" / "loader_crc16.vhd",
     RTL_DIR / "boot" / "L2_BUFF_LOADER.vhd",
     RTL_DIR / "boot" / "BootWrapper_test_stub.vhd",

@@ -199,76 +199,117 @@ class LOADState(IntEnum):
 
 
 # ==============================================================================
-# HVS Parameters (BOOT uses compressed 0.2V steps)
+# HVS Parameters (Pre-PROG encoding: 197 units/state, 11 units/status)
 # ==============================================================================
 
-class BOOT_HVS:
-    """HVS encoding for BOOT subsystem.
+# Pre-PROG HVS encoding constants (from docs/HVS-encoding-scheme.md)
+HVS_PRE_STATE_UNITS = 197   # Digital units per state (~30mV @ ±5V FS)
+HVS_PRE_STATUS_UNITS = 11  # Digital units per status LSB (~1.7mV)
 
-    BOOT uses compressed 0.2V steps (1311 units) to keep all states
-    in the 0-1V range. This differs from PROG which uses 0.5V steps.
+# Platform constants
+V_MAX = 5.0
+DIGITAL_MAX = 32768
+
+# Global S value ranges (power-of-2 boundaries)
+BOOT_S_RANGE = (0, 7)      # S=0-7: BOOT states
+BIOS_S_RANGE = (8, 15)     # S=8-15: BIOS states
+LOADER_S_RANGE = (16, 23)  # S=16-23: LOADER states
+
+# BOOT state to global S mapping
+BOOT_HVS_S_P0 = 0
+BOOT_HVS_S_P1 = 1
+BOOT_HVS_S_FAULT = 2
+
+# LOADER state to global S mapping
+LOADER_HVS_S_P0 = 16
+LOADER_HVS_S_P1 = 17
+LOADER_HVS_S_P2 = 18
+LOADER_HVS_S_P3 = 19
+LOADER_HVS_S_FAULT = 20
+
+# BIOS base S value
+BIOS_HVS_S_ACTIVE = 8
+
+
+def decode_pre_prog(digital_value: int) -> tuple:
+    """Decode pre-PROG HVS reading to (context, S, T).
+    
+    Returns: (context, S, T) where:
+        context: "BOOT", "BIOS", "LOADER", "RESERVED", or "UNKNOWN"
+        S: global state (0-31)
+        T: status value (0-127)
     """
+    # Extract S and T using number theory
+    # Since gcd(197, 11) = 1, we can solve: D = 197*S + 11*T
+    for S in range(32):
+        remainder = digital_value - (S * HVS_PRE_STATE_UNITS)
+        if remainder >= 0 and remainder % HVS_PRE_STATUS_UNITS == 0:
+            T = remainder // HVS_PRE_STATUS_UNITS
+            if T <= 127:  # Valid status range
+                # Determine context from S (power-of-2 boundaries)
+                if S <= BOOT_S_RANGE[1]:
+                    context = "BOOT"
+                elif S <= BIOS_S_RANGE[1]:
+                    context = "BIOS"
+                elif S <= LOADER_S_RANGE[1]:
+                    context = "LOADER"
+                else:
+                    context = "RESERVED"
+                return (context, S, T)
+    
+    return ("UNKNOWN", None, None)
 
-    # Digital units per state (0.2V steps @ +/-5V full scale)
-    UNITS_PER_STATE = 1311
 
-    # Voltage per state
-    VOLTS_PER_STATE = 0.2
+def encode_pre_prog(S: int, T: int = 0) -> int:
+    """Encode pre-PROG HVS value from global S and status T."""
+    return (S * HVS_PRE_STATE_UNITS) + (T * HVS_PRE_STATUS_UNITS)
 
-    # Platform constants (same as PROG)
-    V_MAX = 5.0
-    DIGITAL_MAX = 32768
 
-    # Expected digital values for BOOT states
-    DIGITAL_P0 = 0              # 0.0V
-    DIGITAL_P1 = 1311           # 0.2V
-    DIGITAL_BIOS_ACTIVE = 2622  # 0.4V
-    DIGITAL_LOAD_ACTIVE = 3933  # 0.6V
-    DIGITAL_PROG_ACTIVE = 5244  # 0.8V
+def digital_to_volts(digital: int) -> float:
+    """Convert digital units to voltage (V)."""
+    return (digital / DIGITAL_MAX) * V_MAX
 
-    # State-to-digital map
-    STATE_DIGITAL_MAP: Dict[str, int] = {
-        "BOOT_P0": DIGITAL_P0,
-        "BOOT_P1": DIGITAL_P1,
-        "BIOS_ACTIVE": DIGITAL_BIOS_ACTIVE,
-        "LOAD_ACTIVE": DIGITAL_LOAD_ACTIVE,
-        "PROG_ACTIVE": DIGITAL_PROG_ACTIVE,
-    }
 
-    # State-to-voltage map
-    STATE_VOLTAGE_MAP: Dict[str, float] = {
-        "BOOT_P0": 0.0,
-        "BOOT_P1": 0.2,
-        "BIOS_ACTIVE": 0.4,
-        "LOAD_ACTIVE": 0.6,
-        "PROG_ACTIVE": 0.8,
-        "FAULT": -0.2,  # Negative indicates fault
-    }
-
-    @staticmethod
-    def state_to_digital(state: int, status_offset: int = 0) -> int:
-        """Convert FSM state + status offset to digital units."""
-        return (state * BOOT_HVS.UNITS_PER_STATE) + status_offset
-
-    @staticmethod
-    def digital_to_volts(digital: int) -> float:
-        """Convert digital units to voltage (V)."""
-        return (digital / BOOT_HVS.DIGITAL_MAX) * BOOT_HVS.V_MAX
-
-    @staticmethod
-    def volts_to_digital(voltage: float) -> int:
-        """Convert voltage (V) to digital units."""
-        return int((voltage / BOOT_HVS.V_MAX) * BOOT_HVS.DIGITAL_MAX)
-
+# Legacy BOOT_HVS class for backward compatibility (deprecated)
+class BOOT_HVS:
+    """Legacy HVS encoding - use decode_pre_prog() instead."""
+    
+    # New encoding values
+    DIGITAL_P0 = encode_pre_prog(BOOT_HVS_S_P0, 0)  # 0
+    DIGITAL_P1 = encode_pre_prog(BOOT_HVS_S_P1, 0)  # 197
+    
+    # Legacy compatibility (will be removed)
+    UNITS_PER_STATE = HVS_PRE_STATE_UNITS
+    VOLTS_PER_STATE = digital_to_volts(HVS_PRE_STATE_UNITS)
+    
     @staticmethod
     def decode_state_from_digital(digital: int, tolerance: int = 150) -> str:
-        """Decode BOOT state name from digital value."""
+        """Decode state name from digital value (uses new decoder)."""
+        context, S, T = decode_pre_prog(digital)
+        if context == "UNKNOWN":
+            return f"UNKNOWN({digital})"
         if digital < -tolerance:
             return "FAULT"
-        for state_name, expected in BOOT_HVS.STATE_DIGITAL_MAP.items():
-            if abs(digital - expected) <= tolerance:
-                return state_name
-        return f"UNKNOWN({digital})"
+        # Map S values to state names
+        if context == "BOOT":
+            if S == BOOT_HVS_S_P0:
+                return "BOOT_P0"
+            elif S == BOOT_HVS_S_P1:
+                return "BOOT_P1"
+            elif S == BOOT_HVS_S_FAULT:
+                return "BOOT_FAULT"
+        elif context == "LOADER":
+            if S == LOADER_HVS_S_P0:
+                return "LOAD_P0"
+            elif S == LOADER_HVS_S_P1:
+                return "LOAD_P1"
+            elif S == LOADER_HVS_S_P2:
+                return "LOAD_P2"
+            elif S == LOADER_HVS_S_P3:
+                return "LOAD_P3"
+            elif S == LOADER_HVS_S_FAULT:
+                return "LOAD_FAULT"
+        return f"{context}_S{S}"
 
 
 # ==============================================================================
