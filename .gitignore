@@ -84,6 +84,16 @@ t.txt
 # Claude Code local settings (user-specific)
 .claude/settings.local.json
 **/.claude/
+**/.claude-trace/
+
+# Backup files
+*.bak
+
+# Obsidian clippings
+Clippings/
+
+# External/unrelated projects
+happy-cli/
 
 # Work in progress (incomplete drafts)
 WIP/
@@ -95,3 +105,7 @@ moku_md/
 
 # Obsidian trash
 .trash/
+
+# Obsidian untitled notes (default new note names)
+**/Untitled.md
+**/Untitled\ *.md

@@ -7,34 +7,56 @@ tags:
   - synthesis
   - planning
   - qa
+created: 2025-11-29
+modified: 2025-11-29 00:26:41
+accessed: 2025-11-29 00:27:21
 ---
 
 # Synthesis Planning Q&A
 
 This document captures planning questions and decisions for moving from GHDL validation to full vendor synthesis. Edit this file to provide answers, then commit - Claude will see the diff.
 
+# Additional context:
+Review the following, then review the user responses below:
+-  [BOOT-FSM-spec](docs/BOOT-FSM-spec.md) tt5r
+- [boot-process-terms](docs/boot-process-terms.md)
+
 ## Synthesis Tool & Platform
 
 ### Q1: Which vendor synthesis tool do you have available?
 
-**Options:**
-- [ ] Vivado (Xilinx/AMD)
-- [ ] Quartus (Intel/Altera)
-- [ ] Other FPGA vendor tool (specify): _____________
-- [ ] Focus on GHDL synthesis validation only for now
+**Answer:** Vivado-2022. 
+.. here is a little bit of synth log from it
+``` python
+#-----------------------------------------------------------
+# Vivado v2022.2_AR000035739_AR000034905 (64-bit)
+# SW Build 3671981 on Fri Oct 14 04:59:54 MDT 2022
+# IP Build 3669848 on Fri Oct 14 08:30:02 MDT 2022
+# Start of session at: Thu Nov 27 03:53:38 2025
+# Process ID: 3810638
+# Current directory: /workspace/9cb16bc6-8429-4845-9320-8efad49d5cbb/output
+# Command line: vivado -log synthesis.log -nojournal -mode batch -source /deps/compile/scripts/tcl/synth.tcl -tclargs /deps/compile 40 xc7z020clg400-1 mokugo /workspace/9cb16bc6-8429-4845-9320-8efad49d5cbb/src /workspace/9cb16bc6-8429-4845-9320-8efad49d5cbb/lib /workspace/9cb16bc6-8429-4845-9320-8efad49d5cbb/ipcores 2 3 0 4 4 5 3 2 0
+# Log file: /workspace/9cb16bc6-8429-4845-9320-8efad49d5cbb/output/synthesis.log
+# Journal file: 
+# Running On: mcc-workers-7446cfdb8d-xznss, OS: Linux, CPU Frequency: 4491.536 MHz, CPU Physical cores: 28, Host memory: 50485 MB
+#-----------------------------------------------------------
 
-**Answer:** _(fill in your selection)_
+---------------------------------------------------------------------------------
+Start Loading Part and Timing Information
+---------------------------------------------------------------------------------
+Loading part: xc7z020clg400-1
+---------------------------------------------------------------------------------
+Finished Loading Part and Timing Information : Time (s): cpu = 00:00:05 ; elapsed = 00:00:07 . Memory (MB): peak = 2690.262 ; gain = 599.301 ; free physical = 29991 ; free virtual = 42864
+Synthesis current peak Physical Memory [PSS] (MB): peak = 2023.307; parent = 1769.992; children = 253.314
+Synthesis current peak Virtual Memory [VSS] (MB): peak = 3621.477; parent = 2658.250; children = 963.227
+---------------------------------------------------------------------------------
+```
 
 ---
 
 ### Q2: What's the target FPGA device?
 
-The handoff mentions "Moku:Go" but doesn't specify the exact FPGA chip. This information is needed for:
-- Resource estimation
-- Constraint file generation
-- IP core configuration
-
-**Answer:** _(e.g., "Xilinx Zynq-7010", "Intel Cyclone V", etc.)_
+The specific chip we happen to be targetting is the xc7z020clg400-1 -- but most of the platform specifics are abstracted away at a high level. see @moku-models/ for some details. as well as @mim.md and @cloudcompile.md
 
 ---
 
@@ -42,21 +64,13 @@ The handoff mentions "Moku:Go" but doesn't specify the exact FPGA chip. This inf
 
 ### Q3: Unified wrapper approach preference
 
-The handoff presents two architectural options:
 
 **Option A: Runtime-configurable**
-- Single bitstream with generic parameter
-- Switch between BOOT/DPD modes via configuration
-- More complex routing, potential timing issues
 
-**Option B: Compile-time selection**
-- Separate bitstreams for each mode
-- Cleaner for vendor tools
-- Simpler resource optimization
-
-**Answer:** _(A or B, with rationale)_
-
----
+Runtime configurable. This is the entire point of this endeavor.
+- 'RUN' -> BOOT
+- `RUN+P` -> PROG 
+- `RUN+L` -> Loader ..
 
 ### Q4: BOOT ↔ DPD transition model
 
