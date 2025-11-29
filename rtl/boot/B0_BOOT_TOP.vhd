@@ -72,12 +72,12 @@ architecture boot_forge of BootWrapper is
     signal boot_output_a   : signed(15 downto 0);
     signal boot_output_b   : signed(15 downto 0);
     signal boot_output_c   : signed(15 downto 0);
-    -- @JC: I think we should incldue loader_output_a and loader_output_b for consistency.
+    -- LOADER drives OutputA/B as zeros (only OutputC used for HVS)
     -- LOADER:
     signal loader_output_a   : signed(15 downto 0);
     signal loader_output_b   : signed(15 downto 0);
-    signal loader_output_c : signed(15 downto 0);
-    -- @JC: I think we should incldue bios_output_a and bios_output_b for consistency.
+    signal loader_output_c   : signed(15 downto 0);
+    -- BIOS drives OutputA/B as zeros (only OutputC used for HVS)
     -- BIOS:
     signal bios_output_a   : signed(15 downto 0);
     signal bios_output_b   : signed(15 downto 0);
@@ -344,6 +344,14 @@ begin
     -- BOOT doesn't drive OutputA/B
     boot_output_a <= (others => '0');
     boot_output_b <= (others => '0');
+
+    -- LOADER doesn't drive OutputA/B
+    loader_output_a <= (others => '0');
+    loader_output_b <= (others => '0');
+
+    -- BIOS doesn't drive OutputA/B
+    bios_output_a <= (others => '0');
+    bios_output_b <= (others => '0');
 
     ----------------------------------------------------------------------------
     -- Output Muxing (Combinatorial)
