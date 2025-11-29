@@ -84,6 +84,16 @@ t.txt
 # Claude Code local settings (user-specific)
 .claude/settings.local.json
 **/.claude/
+**/.claude-trace/
+
+# Backup files
+*.bak
+
+# Obsidian clippings
+Clippings/
+
+# External/unrelated projects
+happy-cli/
 
 # Work in progress (incomplete drafts)
 WIP/

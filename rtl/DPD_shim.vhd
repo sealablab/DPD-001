@@ -214,7 +214,8 @@ begin
     --   3. clk_enable   = 1  (clock gating enabled)
     --   4. loader_done  = 1  (BRAM loading complete)
     ----------------------------------------------------------------------------
-    global_enable <= combine_forge_ready(forge_ready, user_enable, clk_enable, loader_done);
+    -- Since BOOT subsystem already handles RUN gating, we just need all control signals active
+    global_enable <= forge_ready and user_enable and clk_enable and loader_done;
 
     ----------------------------------------------------------------------------
     -- Edge Detection with Pulse Stretcher (Auto-Clear)

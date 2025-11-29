@@ -2,6 +2,8 @@
 created: 2025-11-29
 session: BIOS ROM Primitives Design
 status: IN_PROGRESS
+modified: 2025-11-29 15:05:03
+accessed: 2025-11-29 15:05:22
 ---
 # Handoff: BIOS ROM Primitives Design
 

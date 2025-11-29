@@ -14,3 +14,6 @@
 
 - **Review and commit bootup-proposal reorganization** - Bootup proposal docs were restructured but not committed. **Problem:** Work-in-progress changes sitting in working directory need review before committing. **Files:** `docs/api-v4.md` (modified), `docs/platform-boot-up.md` (modified), `docs/bootup-proposal/B000_BOOT.md` (new), `docs/bootup-proposal/B010_BIOS.md` (new), `docs/bootup-proposal/B100_PROG.md` (new). **Solution:** Review changes with `git diff`, commit when ready. Old files (BITS_BIOS.md, BPD_RUNP_RUNB.md) were deleted/renamed.
 
+## Happy CLI Type Shim Upstream PR - 2025-11-29 01:40
+
+- **Submit PR to happy-cli with claude-code type shim** - Share our fix for the missing type exports in newer @anthropic-ai/claude-code versions. **Problem:** happy-cli bundles old claude-code (2.0.24), and newer versions (2.0.31+) removed `SDKMessage`/`SDKUserMessage` type exports, breaking the build. Multiple users report this in issues #40, #49. **Files:** `happy-cli/src/types/claude-code-shim.d.ts` (our fix), `happy-cli/src/utils/MessageQueue.ts:1` (the import that needed it). **Solution:** Test the shim in real usage first, then fork repo and submit PR with the 20-line type definition file. Reference issues #40, #49, #53 in PR description.
