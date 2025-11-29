@@ -5,16 +5,13 @@ modified: 2025-11-28 22:08:50
 accessed: 2025-11-28 22:09:05
 ---
 
-# HVS Encoding Scheme: Pre-PROG vs PROG Bands
+# HVS Encoding Scheme: Pre-PROG Band
 
 ## Design Philosophy
 
-The HVS encoding is split into two bands:
+The pre-PROG HVS encoding scheme is carefully designed with number-theory properties for easy decoding and identification of BOOT, BIOS, and LOADER states.
 
-1. **Pre-PROG Band (BOOT/BIOS/LOADER)**: Carefully designed with number-theory properties for easy decoding and identification
-2. **PROG Band**: Arbitrary - once control passes to PROG, the application can use whatever HVS encoding it wants
-
-The Python client-side only needs to track one transition: **"did we transition from BOOT to PROG?"** After that, PROG owns the HVS encoding entirely.
+Once control passes to PROG, the application owns HVS encoding entirely - that is out of scope for this document.
 
 ## Pre-PROG Encoding Parameters
 
@@ -50,23 +47,7 @@ V_pre_max = 5.0 * (6184 / 32768)
           ≈ 0.943 V
 ```
 
-**Safety margin:** All pre-PROG states stay **comfortably under 1.0V**, leaving a clear gap before PROG.
-
-### PROG Threshold
-
-**Threshold for PROG detection:**
-```
-V_PROG_THRESHOLD = 1.0 V
-D_PROG_THRESHOLD = 6554 digital units
-```
-
-**Python-side logic:**
-```python
-if voltage > 1.0:  # or digital > 6554
-    context = PROG  # Application owns HVS encoding
-else:
-    context = decode_pre_prog(voltage)  # Use pre-PROG decoder
-```
+**Safety margin:** All pre-PROG states stay **comfortably under 1.0V**.
 
 ## Pre-PROG State Allocation
 
@@ -105,7 +86,13 @@ where:
 **Decoding (Python):**
 ```python
 def decode_pre_prog(digital_value):
-    """Decode pre-PROG HVS reading to (context, state, status)."""
+    """Decode pre-PROG HVS reading to (context, state, status).
+    
+    Returns: (context, S, T) where:
+        context: "BOOT", "BIOS", "LOADER", "RESERVED", or "UNKNOWN"
+        S: global state (0-31)
+        T: status value (0-127)
+    """
     # Extract S and T using number theory
     # Since gcd(197, 11) = 1, we can solve:
     #   D = 197*S + 11*T
@@ -117,7 +104,7 @@ def decode_pre_prog(digital_value):
         if remainder >= 0 and remainder % 11 == 0:
             T = remainder // 11
             if T <= 127:  # Valid status range
-                # Determine context from S
+                # Determine context from S (power-of-2 boundaries)
                 if S <= 7:
                     context = "BOOT"
                 elif S <= 15:
@@ -174,41 +161,17 @@ def decode_pre_prog(digital_value):
 
 **Reserved voltage range:** 0.721V - 0.943V (with max status)
 
-## PROG Encoding (Out of Scope)
-
-Once control passes to PROG:
-
-- **PROG can use any HVS encoding it wants**
-- Common choice: `DIGITAL_UNITS_PER_STATE = 3277` (0.5V steps) for compatibility with existing DPD
-- But PROG is free to use different parameters, or even a completely different encoding scheme
-- The only requirement: **PROG must ensure its minimum voltage > 1.0V** to avoid ambiguity
-
-**Example PROG encoding (DPD-style):**
-```
-D_prog = S_prog * 3277 + T_prog * 0.78125
-
-where S_prog starts at some base (e.g., S_prog_min = 2)
-      → D_prog_min = 2 * 3277 = 6554 (1.0V)
-```
-
-But this is **not specified** - it's up to each PROG application.
-
 ## Implementation Notes
 
 ### RTL Changes
 
-1. **BOOT/BIOS/LOADER modules** instantiate `forge_hierarchical_encoder` with:
-   ```vhdl
-   generic map (
-       DIGITAL_UNITS_PER_STATE  => 197,
-       DIGITAL_UNITS_PER_STATUS => 11.0
-   )
-   ```
-
-2. **PROG modules** (e.g., DPD_shim) can use:
-   - Default generics (3277, 0.78125) for compatibility
-   - Or any custom parameters they want
-   - As long as minimum voltage > 1.0V
+**BOOT/BIOS/LOADER modules** instantiate `forge_hierarchical_encoder` with:
+```vhdl
+generic map (
+    DIGITAL_UNITS_PER_STATE  => 197,
+    DIGITAL_UNITS_PER_STATUS => 11.0
+)
+```
 
 ### Python Decoder
 
@@ -218,33 +181,24 @@ Update `py_tools/boot_constants.py` with:
 # Pre-PROG HVS parameters
 HVS_PRE_STATE_UNITS = 197
 HVS_PRE_STATUS_UNITS = 11
-HVS_PROG_THRESHOLD_DIGITAL = 6554  # 1.0V @ ±5V FS
-HVS_PROG_THRESHOLD_VOLTS = 1.0
 
-def decode_hvs_context(digital_value: int) -> str:
-    """Determine context from HVS reading."""
-    if digital_value > HVS_PROG_THRESHOLD_DIGITAL:
-        return "PROG"
-    else:
-        return decode_pre_prog(digital_value)[0]  # Returns context
+# Use decode_pre_prog() function (defined above) to decode HVS readings
 ```
 
 ## Benefits
 
-1. **Clear separation**: Pre-PROG < 1.0V, PROG > 1.0V
-2. **Easy decoding**: Number-theory properties make inversion straightforward
-3. **Room for expansion**: 32 states × 128 status levels = plenty of headroom
-4. **PROG freedom**: Applications can use any encoding they want
-5. **Human-readable**: 30mV steps are easily visible on oscilloscope
-6. **No collisions**: Relatively prime parameters ensure unique mappings
+1. **Easy decoding**: Number-theory properties make inversion straightforward
+2. **Room for expansion**: 32 states × 128 status levels = plenty of headroom
+3. **Human-readable**: 30mV steps are easily visible on oscilloscope
+4. **No collisions**: Relatively prime parameters ensure unique mappings
+5. **Power-of-2 boundaries**: All contexts use 8 states (3 bits) for clean decoding
 
 ## Migration Path
 
 1. Update `forge_common_pkg.vhd` with pre-PROG constants
 2. Update `B0_BOOT_TOP.vhd` to use pre-PROG encoder parameters
-3. Update `L2_BUFF_LOADER.vhd` to use pre-PROG encoder with S=12-23
+3. Update `L2_BUFF_LOADER.vhd` to use pre-PROG encoder with S=16-23
 4. Update `boot_constants.py` with decoder functions
 5. Update `boot_shell.py` HVS monitor to use new decoder
 6. Update tests to use new expected values
-7. Leave PROG (DPD) unchanged - it already uses >1.0V range
 
