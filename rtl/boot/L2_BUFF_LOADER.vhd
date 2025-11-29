@@ -21,6 +21,12 @@
 --   3. After 1024 strobes: transition to LOAD_P2, compare CRCs
 --   4. CRC match -> LOAD_P3; mismatch -> FAULT
 --
+-- Validation Mode:
+--   When VALIDATION_MODE = true, CRC checking is bypassed and the module
+--   auto-advances P0→P1→P2→P3 using a configurable delay counter. This
+--   allows hardware validation of state transitions without needing to
+--   implement the full transfer protocol.
+--
 -- Reference:
 --   docs/LOAD-FSM-spec.md (authoritative)
 --   docs/bootup-proposal/LOADER-implementation-plan.md
@@ -34,6 +40,13 @@ library WORK;
 use WORK.forge_common_pkg.all;
 
 entity L2_BUFF_LOADER is
+    generic (
+        -- Validation mode: skip CRC checks, auto-advance through states
+        VALIDATION_MODE : boolean := false;
+
+        -- Delay cycles per state in validation mode (default: 1ms @ 125MHz)
+        VALIDATION_DELAY_CYCLES : natural := 125000
+    );
     port (
         -- Clock and Reset
         Clk   : in std_logic;
@@ -113,6 +126,10 @@ architecture rtl of L2_BUFF_LOADER is
     -- CRC comparison result
     signal crc_match : std_logic;
 
+    -- Validation mode signals
+    signal val_delay_counter : unsigned(23 downto 0);  -- Up to 16M cycles (~134ms)
+    signal val_delay_done    : std_logic;
+
     -- Attribute for BRAM inference
     attribute ram_style : string;
     attribute ram_style of bram_0 : signal is "block";
@@ -186,47 +203,112 @@ begin
     ----------------------------------------------------------------------------
     -- FSM Next State Logic
     ----------------------------------------------------------------------------
-    process(state, strobe_falling, offset, crc_match)
-    begin
-        state_next <= state;  -- Default: hold state
+    NORMAL_FSM: if not VALIDATION_MODE generate
+        process(state, strobe_falling, offset, crc_match)
+        begin
+            state_next <= state;  -- Default: hold state
 
-        case state is
-            when LOAD_STATE_P0 =>
-                -- Setup phase: wait for setup strobe
-                if strobe_falling = '1' then
-                    state_next <= LOAD_STATE_P1;
-                end if;
+            case state is
+                when LOAD_STATE_P0 =>
+                    -- Setup phase: wait for setup strobe
+                    if strobe_falling = '1' then
+                        state_next <= LOAD_STATE_P1;
+                    end if;
 
-            when LOAD_STATE_P1 =>
-                -- Transfer phase: receive 1024 words
-                if strobe_falling = '1' then
-                    if offset = to_unsigned(ENV_BBUF_WORDS - 1, offset'length) then
-                        -- Last word received, go to validation
+                when LOAD_STATE_P1 =>
+                    -- Transfer phase: receive 1024 words
+                    if strobe_falling = '1' then
+                        if offset = to_unsigned(ENV_BBUF_WORDS - 1, offset'length) then
+                            -- Last word received, go to validation
+                            state_next <= LOAD_STATE_P2;
+                        end if;
+                        -- Otherwise stay in P1, offset increments in sequential process
+                    end if;
+
+                when LOAD_STATE_P2 =>
+                    -- Validate phase: check CRCs (combinatorial, immediate)
+                    if crc_match = '1' then
+                        state_next <= LOAD_STATE_P3;
+                    else
+                        state_next <= LOAD_STATE_FAULT;
+                    end if;
+
+                when LOAD_STATE_P3 =>
+                    -- Complete: hold until RET (handled by BOOT parent)
+                    null;
+
+                when LOAD_STATE_FAULT =>
+                    -- Fault: hold until fault_clear (handled by BOOT parent)
+                    null;
+
+                when others =>
+                    state_next <= LOAD_STATE_FAULT;
+            end case;
+        end process;
+    end generate NORMAL_FSM;
+
+    ----------------------------------------------------------------------------
+    -- Validation Mode FSM: Auto-advance P0→P1→P2→P3 with delay
+    ----------------------------------------------------------------------------
+    VALIDATION_FSM: if VALIDATION_MODE generate
+        process(state, val_delay_done)
+        begin
+            state_next <= state;  -- Default: hold state
+
+            case state is
+                when LOAD_STATE_P0 =>
+                    -- Auto-advance to P1 after delay
+                    if val_delay_done = '1' then
+                        state_next <= LOAD_STATE_P1;
+                    end if;
+
+                when LOAD_STATE_P1 =>
+                    -- Auto-advance to P2 after delay
+                    if val_delay_done = '1' then
                         state_next <= LOAD_STATE_P2;
                     end if;
-                    -- Otherwise stay in P1, offset increments in sequential process
-                end if;
 
-            when LOAD_STATE_P2 =>
-                -- Validate phase: check CRCs (combinatorial, immediate)
-                if crc_match = '1' then
-                    state_next <= LOAD_STATE_P3;
-                else
+                when LOAD_STATE_P2 =>
+                    -- Auto-advance to P3 after delay (skip CRC check)
+                    if val_delay_done = '1' then
+                        state_next <= LOAD_STATE_P3;
+                    end if;
+
+                when LOAD_STATE_P3 =>
+                    -- Complete: hold until RET (handled by BOOT parent)
+                    null;
+
+                when LOAD_STATE_FAULT =>
+                    -- Fault: hold until fault_clear (handled by BOOT parent)
+                    null;
+
+                when others =>
                     state_next <= LOAD_STATE_FAULT;
+            end case;
+        end process;
+
+        -- Validation delay counter
+        process(Clk)
+        begin
+            if rising_edge(Clk) then
+                if Reset = '1' then
+                    val_delay_counter <= to_unsigned(VALIDATION_DELAY_CYCLES, val_delay_counter'length);
+                elsif state /= state_next then
+                    -- State is about to change, reload counter
+                    val_delay_counter <= to_unsigned(VALIDATION_DELAY_CYCLES, val_delay_counter'length);
+                elsif val_delay_counter > 0 then
+                    val_delay_counter <= val_delay_counter - 1;
                 end if;
+            end if;
+        end process;
 
-            when LOAD_STATE_P3 =>
-                -- Complete: hold until RET (handled by BOOT parent)
-                null;
+        val_delay_done <= '1' when val_delay_counter = 0 else '0';
+    end generate VALIDATION_FSM;
 
-            when LOAD_STATE_FAULT =>
-                -- Fault: hold until fault_clear (handled by BOOT parent)
-                null;
-
-            when others =>
-                state_next <= LOAD_STATE_FAULT;
-        end case;
-    end process;
+    -- In normal mode, validation signals are unused
+    NORMAL_VAL: if not VALIDATION_MODE generate
+        val_delay_done <= '0';
+    end generate NORMAL_VAL;
 
     ----------------------------------------------------------------------------
     -- Configuration Latch (on setup strobe in P0)

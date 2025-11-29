@@ -201,3 +201,10 @@ HVS_PRE_STATUS_UNITS = 11
 5. Update `boot_shell.py` HVS monitor to use new decoder
 6. Update tests to use new expected values
 
+## See Also
+
+- [BOOT-HVS-state-reference.md](boot/BOOT-HVS-state-reference.md) - **Authoritative** complete state table with all voltages
+- [BOOT-FSM-spec.md](BOOT-FSM-spec.md) - BOOT dispatcher FSM
+- [LOAD-FSM-spec.md](LOAD-FSM-spec.md) - LOADER protocol
+- [hvs.md](hvs.md) - General HVS documentation (DPD context)
+

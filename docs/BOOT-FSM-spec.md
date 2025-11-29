@@ -233,9 +233,9 @@ Usability: when a user manually sets bits from MSB to LSB in a GUI, they natural
 
 ## See Also
 
-- [B000_BOOT](B000_BOOT.md) - BOOT module overview
-- [B010_BIOS](B010_BIOS.md) - BIOS diagnostic module
-- [B100_PROG](B100_PROG.md) - PROG application handoff
-- [boot-process-terms](docs/boot-process-terms.md) - Naming conventions
-- [api-v4](../api-v4.md) - Control register calling convention
-- [hvs](../hvs.md) - HVS encoding documentation
+- [BOOT-HVS-state-reference.md](boot/BOOT-HVS-state-reference.md) - **Authoritative** HVS state table with all voltages
+- [HVS-encoding-scheme.md](HVS-encoding-scheme.md) - Pre-PROG encoding design rationale
+- [LOAD-FSM-spec.md](LOAD-FSM-spec.md) - LOADER buffer transfer protocol
+- [boot-process-terms.md](boot-process-terms.md) - Naming conventions
+- [api-v4.md](api-v4.md) - Control register calling convention
+- [hvs.md](hvs.md) - General HVS encoding documentation

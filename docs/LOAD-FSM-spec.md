@@ -323,6 +323,7 @@ class BootLoader:
 
 ## See Also
 
-- [BOOT-FSM-spec](../BOOT-FSM-spec.md) - BOOT module specification
-- [boot-process-terms](../boot-process-terms.md) - Naming conventions
-- [volo_bram_loader.vhd](../../rtl/volo_bram_loader.vhd) - Reference implementation (simpler protocol)
+- [BOOT-HVS-state-reference.md](boot/BOOT-HVS-state-reference.md) - **Authoritative** HVS state table with all voltages
+- [BOOT-FSM-spec.md](BOOT-FSM-spec.md) - BOOT module specification
+- [HVS-encoding-scheme.md](HVS-encoding-scheme.md) - Pre-PROG encoding design rationale
+- [boot-process-terms.md](boot-process-terms.md) - Naming conventions

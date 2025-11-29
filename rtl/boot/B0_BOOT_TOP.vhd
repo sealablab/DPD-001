@@ -42,6 +42,20 @@ use WORK.forge_common_pkg.all;
 -- Note: Uses BootWrapper entity (not CustomWrapper) to avoid GHDL collision
 architecture boot_forge of BootWrapper is
 
+    ----------------------------------------------------------------------------
+    -- Hardware Validation Configuration
+    --
+    -- Set these constants to enable "validation mode" for HW testing:
+    -- - LOADER_VALIDATION_MODE: Skip CRC, auto-advance through LOADER states
+    -- - BIOS_DELAY_CYCLES: Delay in BIOS_RUN state (default 125000 = 1ms)
+    -- - LOADER_DELAY_CYCLES: Delay per LOADER state in validation mode
+    --
+    -- For CocoTB testing, use short delays. For HW oscilloscope, use 125000.
+    ----------------------------------------------------------------------------
+    constant LOADER_VALIDATION_MODE   : boolean := true;   -- Enable for HW validation
+    constant LOADER_DELAY_CYCLES      : natural := 10;     -- Short for sim, 125000 for HW
+    constant BIOS_DELAY_CYCLES        : natural := 10;     -- Short for sim, 125000 for HW
+
     -- BOOT FSM state
     signal boot_state      : std_logic_vector(5 downto 0);
     signal boot_state_next : std_logic_vector(5 downto 0);
@@ -123,6 +137,10 @@ begin
     -- LOADER Instantiation
     ----------------------------------------------------------------------------
     LOADER_INST: entity WORK.L2_BUFF_LOADER
+        generic map (
+            VALIDATION_MODE         => LOADER_VALIDATION_MODE,
+            VALIDATION_DELAY_CYCLES => LOADER_DELAY_CYCLES
+        )
         port map (
             Clk   => Clk,
             Reset => Reset,
@@ -182,8 +200,8 @@ begin
 
     BIOS_INST: entity WORK.B1_BOOT_BIOS
         generic map (
-            -- 1ms delay in RUN state for scope observation @ 125MHz
-            RUN_DELAY_CYCLES => 125000
+            -- Delay cycles in RUN state (short for sim, longer for HW scope)
+            RUN_DELAY_CYCLES => BIOS_DELAY_CYCLES
         )
         port map (
             Clk           => Clk,

@@ -181,6 +181,8 @@ STATE_VOLTAGE_TOLERANCE = 0.30  # ±300mV (accounts for ADC noise)
 
 ## Related Documents
 
+- [BOOT-HVS-state-reference.md](boot/BOOT-HVS-state-reference.md) - **Authoritative** BOOT subsystem HVS state table
+- [HVS-encoding-scheme.md](HVS-encoding-scheme.md) - Pre-PROG encoding design rationale
 - `rtl/forge_hierarchical_encoder.vhd` - VHDL implementation
 - [Network Register Sync](network-register-sync.md) - Why INITIALIZING is state 0
 - [Hardware Debug Checklist](hardware-debug-checklist.md) - Debugging with HVS voltages

@@ -122,7 +122,7 @@ All modules (BOOT, BIOS, LOAD, PROG) use the canonical 6-bit FSM representation:
 
 ## See Also
 
-- [BOOT-FSM-spec](docs/BOOT-FSM-spec.md) - Detailed BOOT FSM specification
-- [B000_BOOT](B000_BOOT.md) - BOOT module overview
-- [B010_BIOS](B010_BIOS.md) - BIOS diagnostic module
-- [B100_PROG](B100_PROG.md) - PROG application handoff
+- [BOOT-HVS-state-reference.md](boot/BOOT-HVS-state-reference.md) - **Authoritative** HVS state table with all voltages
+- [BOOT-FSM-spec.md](BOOT-FSM-spec.md) - Detailed BOOT FSM specification
+- [LOAD-FSM-spec.md](LOAD-FSM-spec.md) - LOADER buffer transfer protocol
+- [HVS-encoding-scheme.md](HVS-encoding-scheme.md) - Pre-PROG encoding design rationale
