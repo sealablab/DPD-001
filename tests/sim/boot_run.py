@@ -54,6 +54,7 @@ HDL_SOURCES = [
     RTL_DIR / "forge_hierarchical_encoder.vhd",
     RTL_DIR / "boot" / "loader_crc16.vhd",
     RTL_DIR / "boot" / "L2_BUFF_LOADER.vhd",
+    RTL_DIR / "boot" / "B1_BOOT_BIOS.vhd",
     RTL_DIR / "boot" / "BootWrapper_test_stub.vhd",
     RTL_DIR / "boot" / "B0_BOOT_TOP.vhd",
 ]

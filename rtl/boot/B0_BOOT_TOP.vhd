@@ -62,6 +62,12 @@ architecture boot_forge of BootWrapper is
     signal loader_fault    : std_logic;
     signal loader_complete : std_logic;
 
+    -- BIOS signals
+    signal bios_enable   : std_logic;
+    signal bios_state    : std_logic_vector(5 downto 0);
+    signal bios_status   : std_logic_vector(7 downto 0);
+    signal bios_complete : std_logic;
+
     -- BRAM read interface (for PROG access)
     signal bram_rd_addr : std_logic_vector(ENV_BBUF_ADDR_WIDTH-1 downto 0);
     signal bram_rd_sel  : std_logic_vector(1 downto 0);
@@ -92,8 +98,7 @@ architecture boot_forge of BootWrapper is
     signal boot_status         : std_logic_vector(7 downto 0);   -- BOOT status
     signal boot_hvs_output     : signed(15 downto 0);             -- BOOT encoded HVS
     signal loader_hvs_s_global : std_logic_vector(5 downto 0);  -- LOADER: S=16-23
-    signal bios_hvs_s_global  : std_logic_vector(5 downto 0);  -- BIOS: S=8-15
-    signal bios_status        : std_logic_vector(7 downto 0);   -- BIOS status
+    signal bios_hvs_s_global   : std_logic_vector(5 downto 0);  -- BIOS: S=8-15
 
     -- PROG enable (for DPD_shim)
     signal prog_enable : std_logic;
@@ -171,13 +176,44 @@ begin
         );
 
     ----------------------------------------------------------------------------
-    -- BIOS Stub (placeholder for future implementation)
+    -- BIOS Instantiation
     ----------------------------------------------------------------------------
-    -- For now, BIOS outputs HVS using global S=8 (BIOS_ACTIVE base state)
-    -- TODO: When BIOS is implemented, map its internal states to S=8-15
-    bios_hvs_s_global <= std_logic_vector(to_unsigned(8, 6));  -- S=8: BIOS_ACTIVE
-    bios_status <= (others => '0');
-    
+    bios_enable <= '1' when boot_state = BOOT_STATE_BIOS_ACTIVE else '0';
+
+    BIOS_INST: entity WORK.B1_BOOT_BIOS
+        generic map (
+            -- 1ms delay in RUN state for scope observation @ 125MHz
+            RUN_DELAY_CYCLES => 125000
+        )
+        port map (
+            Clk           => Clk,
+            Reset         => Reset,
+            bios_enable   => bios_enable,
+            state_vector  => bios_state,
+            status_vector => bios_status,
+            bios_complete => bios_complete
+        );
+
+    ----------------------------------------------------------------------------
+    -- BIOS HVS Encoding: Map internal states to global S values (8-15)
+    ----------------------------------------------------------------------------
+    process(bios_state)
+    begin
+        case bios_state is
+            when BIOS_STATE_IDLE =>
+                bios_hvs_s_global <= std_logic_vector(to_unsigned(BIOS_HVS_S_IDLE, 6));
+            when BIOS_STATE_RUN =>
+                bios_hvs_s_global <= std_logic_vector(to_unsigned(BIOS_HVS_S_RUN, 6));
+            when BIOS_STATE_DONE =>
+                bios_hvs_s_global <= std_logic_vector(to_unsigned(BIOS_HVS_S_DONE, 6));
+            when BIOS_STATE_FAULT =>
+                bios_hvs_s_global <= std_logic_vector(to_unsigned(BIOS_HVS_S_FAULT, 6));
+            when others =>
+                bios_hvs_s_global <= std_logic_vector(to_unsigned(BIOS_HVS_S_IDLE, 6));
+        end case;
+    end process;
+
+    -- BIOS HVS Encoder
     BIOS_HVS_ENCODER: entity WORK.forge_hierarchical_encoder
         generic map (
             DIGITAL_UNITS_PER_STATE  => HVS_PRE_STATE_UNITS,
@@ -230,7 +266,7 @@ begin
     -- BOOT FSM Next State Logic
     ----------------------------------------------------------------------------
     process(boot_state, run_active, sel_prog, sel_bios, sel_loader, sel_reset,
-            ret_active, loader_complete, loader_fault)
+            ret_active, loader_complete, loader_fault, bios_complete)
     begin
         boot_state_next <= boot_state;  -- Default: hold state
 
@@ -261,10 +297,11 @@ begin
                 end if;
 
             when BOOT_STATE_BIOS_ACTIVE =>
-                -- BIOS active: wait for RET
+                -- BIOS active: wait for completion + RET
                 if run_active = '0' then
                     boot_state_next <= BOOT_STATE_P0;
-                elsif ret_active = '1' then
+                elsif ret_active = '1' and bios_complete = '1' then
+                    -- Only allow return after BIOS completes
                     boot_state_next <= BOOT_STATE_P1;
                 end if;
 
