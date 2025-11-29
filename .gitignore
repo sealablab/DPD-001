@@ -80,10 +80,10 @@ t.txt
 .claude/settings.local.json
 **/.claude/
 
-# Development handoffs (session-specific, not project docs)
-HANDOFF_*.md
-handoffs/
+# Work in progress (incomplete drafts)
 WIP/
+
+# Note: handoffs/ is tracked - they're valuable session artifacts
 
 # External reference docs (can be fetched separately)
 moku_md/
