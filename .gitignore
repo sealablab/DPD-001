@@ -78,6 +78,7 @@ t.txt
 
 # Claude Code local settings (user-specific)
 .claude/settings.local.json
+**/.claude/
 
 # Development handoffs (session-specific, not project docs)
 HANDOFF_*.md
