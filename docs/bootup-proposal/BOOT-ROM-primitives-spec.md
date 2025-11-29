@@ -38,9 +38,9 @@ Even when a waveform *could* be computed (e.g., triangle from counter), we store
 | 0 | 1 | `TRI_128` | 128 | 16 | 256 | Symmetric triangle |
 | 0 | 2 | `SAW_UP_128` | 128 | 16 | 256 | Sawtooth rising |
 | 0 | 3 | `SAW_DN_128` | 128 | 16 | 256 | Sawtooth falling |
-| 0 | 4 | `SQR_50_128` | 128 | 16 | 256 | Square 50% duty |
-| 0 | 5 | `SQR_25_128` | 128 | 16 | 256 | Square 25% duty |
-| 0 | 6 | `PULSE_04_128` | 128 | 16 | 256 | Pulse 4 high, 124 low |
+| 0 | 4 | `SQR_64_128` | 128 | 16 | 256 | Square 64 high, 64 low |
+| 0 | 5 | `SQR_32_128` | 128 | 16 | 256 | Square 32 high, 96 low |
+| 0 | 6 | `SQR_04_128` | 128 | 16 | 256 | Square 4 high, 124 low |
 | 0 | 7 | `STEP_16` | 128 | 16 | 256 | 16 discrete levels |
 | **Subtotal** | | | | | **2048** | **Bank 0: Waveforms** |
 | 1 | 8 | `PCT_LINEAR` | 101 | 16 | 202 | Linear 0-100% |
@@ -132,39 +132,38 @@ Value: 32767 16384    0 -16384 -32768
 - Decay envelope
 - Complementary signal generation
 
-### SQR_50_128 - Square Wave (50% Duty)
+### SQR_64_128 - Square Wave (64 high, 64 low)
 
-Square wave, 50% duty cycle, 128 samples.
+Square wave, 64 samples high, 64 samples low.
 
 ```
 Entry[i] =
-  i < 64:   +32767  -- High for first half
-  i >= 64:  -32768  -- Low for second half
+  i < 64:   +32767  -- High for 64 samples
+  i >= 64:  -32768  -- Low for 64 samples
 ```
 
 **Use Cases:**
 - Digital timing verification
 - Rise/fall time testing
 - Clock signal simulation
-@CLAUDE:  the naming convention here needs to be orthogonalized -- I feel like these should all be 'SQR_X_Y' where X and Y and both CLKS (not percents) This also normalizes the PULSE_04_128  naming scheme
 
-### SQR_25_128 - Pulse (25% Duty)
+### SQR_32_128 - Pulse (32 high, 96 low)
 
-Pulse wave, 25% duty cycle, 128 samples.
+Pulse wave, 32 samples high, 96 samples low.
 
 ```
 Entry[i] =
-  i < 32:   +32767  -- High for first quarter
-  i >= 32:  -32768  -- Low for remaining 75%
+  i < 32:   +32767  -- High for 32 samples
+  i >= 32:  -32768  -- Low for 96 samples
 ```
 
 **Use Cases:**
-- Narrow pulse testing
+- Asymmetric pulse testing
 - Trigger signal generation
 
-### PULSE_04_128 - Narrow Pulse (4 samples)
+### SQR_04_128 - Narrow Pulse (4 high, 124 low)
 
-Narrow pulse, 4 samples high (~3.1% duty), 128 samples.
+Narrow pulse, 4 samples high, 124 samples low.
 
 ```
 Entry[i] =
@@ -283,7 +282,7 @@ Value:    0  3664 18350 43366 65535
 │  │ SIN_128 │ TRI_128 │SAW_UP   │SAW_DN   │  0x000 - 0x3FF  │
 │  │ 256B    │ 256B    │ 256B    │ 256B    │                 │
 │  ├─────────┼─────────┼─────────┼─────────┤                 │
-│  │ SQR_50  │ SQR_25  │PULSE_04 │ STEP_16 │  0x400 - 0x7FF  │
+│  │ SQR_64  │ SQR_32  │ SQR_04  │ STEP_16 │  0x400 - 0x7FF  │
 │  │ 256B    │ 256B    │ 256B    │ 256B    │                 │
 │  └─────────┴─────────┴─────────┴─────────┘                 │
 └─────────────────────────────────────────────────────────────┘
@@ -499,9 +498,9 @@ package forge_rom_pkg is
     constant WAVE_TRI      : natural := 1;
     constant WAVE_SAW_UP   : natural := 2;
     constant WAVE_SAW_DN   : natural := 3;
-    constant WAVE_SQR_50   : natural := 4;
-    constant WAVE_SQR_25   : natural := 5;
-    constant WAVE_PULSE_04 : natural := 6;
+    constant WAVE_SQR_64   : natural := 4;
+    constant WAVE_SQR_32   : natural := 5;
+    constant WAVE_SQR_04   : natural := 6;
     constant WAVE_STEP_16  : natural := 7;
 
     constant PCT_LINEAR    : natural := 0;
@@ -577,11 +576,23 @@ def gen_tri_128():
     down = np.linspace(32767, 0, 64, endpoint=False)
     return np.concatenate([up, down]).astype(np.int16)
 
-def gen_pulse_04_128():
-    """Narrow pulse, 4 samples high, 124 low, 16-bit signed."""
-    pulse = np.full(128, -32768, dtype=np.int16)
-    pulse[:4] = 32767
-    return pulse
+def gen_sqr_64_128():
+    """Square wave, 64 high, 64 low, 16-bit signed."""
+    wave = np.full(128, -32768, dtype=np.int16)
+    wave[:64] = 32767
+    return wave
+
+def gen_sqr_32_128():
+    """Pulse wave, 32 high, 96 low, 16-bit signed."""
+    wave = np.full(128, -32768, dtype=np.int16)
+    wave[:32] = 32767
+    return wave
+
+def gen_sqr_04_128():
+    """Narrow pulse, 4 high, 124 low, 16-bit signed."""
+    wave = np.full(128, -32768, dtype=np.int16)
+    wave[:4] = 32767
+    return wave
 
 def gen_pct_linear():
     """Linear percentage, 101 entries, 16-bit unsigned."""
@@ -622,8 +633,9 @@ def gen_vhdl_rom_package():
    - Rationale: Focus on fundamental building blocks; higher resolution via interpolation
    - Halves BRAM usage, cleaner 7-bit addressing
 
-2. **SQR_10 → PULSE_04:** Replaced 10% duty square with 4-sample pulse
-   - Rationale: More fundamental; 4 samples visible on scope, true impulse-like behavior
+2. **Naming convention:** `SQR_X_Y` where X=samples high, Y=total length
+   - Rationale: Orthogonal naming using absolute clock counts, not percentages
+   - SQR_64_128, SQR_32_128, SQR_04_128 (was SQR_50, SQR_25, SQR_10)
 
 ## See Also
 
