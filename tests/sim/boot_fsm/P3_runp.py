@@ -8,7 +8,7 @@ This verifies the final piece of the BOOT subsystem architecture.
 Tests:
     - test_boot_runp_handoff: Verify BOOT → PROG handoff via RUNP command
     - test_boot_runp_no_return: Verify RET does not work from PROG state
-    - test_boot_runp_hv s_voltage_jump: Verify HVS encoding transition (0.03V → 0.5V)
+    - test_boot_runp_hvs_voltage_jump: Verify HVS encoding transition (0.03V → 0.5V)
     - test_boot_full_workflow_to_prog: Complete workflow ending in PROG
 
 Author: Moku Instrument Forge Team
@@ -144,8 +144,8 @@ async def test_boot_runp_no_return(dut):
                          max_cycles=20, context="before RET test",
                          tolerance=DPD_SIM_HVS_TOLERANCE)
 
-    # Try RET - should be ignored
-    dut.Control0.value = CMD.RET | CMD.RUN_GATE_MASK
+    # Try RET - should be ignored (CMD.RET already includes RUN gate)
+    dut.Control0.value = CMD.RET
     await ClockCycles(dut.Clk, 10)
 
     # Should still be in PROG (DPD encoding), not BOOT_P1
@@ -207,8 +207,8 @@ async def test_boot_full_workflow_to_prog(dut):
     dut.Control0.value = CMD.RUNL
     await ClockCycles(dut.Clk, 20)  # Allow LOADER to complete in validation mode
 
-    # Step 3: RET from LOADER → BOOT_P1
-    dut.Control0.value = CMD.RET | CMD.RUN_GATE_MASK
+    # Step 3: RET from LOADER → BOOT_P1 (CMD.RET includes RUN gate)
+    dut.Control0.value = CMD.RET
     await ClockCycles(dut.Clk, 5)
     assert_state_approx(dut, "BOOT_P1", BOOT_DIGITAL_P1, "RET from LOADER")
 
@@ -216,8 +216,8 @@ async def test_boot_full_workflow_to_prog(dut):
     dut.Control0.value = CMD.RUNB
     await ClockCycles(dut.Clk, 20)  # Allow BIOS to complete
 
-    # Step 5: RET from BIOS → BOOT_P1
-    dut.Control0.value = CMD.RET | CMD.RUN_GATE_MASK
+    # Step 5: RET from BIOS → BOOT_P1 (CMD.RET includes RUN gate)
+    dut.Control0.value = CMD.RET
     await ClockCycles(dut.Clk, 5)
     assert_state_approx(dut, "BOOT_P1", BOOT_DIGITAL_P1, "RET from BIOS")
 
