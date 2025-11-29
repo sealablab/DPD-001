@@ -1,7 +1,8 @@
 ---
 created: 2025-11-29
-modified: 2025-11-29
+modified: 2025-11-29 15:05:03
 status: DRAFT
+accessed: 2025-11-29 15:23:55
 ---
 # BOOT ROM Primitives Specification
 
@@ -33,22 +34,22 @@ Even when a waveform *could* be computed (e.g., triangle from counter), we store
 
 | Bank | ROM ID | Name | Entries | Bits | Bytes | Description |
 |------|--------|------|---------|------|-------|-------------|
-| 0 | 0 | `SIN_256` | 256 | 16 | 512 | Full sine cycle |
-| 0 | 1 | `TRI_256` | 256 | 16 | 512 | Symmetric triangle |
-| 0 | 2 | `SAW_UP_256` | 256 | 16 | 512 | Sawtooth rising |
-| 0 | 3 | `SAW_DN_256` | 256 | 16 | 512 | Sawtooth falling |
-| 0 | 4 | `SQR_50_256` | 256 | 16 | 512 | Square 50% duty |
-| 0 | 5 | `SQR_25_256` | 256 | 16 | 512 | Square 25% duty |
-| 0 | 6 | `SQR_10_256` | 256 | 16 | 512 | Square 10% duty |
-| 0 | 7 | `STEP_16` | 256 | 16 | 512 | 16 discrete levels |
-| **Subtotal** | | | | | **4096** | **Bank 0: Waveforms** |
+| 0 | 0 | `SIN_128` | 128 | 16 | 256 | Full sine cycle |
+| 0 | 1 | `TRI_128` | 128 | 16 | 256 | Symmetric triangle |
+| 0 | 2 | `SAW_UP_128` | 128 | 16 | 256 | Sawtooth rising |
+| 0 | 3 | `SAW_DN_128` | 128 | 16 | 256 | Sawtooth falling |
+| 0 | 4 | `SQR_64_128` | 128 | 16 | 256 | Square 64 high, 64 low |
+| 0 | 5 | `SQR_32_128` | 128 | 16 | 256 | Square 32 high, 96 low |
+| 0 | 6 | `SQR_04_128` | 128 | 16 | 256 | Square 4 high, 124 low |
+| 0 | 7 | `STEP_16` | 128 | 16 | 256 | 16 discrete levels |
+| **Subtotal** | | | | | **2048** | **Bank 0: Waveforms** |
 | 1 | 8 | `PCT_LINEAR` | 101 | 16 | 202 | Linear 0-100% |
 | 1 | 9 | `PCT_LOG` | 101 | 16 | 202 | Logarithmic curve |
 | 1 | 10 | `PCT_SQRT` | 101 | 16 | 202 | Square root curve |
 | 1 | 11 | `PCT_GAMMA22` | 101 | 16 | 202 | Gamma 2.2 curve |
 | 1 | - | Reserved | 101×4 | 16 | 808 | Future curves |
 | **Subtotal** | | | | | **~1616** | **Bank 1: Percentages** |
-| **Total** | | | | | **~5712** | Fits in 2× 18Kb BRAM |
+| **Total** | | | | | **~3664** | Fits in single 18Kb BRAM |
 
 ## Waveform LUTs (Bank 0)
 
@@ -62,16 +63,16 @@ All waveform LUTs use **16-bit signed** values:
 -32768 = Maximum negative (≈ -5V at full scale)
 ```
 
-### SIN_256 - Sinusoid
+### SIN_128 - Sinusoid
 
-Full 360° sine cycle, 256 samples.
+Full 360° sine cycle, 128 samples.
 
 ```
-Entry[i] = round(32767 × sin(2π × i / 256))
+Entry[i] = round(32767 × sin(2π × i / 128))
 
-Index:    0    32    64    96   128   160   192   224   255
-Value:    0  23170 32767 23170     0 -23170 -32767 -23170    -201
-Phase:    0°   45°   90°  135°  180°   225°   270°   315°   ~360°
+Index:    0    16    32    48    64    80    96   112   127
+Value:    0  23170 32767 23170     0 -23170 -32767 -23170  -1608
+Phase:    0°   45°   90°  135°  180°   225°   270°   315°  ~357°
 ```
 
 **Use Cases:**
@@ -79,16 +80,16 @@ Phase:    0°   45°   90°  135°  180°   225°   270°   315°   ~360°
 - Phase relationship verification
 - Audio/RF waveform generation
 
-### TRI_256 - Triangle
+### TRI_128 - Triangle
 
-Symmetric triangle wave, 256 samples.
+Symmetric triangle wave, 128 samples.
 
 ```
 Entry[i] =
-  i < 128:  (i × 32767) / 127        -- Rising: 0 → +32767
-  i >= 128: ((255-i) × 32767) / 127  -- Falling: +32767 → 0
+  i < 64:   (i × 32767) / 63         -- Rising: 0 → +32767
+  i >= 64:  ((127-i) × 32767) / 63   -- Falling: +32767 → 0
 
-Index:    0    64   127   128   192   255
+Index:    0    32    63    64    96   127
 Value:    0  16383 32767 32767 16383     0
 ```
 
@@ -99,14 +100,14 @@ Value:    0  16383 32767 32767 16383     0
 - Linear sweep generation
 - PWM modulation source
 
-### SAW_UP_256 - Sawtooth Rising
+### SAW_UP_128 - Sawtooth Rising
 
-Linear ramp from minimum to maximum, 256 samples.
+Linear ramp from minimum to maximum, 128 samples.
 
 ```
-Entry[i] = -32768 + (i × 65535) / 255
+Entry[i] = -32768 + (i × 65535) / 127
 
-Index:    0    64   128   192   255
+Index:    0    32    64    96   127
 Value: -32768 -16384    0 16384 32767
 ```
 
@@ -115,14 +116,14 @@ Value: -32768 -16384    0 16384 32767
 - Time-base generation
 - Frequency sweep source
 
-### SAW_DN_256 - Sawtooth Falling
+### SAW_DN_128 - Sawtooth Falling
 
-Linear ramp from maximum to minimum, 256 samples.
+Linear ramp from maximum to minimum, 128 samples.
 
 ```
-Entry[i] = 32767 - (i × 65535) / 255
+Entry[i] = 32767 - (i × 65535) / 127
 
-Index:    0    64   128   192   255
+Index:    0    32    64    96   127
 Value: 32767 16384    0 -16384 -32768
 ```
 
@@ -131,14 +132,14 @@ Value: 32767 16384    0 -16384 -32768
 - Decay envelope
 - Complementary signal generation
 
-### SQR_50_256 - Square Wave (50% Duty)
+### SQR_64_128 - Square Wave (64 high, 64 low)
 
-Square wave, 50% duty cycle, 256 samples.
+Square wave, 64 samples high, 64 samples low.
 
 ```
 Entry[i] =
-  i < 128:  +32767  -- High for first half
-  i >= 128: -32768  -- Low for second half
+  i < 64:   +32767  -- High for 64 samples
+  i >= 64:  -32768  -- Low for 64 samples
 ```
 
 **Use Cases:**
@@ -146,44 +147,45 @@ Entry[i] =
 - Rise/fall time testing
 - Clock signal simulation
 
-### SQR_25_256 - Pulse (25% Duty)
+### SQR_32_128 - Pulse (32 high, 96 low)
 
-Pulse wave, 25% duty cycle, 256 samples.
+Pulse wave, 32 samples high, 96 samples low.
 
 ```
 Entry[i] =
-  i < 64:   +32767  -- High for first quarter
-  i >= 64:  -32768  -- Low for remaining 75%
+  i < 32:   +32767  -- High for 32 samples
+  i >= 32:  -32768  -- Low for 96 samples
 ```
 
 **Use Cases:**
-- Narrow pulse testing
+- Asymmetric pulse testing
 - Trigger signal generation
 
-### SQR_10_256 - Pulse (10% Duty)
+### SQR_04_128 - Narrow Pulse (4 high, 124 low)
 
-Pulse wave, ~10% duty cycle, 256 samples.
+Narrow pulse, 4 samples high, 124 samples low.
 
 ```
 Entry[i] =
-  i < 26:   +32767  -- High for ~10%
-  i >= 26:  -32768  -- Low for ~90%
+  i < 4:    +32767  -- High for 4 samples
+  i >= 4:   -32768  -- Low for 124 samples
 ```
 
 **Use Cases:**
-- Impulse-like signals
-- Low duty cycle testing
+- Impulse response testing
+- Trigger signal generation
+- Timing verification (narrow pulse visible on scope)
 
 ### STEP_16 - Staircase (16 Levels)
 
-16 discrete voltage levels, 16 samples per level.
+16 discrete voltage levels, 8 samples per level.
 
 ```
 Level[n] = -32768 + (n × 65535) / 15    for n = 0..15
-Entry[i] = Level[i / 16]                for i = 0..255
+Entry[i] = Level[i / 8]                 for i = 0..127
 
-Index:   0-15  16-31  32-47  ...  240-255
-Level:      0      1      2  ...       15
+Index:   0-7   8-15  16-23  ...  120-127
+Level:     0      1      2  ...       15
 Value: -32768 -28398 -24029  ...   +32767
 ```
 
@@ -275,19 +277,19 @@ Value:    0  3664 18350 43366 65535
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    BOOT ROM BANK 0                          │
-│                 (Waveforms - 4KB)                           │
+│                 (Waveforms - 2KB)                           │
 │  ┌─────────┬─────────┬─────────┬─────────┐                 │
-│  │ SIN_256 │ TRI_256 │SAW_UP   │SAW_DN   │  0x000 - 0x7FF  │
-│  │ 512B    │ 512B    │ 512B    │ 512B    │                 │
+│  │ SIN_128 │ TRI_128 │SAW_UP   │SAW_DN   │  0x000 - 0x3FF  │
+│  │ 256B    │ 256B    │ 256B    │ 256B    │                 │
 │  ├─────────┼─────────┼─────────┼─────────┤                 │
-│  │ SQR_50  │ SQR_25  │ SQR_10  │ STEP_16 │  0x800 - 0xFFF  │
-│  │ 512B    │ 512B    │ 512B    │ 512B    │                 │
+│  │ SQR_64  │ SQR_32  │ SQR_04  │ STEP_16 │  0x400 - 0x7FF  │
+│  │ 256B    │ 256B    │ 256B    │ 256B    │                 │
 │  └─────────┴─────────┴─────────┴─────────┘                 │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
 │                    BOOT ROM BANK 1                          │
-│                 (Percentages - 2KB)                         │
+│                 (Percentages - ~1.6KB)                      │
 │  ┌───────────┬───────────┬───────────┬───────────┐         │
 │  │PCT_LINEAR │ PCT_LOG   │ PCT_SQRT  │PCT_GAMMA22│         │
 │  │ 202B      │ 202B      │ 202B      │ 202B      │         │
@@ -295,14 +297,16 @@ Value:    0  3664 18350 43366 65535
 │  │              Reserved (808B)                   │         │
 │  └────────────────────────────────────────────────┘         │
 └─────────────────────────────────────────────────────────────┘
+
+Total: ~3.6KB - fits in single 36Kb BRAM (4.5KB) or 2× 18Kb BRAMs
 ```
 
 ### Addressing Scheme
 
 **Waveform Access:**
 ```vhdl
--- 3-bit waveform select + 8-bit sample index
-wave_addr <= wave_sel(2 downto 0) & sample_idx(7 downto 0);
+-- 3-bit waveform select + 7-bit sample index
+wave_addr <= wave_sel(2 downto 0) & sample_idx(6 downto 0);
 wave_data <= WAVE_ROM(to_integer(unsigned(wave_addr)));
 ```
 
@@ -482,7 +486,7 @@ use IEEE.numeric_std.all;
 package forge_rom_pkg is
 
     -- Waveform ROM types
-    type wave_lut_t is array(0 to 255) of signed(15 downto 0);
+    type wave_lut_t is array(0 to 127) of signed(15 downto 0);
     type wave_bank_t is array(0 to 7) of wave_lut_t;
 
     -- Percentage ROM types
@@ -494,9 +498,9 @@ package forge_rom_pkg is
     constant WAVE_TRI      : natural := 1;
     constant WAVE_SAW_UP   : natural := 2;
     constant WAVE_SAW_DN   : natural := 3;
-    constant WAVE_SQR_50   : natural := 4;
-    constant WAVE_SQR_25   : natural := 5;
-    constant WAVE_SQR_10   : natural := 6;
+    constant WAVE_SQR_64   : natural := 4;
+    constant WAVE_SQR_32   : natural := 5;
+    constant WAVE_SQR_04   : natural := 6;
     constant WAVE_STEP_16  : natural := 7;
 
     constant PCT_LINEAR    : natural := 0;
@@ -561,16 +565,34 @@ A Python script generates the ROM contents for synthesis:
 
 import numpy as np
 
-def gen_sin_256():
-    """Full sine cycle, 256 entries, 16-bit signed."""
-    x = np.linspace(0, 2*np.pi, 256, endpoint=False)
+def gen_sin_128():
+    """Full sine cycle, 128 entries, 16-bit signed."""
+    x = np.linspace(0, 2*np.pi, 128, endpoint=False)
     return np.round(32767 * np.sin(x)).astype(np.int16)
 
-def gen_tri_256():
-    """Symmetric triangle, 256 entries, 16-bit signed (0 to +max)."""
-    up = np.linspace(0, 32767, 128)
-    down = np.linspace(32767, 0, 128, endpoint=False)
+def gen_tri_128():
+    """Symmetric triangle, 128 entries, 16-bit signed (0 to +max)."""
+    up = np.linspace(0, 32767, 64)
+    down = np.linspace(32767, 0, 64, endpoint=False)
     return np.concatenate([up, down]).astype(np.int16)
+
+def gen_sqr_64_128():
+    """Square wave, 64 high, 64 low, 16-bit signed."""
+    wave = np.full(128, -32768, dtype=np.int16)
+    wave[:64] = 32767
+    return wave
+
+def gen_sqr_32_128():
+    """Pulse wave, 32 high, 96 low, 16-bit signed."""
+    wave = np.full(128, -32768, dtype=np.int16)
+    wave[:32] = 32767
+    return wave
+
+def gen_sqr_04_128():
+    """Narrow pulse, 4 high, 124 low, 16-bit signed."""
+    wave = np.full(128, -32768, dtype=np.int16)
+    wave[:4] = 32767
+    return wave
 
 def gen_pct_linear():
     """Linear percentage, 101 entries, 16-bit unsigned."""
@@ -588,7 +610,7 @@ def gen_vhdl_rom_package():
 
 ## Open Questions
 
-1. **Waveform polarity:** Should TRI_256 be bipolar (-32768 to +32767) or unipolar (0 to +32767)?
+1. **Waveform polarity:** Should TRI_128 be bipolar (-32768 to +32767) or unipolar (0 to +32767)?
    - Current: Unipolar (matches typical ramp/sweep use case)
    - Alternative: Bipolar (matches SIN for consistency)
 
@@ -604,6 +626,16 @@ def gen_vhdl_rom_package():
 4. **BRAM inference vs instantiation:** Should ROMs be inferred or explicitly instantiated?
    - Inference is more portable
    - Instantiation gives more control over placement
+
+## Design Decisions (Resolved)
+
+1. **Waveform length:** 128 entries (was 256)
+   - Rationale: Focus on fundamental building blocks; higher resolution via interpolation
+   - Halves BRAM usage, cleaner 7-bit addressing
+
+2. **Naming convention:** `SQR_X_Y` where X=samples high, Y=total length
+   - Rationale: Orthogonal naming using absolute clock counts, not percentages
+   - SQR_64_128, SQR_32_128, SQR_04_128 (was SQR_50, SQR_25, SQR_10)
 
 ## See Also
 
