@@ -1,96 +1,59 @@
 ---
 created: 2025-11-28
-session: Post-Thanksgiving Cleanup & Phase 1 Complete
-next_session: Phase 2 - LOADER FSM Implementation
+updated: 2025-11-28
+session: Post-Thanksgiving - Phases 2-4 COMPLETE
+next_session: BOOT test validation and PROG integration
 branch: main
+status: PHASES 1-4 COMPLETE
 ---
-# Session Handoff: Phase 2 - LOADER FSM Implementation
+# Session Handoff: BOOT Subsystem Implementation
 
-## What We Accomplished This Session
+## Status: PHASES 1-4 COMPLETE ✅
 
-1. **Reviewed and refined LOADER implementation plan** through interactive Q&A
-2. **Completed Phase 1**: Created `loader_crc16.vhd` and `boot_constants.py`
-3. **Fixed repo issues**: `tests/lib/` gitignore, merged moku_md docs
-4. **Resolved key architectural decisions** (documented below)
-5. **Updated all plan documentation** to reflect resolved decisions
+The web client continued working after the initial PR merge and completed Phases 2-4.
+We merged that work and migrated tests to the proper location.
 
-## Git State
+## What's Done
+
+| Phase | Deliverable | Status |
+|-------|-------------|--------|
+| 1 | `loader_crc16.vhd` + `boot_constants.py` | ✅ Complete |
+| 2 | `L2_BUFF_LOADER.vhd` - 5-state LOADER FSM | ✅ Complete |
+| 3 | `B0_BOOT_TOP.vhd` - 6-state BOOT dispatcher | ✅ Complete |
+| 3 | `BootWrapper_test_stub.vhd` - CocoTB entity | ✅ Complete |
+| 4 | `tests/sim/boot_fsm/P1_basic.py` | ✅ Migrated |
+| 4 | `tests/sim/loader/P1_basic.py` | ✅ Migrated |
+
+## Current State
 
 ```
-Branch: main (clean)
-Last commit: 02671b0 - gitignore: add **/.claude/ for nested claude settings
+Branch: main (clean, pushed)
+Tests: tests/sim/boot_fsm/, tests/sim/loader/
+RTL: rtl/boot/{B0_BOOT_TOP.vhd, L2_BUFF_LOADER.vhd, loader_crc16.vhd, BootWrapper_test_stub.vhd}
 ```
 
-All Phase 1 deliverables are merged to main.
+## Next Steps
 
-## Context Loading Instructions
+### Immediate (Validation)
+1. **Compile BOOT RTL** - Verify VHDL syntax is correct
+2. **Run BOOT tests** - Check if tests pass against simulation
+3. **Fix any issues** - The web client code may have bugs
 
-@CLAUDE: Read these files in order:
+### Later (Integration)
+1. **Wire up PROG** - B0_BOOT_TOP has stubs for PROG outputs, connect DPD_shim
+2. **BIOS implementation** - B1_BOOT_BIOS.vhd is a stub
+3. **Python CLI** - boot_cli.py for interactive loading
 
-### 1. Authoritative Specifications
+## Files in rtl/boot/
+
 ```
-@docs/bootup-proposal/BOOT-FSM-spec.md
-@docs/bootup-proposal/LOAD-FSM-spec.md
-@docs/bootup-proposal/boot-process-terms.md
+B0_BOOT_TOP.vhd          # BOOT dispatcher (6-state FSM) - CustomWrapper architecture
+L2_BUFF_LOADER.vhd       # LOADER FSM (5-state) with CRC validation
+loader_crc16.vhd         # Pure combinatorial CRC-16-CCITT
+BootWrapper_test_stub.vhd # Entity declaration for CocoTB
+B1_BOOT_BIOS.vhd         # BIOS stub (future)
+P3_PROG_START.vhd        # PROG stub (future)
 ```
-
-### 2. Implementation References
-```
-@rtl/forge_common_pkg.vhd        # CR0 bit definitions (AUTHORITATIVE)
-@rtl/boot/loader_crc16.vhd       # Phase 1 deliverable (COMPLETE)
-@py_tools/boot_constants.py      # Python mirror of forge_common_pkg
-```
-
-### 3. Stubs to Implement
-```
-@rtl/boot/L2_BUFF_LOADER.vhd     # Phase 2 target - LOADER FSM
-@rtl/boot/B0_BOOT_TOP.vhd        # Phase 3 target - BOOT dispatcher
-```
-
-### 4. Test Infrastructure Reference
-```
-@tests/README.md                 # Test structure overview
-@tests/lib/                      # Existing test library
-@tests/adapters/base.py          # StateReader to make configurable
-```
-
-## Resolved Design Decisions
-
-| Decision | Resolution |
-|----------|------------|
-| BOOT architecture | Single-layer B0_BOOT_TOP (not 3-layer like DPD) |
-| BRAM style | Inferred (not Xilinx primitives) |
-| BRAM ownership | BOOT module owns ENV_BBUFs (synthesized as TOP) |
-| Test location | `tests/sim/boot_fsm/` and `tests/sim/loader/` (not separate boot_tests/) |
-| Timeout/watchdog | None - Python client responsible for completing transfer |
-| PROG handoff | BOOT instantiates DPD_shim directly |
-| StateReader | Make configurable with `units_per_state` parameter |
-| Test stub | Create separate `BootWrapper_test_stub.vhd` |
-
-## Implementation Phases
-
-### Phase 1: CRC-16 Module ✅ COMPLETE
-- [x] `rtl/boot/loader_crc16.vhd` - Pure combinatorial CRC-16-CCITT
-- [x] `py_tools/boot_constants.py` - Python mirror of forge_common_pkg
-
-### Phase 2: LOADER FSM (NEXT)
-- [ ] Implement `rtl/boot/L2_BUFF_LOADER.vhd` (replace stub)
-- [ ] 5-state FSM: LOAD_P0, LOAD_P1, LOAD_P2, LOAD_P3, FAULT
-- [ ] Falling edge strobe detection on CR0[21]
-- [ ] Parallel BRAM writes to 4x ENV_BBUFs
-- [ ] CRC accumulation using loader_crc16
-
-### Phase 3: BOOT_TOP + Integration
-- [ ] Implement `B0_BOOT_TOP.vhd` (6-state dispatcher)
-- [ ] Create `BootWrapper_test_stub.vhd` for CocoTB
-- [ ] Instantiate DPD_shim as PROG module
-- [ ] Wire HVS encoder with BOOT_HVS_UNITS_PER_STATE (1311)
-
-### Phase 4: Test Infrastructure
-- [ ] Add `tests/lib/boot_hw.py` (imports boot_constants.py)
-- [ ] Update `tests/adapters/base.py` (configurable units_per_state)
-- [ ] Create `tests/sim/boot_fsm/` and `tests/sim/loader/`
-- [ ] Create `py_tools/boot_cli.py` (RUN> shell)
 
 ## Key Technical Details
 
@@ -107,34 +70,5 @@ CR0[21]    = Data strobe   - LOADER (falling edge triggers)
 ```
 
 ### HVS Encoding
-- **DPD**: 3277 units/state (0.5V steps)
 - **BOOT**: 1311 units/state (0.2V steps) - keeps all 6 states in 0-1V range
-
-### LOADER Protocol Summary
-1. RUNL → LOAD_P0 (setup phase)
-2. Setup strobe: latch buffer count from CR0[23:22], CRCs from CR1-CR4
-3. Data strobes: 1024 falling edges on CR0[21], data from CR1-CR4
-4. Auto-transition to LOAD_P2 (validate CRCs)
-5. CRC match → LOAD_P3, mismatch → FAULT
-6. RET → BOOT_P1
-
-## Files Modified This Session
-
-```
-rtl/boot/loader_crc16.vhd                    (NEW - Phase 1)
-py_tools/boot_constants.py                   (NEW - Phase 1)
-docs/bootup-proposal/LOADER-implementation-plan.md (UPDATED)
-handoffs/20251128/HANDOFF-LOADER-Implementation.md (UPDATED)
-tests/README.md                              (UPDATED)
-.gitignore                                   (FIXED - lib/ anchor)
-```
-
-## Notes for Next Session
-
-1. Start with Phase 2: L2_BUFF_LOADER.vhd implementation
-2. Key VHDL patterns needed:
-   - Falling edge detection: `strobe_prev and not strobe_curr`
-   - Parallel BRAM writes with generate statement
-   - CRC accumulation per buffer
-3. Reference `rtl/DPD_main.vhd` for FSM style conventions
-4. Reference `rtl/DPD_shim.vhd` for edge detection pattern
+- **DPD/PROG**: 3277 units/state (0.5V steps)
