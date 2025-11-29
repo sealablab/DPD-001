@@ -52,10 +52,17 @@ uv run python run.py --backend hw --device YOUR_IP --bitstream ../dpd-bits.tar -
 
 ```
 tests/
-├── run.py              # Unified test runner
+├── run.py              # Unified test runner (DPD)
+├── run_boot.py         # Unified test runner (BOOT subsystem) [PLANNED]
 ├── lib/                # Constants, utilities, test base classes (API v4.0)
+│   ├── __init__.py     # Re-exports from py_tools + test-specific constants
+│   ├── hw.py           # DPD hardware constants
+│   ├── boot_hw.py      # BOOT hardware constants [PLANNED]
+│   ├── timing.py       # DPD test timing (P1Timing, P2Timing)
+│   ├── boot_timing.py  # BOOT/LOADER test timing [PLANNED]
+│   └── tolerances.py   # HVS tolerances (sim vs hw)
 ├── adapters/           # Async adapters for sim/hw convergence
-│   ├── base.py         # Abstract interfaces
+│   ├── base.py         # Abstract interfaces (configurable units_per_state)
 │   ├── cocotb.py       # CocoTB implementation
 │   └── moku.py         # Moku hardware implementation
 ├── shared/             # Control interface abstractions
@@ -63,8 +70,13 @@ tests/
 │   └── plumbing.py     # MokuSession context manager
 └── sim/                # Simulation tests
     ├── run.py          # Sim-only runner (alternative)
-    └── dpd/
-        └── P1_basic.py # P1 test suite (5 tests)
+    ├── dpd/            # DPD application tests
+    │   └── P1_basic.py # P1 test suite (5 tests)
+    ├── boot_fsm/       # BOOT dispatcher tests [PLANNED]
+    │   └── P1_basic.py # BOOT state transitions
+    └── loader/         # LOADER module tests [PLANNED]
+        ├── P1_basic.py # LOADER state transitions
+        └── P2_crc.py   # CRC validation tests
 ```
 
 ## API v4.0

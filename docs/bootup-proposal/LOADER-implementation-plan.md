@@ -101,14 +101,21 @@ end generate;
 ### File Structure
 
 ```
-tests/sim/
-├── loader/                    # NEW test package
-│   ├── __init__.py
-│   ├── constants.py           # Test constants, timing
-│   ├── helpers.py             # Strobe functions, CRC calc
-│   ├── P1_basic.py            # Basic functionality tests
-│   └── P2_crc_validation.py   # CRC mismatch tests
-└── conftest.py                # Add loader fixtures
+tests/
+├── lib/
+│   ├── boot_hw.py             # BOOT-specific constants (imports boot_constants.py)
+│   └── boot_timing.py         # BOOT/LOADER test timing
+├── adapters/
+│   └── base.py                # Updated: AsyncFSMStateReader with configurable units_per_state
+└── sim/
+    ├── boot_fsm/              # NEW: BOOT dispatcher tests
+    │   ├── __init__.py
+    │   └── P1_basic.py        # BOOT state transitions
+    └── loader/                # NEW: LOADER tests
+        ├── __init__.py
+        ├── helpers.py         # Strobe functions, CRC calc
+        ├── P1_basic.py        # Basic functionality tests
+        └── P2_crc.py          # CRC validation tests
 ```
 
 ### Test Cases
@@ -344,15 +351,15 @@ class BootShell(cmd.Cmd):
 
 ---
 
-## Open Questions
+## Design Decisions (Resolved)
 
-1. **ENV_BBUF BRAM instantiation**: Should BOOT module own the BRAMs, or should they be instantiated at TOP level and passed down?
+1. **ENV_BBUF BRAM instantiation**: ✅ BOOT module owns the BRAMs (synthesized as TOP on MCC platform)
 
-2. **State persistence**: Should LOADER preserve its state if user does RUNR (soft reset) while in LOAD_P1? Or always reset?
+2. **State persistence**: ✅ RUNR resets LOADER state (full reset to BOOT_P0)
 
-3. **Multiple load cycles**: Can user do RUNL → load → RET → RUNL → load again? (Spec implies yes)
+3. **Multiple load cycles**: ✅ Yes - RUNL → load → RET → RUNL → load again works
 
-4. **Timeout**: Should LOADER have a watchdog timeout if Python client disappears mid-transfer?
+4. **Timeout**: ✅ No watchdog - Python client is responsible for completing transfer
 
 ---
 

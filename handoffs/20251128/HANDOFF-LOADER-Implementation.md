@@ -63,35 +63,39 @@ CR0[23:22] = Buffer count  - LOADER (00=1, 01=2, 10=3, 11=4)
 CR0[21]    = Data strobe   - LOADER (falling edge triggers)
 ```
 
-## Next Session Tasks
+## Implementation Progress
 
-### Priority 1: CRC-16 Module
-- [ ] Create `rtl/boot/loader_crc16.vhd`
-- [ ] Pure combinatorial CRC-16-CCITT calculator
-- [ ] Use `CRC16_POLYNOMIAL` and `CRC16_INIT` from `forge_common_pkg`
+### Phase 1: CRC-16 Module ✅ COMPLETE
+- [x] `rtl/boot/loader_crc16.vhd` - Pure combinatorial CRC-16-CCITT
+- [x] `py_tools/boot_constants.py` - Python mirror of forge_common_pkg.vhd
 
-### Priority 2: LOADER FSM
+### Phase 2: LOADER FSM (IN PROGRESS)
 - [ ] Implement `rtl/boot/L2_BUFF_LOADER.vhd` (replace stub)
 - [ ] 5-state FSM: LOAD_P0, LOAD_P1, LOAD_P2, LOAD_P3, FAULT
 - [ ] Falling edge strobe detection
-- [ ] Parallel BRAM writes to ENV_BBUFs
+- [ ] Parallel BRAM writes to ENV_BBUFs (inferred BRAM)
 
-### Priority 3: CocoTB Tests
-- [ ] Create `tests/sim/loader/` package
-- [ ] P1 basic tests (state transitions)
-- [ ] P2 CRC validation tests
+### Phase 3: BOOT_TOP + Integration
+- [ ] Implement `B0_BOOT_TOP.vhd` (6-state dispatcher FSM)
+- [ ] Create `BootWrapper_test_stub.vhd` for CocoTB
+- [ ] Instantiate DPD_shim as PROG module
 
-### Priority 4: Python CLI
-- [ ] Create `py_tools/boot_constants.py` (mirror of forge_common_pkg.vhd)
+### Phase 4: Test Infrastructure
+- [ ] Add `tests/lib/boot_hw.py` (BOOT constants for tests)
+- [ ] Update `tests/adapters/base.py` (configurable units_per_state)
+- [ ] Create `tests/sim/boot_fsm/` and `tests/sim/loader/`
 - [ ] Create `py_tools/boot_cli.py` (RUN> shell)
 - [ ] Create `py_tools/boot_loader.py` (LOADER protocol)
 
-## Open Questions (Carry Forward)
+## Design Decisions (Resolved)
 
-1. **ENV_BBUF BRAM instantiation**: Should BOOT module own the BRAMs, or TOP level?
-2. **State persistence**: Reset LOADER state on RUNR?
-3. **Multiple load cycles**: RUNL → load → RET → RUNL → load again? (Spec says yes)
-4. **Timeout**: Watchdog if Python client disappears mid-transfer?
+1. **ENV_BBUF BRAM instantiation**: ✅ BOOT module owns the BRAMs (synthesized as TOP on MCC)
+2. **State persistence**: ✅ RUNR resets LOADER state (full reset to BOOT_P0)
+3. **Multiple load cycles**: ✅ Yes - RUNL → load → RET → RUNL → load again works
+4. **Timeout**: ✅ No watchdog - Python client responsible for completing transfer
+5. **BOOT Architecture**: ✅ Single-layer B0_BOOT_TOP (not 3-layer like DPD)
+6. **PROG Handoff**: ✅ BOOT instantiates DPD_shim directly
+7. **Test Location**: ✅ Tests live in `tests/sim/boot_fsm/` and `tests/sim/loader/` (not separate boot_tests/)
 
 ## Key Design Decisions Made
 
