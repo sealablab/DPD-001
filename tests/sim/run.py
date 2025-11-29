@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CocoTB Test Runner for Demo Probe Driver
+CocoTB Test Runner for Demo Probe Driver (DPD)
 
 Runs P1 (BASIC) tests with GHDL simulator with intelligent output filtering.
 
@@ -12,10 +12,12 @@ Usage:
     COCOTB_VERBOSITY=NORMAL python run.py   # More verbose output
     TEST_LEVEL=P2_INTERMEDIATE python run.py  # Run P2 tests (when implemented)
     GHDL_FILTER=none python run.py          # Disable GHDL output filtering
-    
+
     # Debug tests (for FSM trigger investigation)
     TEST_MODULE=dpd.P1_dpd_trigger_debug python run.py
     WAVES=true TEST_MODULE=dpd.P1_dpd_trigger_debug python run.py
+
+For BOOT subsystem tests, use boot_run.py instead.
 
 Environment Variables:
     COCOTB_VERBOSITY: Test output level (MINIMAL, NORMAL, VERBOSE, DEBUG)

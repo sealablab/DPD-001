@@ -4,9 +4,9 @@
 -- Created: 2025-11-29
 --
 -- Description:
---   CustomWrapper entity stub for CocoTB testing of the BOOT subsystem.
---   This stub replicates the MCC-provided CustomWrapper entity interface
---   for use in CocoTB testbenches where MCC is not available.
+--   BootWrapper entity stub for CocoTB testing of the BOOT subsystem.
+--   This is a separate entity from CustomWrapper (DPD) to avoid GHDL
+--   entity name collisions when both are compiled in the same work library.
 --
 --   For production builds, MCC provides the actual entity declaration.
 --
@@ -15,16 +15,16 @@
 --   The architecture boot_forge defined in B0_BOOT_TOP.vhd will bind
 --   to this entity declaration.
 --
--- See Also:
+-- Note:
+--   Uses BootWrapper entity (not CustomWrapper) to avoid collision with
 --   rtl/CustomWrapper_test_stub.vhd (DPD version)
---   rtl/boot/B0_BOOT_TOP.vhd (BOOT architecture)
 --------------------------------------------------------------------------------
 
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
 
-entity CustomWrapper is
+entity BootWrapper is
     port (
         -- Clock and Reset
         Clk     : in  std_logic;
@@ -60,7 +60,7 @@ entity CustomWrapper is
         Control14 : in  std_logic_vector(31 downto 0);
         Control15 : in  std_logic_vector(31 downto 0)
     );
-end entity CustomWrapper;
+end entity BootWrapper;
 
 -- Note: The architecture is defined in B0_BOOT_TOP.vhd as "boot_forge"
--- GHDL will bind "architecture boot_forge of CustomWrapper" to this entity
+-- GHDL will bind "architecture boot_forge of BootWrapper" to this entity
