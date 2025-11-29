@@ -1,12 +1,15 @@
 ---
 created: 2025-11-29
-modified: 2025-11-29 15:05:03
+modified: 2025-11-29 15:57:53
 status: DRAFT
-accessed: 2025-11-29 15:23:55
+accessed: 2025-11-29 16:01:35
 ---
 # BOOT ROM Primitives Specification
 
 This document specifies the hardcoded ROM primitives provided by the BOOT subsystem for use by BIOS and application modules.
+
+##  Q1) BOOT ROM Primitives representation:
+
 
 ## Design Philosophy
 
@@ -35,13 +38,13 @@ Even when a waveform *could* be computed (e.g., triangle from counter), we store
 | Bank | ROM ID | Name | Entries | Bits | Bytes | Description |
 |------|--------|------|---------|------|-------|-------------|
 | 0 | 0 | `SIN_128` | 128 | 16 | 256 | Full sine cycle |
-| 0 | 1 | `TRI_128` | 128 | 16 | 256 | Symmetric triangle |
-| 0 | 2 | `SAW_UP_128` | 128 | 16 | 256 | Sawtooth rising |
-| 0 | 3 | `SAW_DN_128` | 128 | 16 | 256 | Sawtooth falling |
-| 0 | 4 | `SQR_64_128` | 128 | 16 | 256 | Square 64 high, 64 low |
-| 0 | 5 | `SQR_32_128` | 128 | 16 | 256 | Square 32 high, 96 low |
-| 0 | 6 | `SQR_04_128` | 128 | 16 | 256 | Square 4 high, 124 low |
-| 0 | 7 | `STEP_16` | 128 | 16 | 256 | 16 discrete levels |
+| 0 | 1 | `COS_128` | 128 | 16 | 256 | Full cosine cycle (sin + 90°) |
+| 0 | 2 | `TRI_128` | 128 | 16 | 256 | Symmetric triangle |
+| 0 | 3 | `SAW_UP_128` | 128 | 16 | 256 | Sawtooth rising |
+| 0 | 4 | `SAW_DN_128` | 128 | 16 | 256 | Sawtooth falling |
+| 0 | 5 | `SQR_64_128` | 128 | 16 | 256 | Square 64 high, 64 low |
+| 0 | 6 | `SQR_32_128` | 128 | 16 | 256 | Square 32 high, 96 low |
+| 0 | 7 | `SQR_04_128` | 128 | 16 | 256 | Square 4 high, 124 low |
 | **Subtotal** | | | | | **2048** | **Bank 0: Waveforms** |
 | 1 | 8 | `PCT_LINEAR` | 101 | 16 | 202 | Linear 0-100% |
 | 1 | 9 | `PCT_LOG` | 101 | 16 | 202 | Logarithmic curve |
@@ -55,23 +58,25 @@ Even when a waveform *could* be computed (e.g., triangle from counter), we store
 
 ### Value Encoding
 
-All waveform LUTs use **16-bit signed** values:
+All waveform LUTs use **16-bit signed** values with **unipolar data constraints**:
 
 ```
-+32767 = Maximum positive (≈ +5V at full scale)
-     0 = Midpoint (≈ 0V)
--32768 = Maximum negative (≈ -5V at full scale)
++32767 = Maximum output (≈ +5V at full scale)
++16384 = Midpoint (≈ +2.5V)
+     0 = Minimum output (≈ 0V at full scale)
 ```
+
+**Safety Design**: ROM data constrained to `0` to `+32767` range. Direct ROM-to-DAC assignment (`DAC_output <= ROM[index]`) with native signed interface compatibility.
 
 ### SIN_128 - Sinusoid
 
-Full 360° sine cycle, 128 samples.
+Full 360° sine cycle, 128 samples, offset to unipolar range.
 
 ```
-Entry[i] = round(32767 × sin(2π × i / 128))
+Entry[i] = round(16384 + 16383 × sin(2π × i / 128))
 
 Index:    0    16    32    48    64    80    96   112   127
-Value:    0  23170 32767 23170     0 -23170 -32767 -23170  -1608
+Value:16384 27969 32767 27969 16384  4799     1  4799 15580
 Phase:    0°   45°   90°  135°  180°   225°   270°   315°  ~357°
 ```
 
@@ -80,20 +85,37 @@ Phase:    0°   45°   90°  135°  180°   225°   270°   315°  ~357°
 - Phase relationship verification
 - Audio/RF waveform generation
 
+### COS_128 - Cosine
+
+Full 360° cosine cycle, 128 samples, offset to unipolar range.
+
+```
+Entry[i] = round(16384 + 16383 × cos(2π × i / 128))
+         = round(16384 + 16383 × sin(2π × i / 128 + π/2))
+
+Index:    0    16    32    48    64    80    96   112   127
+Value:32767 27969 16384  4799     1  4799 16384 27969 32463
+Phase:    0°   45°   90°  135°  180°   225°   270°   315°  ~357°
+```
+
+**Use Cases:**
+- Quadrature signal generation (I/Q)
+- Differential signaling
+- X/Y oscilloscope patterns
+- Phase-shifted AC signals
+
 ### TRI_128 - Triangle
 
 Symmetric triangle wave, 128 samples.
 
 ```
 Entry[i] =
-  i < 64:   (i × 32767) / 63         -- Rising: 0 → +32767
-  i >= 64:  ((127-i) × 32767) / 63   -- Falling: +32767 → 0
+  i < 64:   (i × 32767) / 63         -- Rising: 0 → 32767
+  i >= 64:  ((127-i) × 32767) / 63   -- Falling: 32767 → 0
 
 Index:    0    32    63    64    96   127
-Value:    0  16383 32767 32767 16383     0
+Value:    0  16384 32767 32767 16384     0
 ```
-
-**Note:** Triangle is unipolar (0 to +max). For bipolar, subtract 16384.
 
 **Use Cases:**
 - Slew rate testing
@@ -105,10 +127,10 @@ Value:    0  16383 32767 32767 16383     0
 Linear ramp from minimum to maximum, 128 samples.
 
 ```
-Entry[i] = -32768 + (i × 65535) / 127
+Entry[i] = (i × 32767) / 127
 
 Index:    0    32    64    96   127
-Value: -32768 -16384    0 16384 32767
+Value:    0   8192 16384 24576 32767
 ```
 
 **Use Cases:**
@@ -121,10 +143,10 @@ Value: -32768 -16384    0 16384 32767
 Linear ramp from maximum to minimum, 128 samples.
 
 ```
-Entry[i] = 32767 - (i × 65535) / 127
+Entry[i] = 32767 - (i × 32767) / 127
 
 Index:    0    32    64    96   127
-Value: 32767 16384    0 -16384 -32768
+Value:32767 24575 16383  8191     0
 ```
 
 **Use Cases:**
@@ -138,8 +160,8 @@ Square wave, 64 samples high, 64 samples low.
 
 ```
 Entry[i] =
-  i < 64:   +32767  -- High for 64 samples
-  i >= 64:  -32768  -- Low for 64 samples
+  i < 64:   32767   -- High for 64 samples
+  i >= 64:      0   -- Low for 64 samples
 ```
 
 **Use Cases:**
@@ -153,8 +175,8 @@ Pulse wave, 32 samples high, 96 samples low.
 
 ```
 Entry[i] =
-  i < 32:   +32767  -- High for 32 samples
-  i >= 32:  -32768  -- Low for 96 samples
+  i < 32:   32767   -- High for 32 samples
+  i >= 32:      0   -- Low for 96 samples
 ```
 
 **Use Cases:**
@@ -167,32 +189,14 @@ Narrow pulse, 4 samples high, 124 samples low.
 
 ```
 Entry[i] =
-  i < 4:    +32767  -- High for 4 samples
-  i >= 4:   -32768  -- Low for 124 samples
+  i < 4:    32767   -- High for 4 samples
+  i >= 4:       0   -- Low for 124 samples
 ```
 
 **Use Cases:**
 - Impulse response testing
 - Trigger signal generation
 - Timing verification (narrow pulse visible on scope)
-
-### STEP_16 - Staircase (16 Levels)
-
-16 discrete voltage levels, 8 samples per level.
-
-```
-Level[n] = -32768 + (n × 65535) / 15    for n = 0..15
-Entry[i] = Level[i / 8]                 for i = 0..127
-
-Index:   0-7   8-15  16-23  ...  120-127
-Level:     0      1      2  ...       15
-Value: -32768 -28398 -24029  ...   +32767
-```
-
-**Use Cases:**
-- DNL/INL testing
-- ADC/DAC quantization verification
-- Discrete level calibration
 
 ## Percentage LUTs (Bank 1)
 
@@ -279,10 +283,10 @@ Value:    0  3664 18350 43366 65535
 │                    BOOT ROM BANK 0                          │
 │                 (Waveforms - 2KB)                           │
 │  ┌─────────┬─────────┬─────────┬─────────┐                 │
-│  │ SIN_128 │ TRI_128 │SAW_UP   │SAW_DN   │  0x000 - 0x3FF  │
+│  │ SIN_128 │ COS_128 │ TRI_128 │SAW_UP   │  0x000 - 0x3FF  │
 │  │ 256B    │ 256B    │ 256B    │ 256B    │                 │
 │  ├─────────┼─────────┼─────────┼─────────┤                 │
-│  │ SQR_64  │ SQR_32  │ SQR_04  │ STEP_16 │  0x400 - 0x7FF  │
+│  │ SAW_DN  │ SQR_64  │ SQR_32  │ SQR_04  │  0x400 - 0x7FF  │
 │  │ 256B    │ 256B    │ 256B    │ 256B    │                 │
 │  └─────────┴─────────┴─────────┴─────────┘                 │
 └─────────────────────────────────────────────────────────────┘
@@ -495,13 +499,13 @@ package forge_rom_pkg is
 
     -- ROM IDs
     constant WAVE_SIN      : natural := 0;
-    constant WAVE_TRI      : natural := 1;
-    constant WAVE_SAW_UP   : natural := 2;
-    constant WAVE_SAW_DN   : natural := 3;
-    constant WAVE_SQR_64   : natural := 4;
-    constant WAVE_SQR_32   : natural := 5;
-    constant WAVE_SQR_04   : natural := 6;
-    constant WAVE_STEP_16  : natural := 7;
+    constant WAVE_COS      : natural := 1;
+    constant WAVE_TRI      : natural := 2;
+    constant WAVE_SAW_UP   : natural := 3;
+    constant WAVE_SAW_DN   : natural := 4;
+    constant WAVE_SQR_64   : natural := 5;
+    constant WAVE_SQR_32   : natural := 6;
+    constant WAVE_SQR_04   : natural := 7;
 
     constant PCT_LINEAR    : natural := 0;
     constant PCT_LOG       : natural := 1;
@@ -566,31 +570,36 @@ A Python script generates the ROM contents for synthesis:
 import numpy as np
 
 def gen_sin_128():
-    """Full sine cycle, 128 entries, 16-bit signed."""
+    """Full sine cycle, 128 entries, 16-bit signed, offset to unipolar."""
     x = np.linspace(0, 2*np.pi, 128, endpoint=False)
-    return np.round(32767 * np.sin(x)).astype(np.int16)
+    return np.round(16384 + 16383 * np.sin(x)).astype(np.int16)
+
+def gen_cos_128():
+    """Full cosine cycle, 128 entries, 16-bit signed, offset to unipolar."""
+    x = np.linspace(0, 2*np.pi, 128, endpoint=False)
+    return np.round(16384 + 16383 * np.cos(x)).astype(np.int16)
 
 def gen_tri_128():
-    """Symmetric triangle, 128 entries, 16-bit signed (0 to +max)."""
+    """Symmetric triangle, 128 entries, 16-bit signed (0 to max)."""
     up = np.linspace(0, 32767, 64)
     down = np.linspace(32767, 0, 64, endpoint=False)
     return np.concatenate([up, down]).astype(np.int16)
 
 def gen_sqr_64_128():
     """Square wave, 64 high, 64 low, 16-bit signed."""
-    wave = np.full(128, -32768, dtype=np.int16)
+    wave = np.full(128, 0, dtype=np.int16)
     wave[:64] = 32767
     return wave
 
 def gen_sqr_32_128():
     """Pulse wave, 32 high, 96 low, 16-bit signed."""
-    wave = np.full(128, -32768, dtype=np.int16)
+    wave = np.full(128, 0, dtype=np.int16)
     wave[:32] = 32767
     return wave
 
 def gen_sqr_04_128():
     """Narrow pulse, 4 high, 124 low, 16-bit signed."""
-    wave = np.full(128, -32768, dtype=np.int16)
+    wave = np.full(128, 0, dtype=np.int16)
     wave[:4] = 32767
     return wave
 
