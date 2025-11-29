@@ -2,32 +2,30 @@
 -- File: forge_common_pkg.vhd
 -- Author: Moku Instrument Forge Team
 -- Created: 2025-11-05
+-- Modified: 2025-11-28
 --
 -- Description:
---   Common constants and types for Forge MCC infrastructure.
---   Defines the FORGE_READY control scheme, BRAM interface parameters,
---   and application register ranges.
+--   Common constants and types for the BOOT subsystem and CR0 privileged
+--   control scheme. This package defines the authoritative bit allocations
+--   for CR0 used by BOOT, BIOS, LOADER, and PROG modules.
 --
 -- Design Pattern:
---   This package is shared across ALL forge-apps and provides the foundation
---   for the 3-layer Forge architecture:
---     Layer 1: MCC_TOP_forge_loader.vhd (uses this package)
---     Layer 2: <AppName>_forge_shim.vhd (uses this package)
---     Layer 3: <AppName>_forge_main.vhd (MCC-agnostic, doesn't use this)
+--   This package is the single source of truth for CR0 bit definitions.
+--   All modules in the BOOT subsystem (and applications) must use these
+--   constants rather than hardcoding bit positions.
 --
--- Register Map:
---   CR0[31:29] - FORGE_READY control scheme (3-bit)
---   CR10-CR14  - BRAM loader protocol (5 registers)
---   CR1-CR10   - Application registers (10 registers)
---
--- Migration Note:
---   This is the forge-vhdl equivalent of volo_common_pkg.vhd.
---   Functionality is identical; naming changed for consistency with
---   the forge-vhdl component ecosystem.
+-- CR0 Register Map (Authoritative):
+--   CR0[31:29] - RUN gate (R/U/N - must all be '1' for operation)
+--   CR0[28:25] - Module select (P/B/L/R - mutually exclusive)
+--   CR0[24]    - RET (return to BOOT_P1 from BIOS/LOADER)
+--   CR0[23:22] - LOADER buffer count
+--   CR0[21]    - LOADER data strobe
+--   CR0[20:0]  - Reserved
 --
 -- References:
---   - libs/forge-vhdl/CLAUDE.md
---   - external_Example/volo_common_pkg.vhd (original pattern)
+--   - docs/BOOT-FSM-spec.md (authoritative)
+--   - docs/boot-process-terms.md (authoritative)
+--   - docs/bootup-proposal/LOAD-FSM-spec.md (authoritative)
 --------------------------------------------------------------------------------
 
 library IEEE;
@@ -37,98 +35,189 @@ use IEEE.numeric_std.all;
 package forge_common_pkg is
 
     ----------------------------------------------------------------------------
-    -- FORGE_READY Control Scheme (CR0[31:29])
+    -- RUN Gate (CR0[31:29])
     --
-    -- Safe default: All-zero state keeps module disabled (bit 31=0)
+    -- All three bits must be '1' for the system to operate.
+    -- Safe default: All-zero state keeps everything disabled.
     --
-    -- Usage in Top.vhd:
-    --   forge_ready  <= Control0(31);  -- Set by loader after deployment
-    --   user_enable  <= Control0(30);  -- User-controlled enable/disable
-    --   clk_enable   <= Control0(29);  -- Clock gating for sequential logic
-    --   global_enable <= forge_ready and user_enable and clk_enable and loader_done;
+    -- Transition: BOOT_P0 → BOOT_P1 requires CR0[31:29] = "111"
     --
-    -- Initialization Sequence:
-    --   1. Power-on: Control0 = 0x00000000 → All disabled (SAFE)
-    --   2. Loader sets Control0[31] = 1 (forge_ready)
-    --   3. BRAM loader completes (loader_done = 1)
-    --   4. User sets Control0[30] = 1 (user_enable)
-    --   5. User sets Control0[29] = 1 (clk_enable)
-    --   6. Module operates (global_enable = 1)
+    -- Usage:
+    --   run_ready   <= Control0(31);  -- R: Ready (platform settled)
+    --   run_user    <= Control0(30);  -- U: User enable
+    --   run_clk     <= Control0(29);  -- N: Clock enable
+    --   run_active  <= run_ready and run_user and run_clk;
     ----------------------------------------------------------------------------
-    constant FORGE_READY_BIT  : natural := 31;
-    constant USER_ENABLE_BIT  : natural := 30;
-    constant CLK_ENABLE_BIT   : natural := 29;
+    constant RUN_READY_BIT : natural := 31;  -- R
+    constant RUN_USER_BIT  : natural := 30;  -- U
+    constant RUN_CLK_BIT   : natural := 29;  -- N
+
+    -- Combined RUN value (0xE0000000)
+    constant RUN_GATE_MASK : std_logic_vector(31 downto 0) := x"E0000000";
 
     ----------------------------------------------------------------------------
-    -- BRAM Loader Protocol (CR10-CR14)
+    -- Module Select (CR0[28:25])
     --
-    -- 4KB buffer = 1024 words × 32 bits
-    -- Address width: 12 bits (2^12 = 4096 bytes / 4 bytes per word = 1024 words)
-    -- Data width: 32 bits (matches Control Register width)
+    -- Exactly ONE of these bits should be set to select a module.
+    -- Multiple bits set = FAULT condition.
+    -- Priority (if hardware encoder used): P > B > L > R
     --
-    -- The forge_bram_loader FSM uses Control10-Control14 to stream data
-    -- into the 4KB BRAM buffer during deployment initialization.
+    -- Commands:
+    --   RUNP (CR0[28]=1) - Transfer to PROG (one-way)
+    --   RUNB (CR0[27]=1) - Transfer to BIOS
+    --   RUNL (CR0[26]=1) - Transfer to LOADER
+    --   RUNR (CR0[25]=1) - Soft reset to BOOT_P0
     ----------------------------------------------------------------------------
-    constant BRAM_ADDR_WIDTH : natural := 12;  -- 4KB addressing
-    constant BRAM_DATA_WIDTH : natural := 32;  -- Control Register width
+    constant SEL_PROG_BIT   : natural := 28;  -- P: Program
+    constant SEL_BIOS_BIT   : natural := 27;  -- B: BIOS
+    constant SEL_LOADER_BIT : natural := 26;  -- L: Loader
+    constant SEL_RESET_BIT  : natural := 25;  -- R: Reset
+
+    -- Command values (combined with RUN gate)
+    constant CMD_RUN  : std_logic_vector(31 downto 0) := x"E0000000";  -- Just RUN
+    constant CMD_RUNP : std_logic_vector(31 downto 0) := x"F0000000";  -- RUN + P
+    constant CMD_RUNB : std_logic_vector(31 downto 0) := x"E8000000";  -- RUN + B
+    constant CMD_RUNL : std_logic_vector(31 downto 0) := x"E4000000";  -- RUN + L
+    constant CMD_RUNR : std_logic_vector(31 downto 0) := x"E2000000";  -- RUN + R
 
     ----------------------------------------------------------------------------
-    -- Network Synchronization Protocol
+    -- Return Control (CR0[24])
     --
-    -- State 000000 (INITIALIZING) is the canonical "safe to update" state.
-    -- Shim layers MUST gate register propagation when state_vector /= STATE_SYNC_SAFE.
-    -- This ensures atomicity of configuration changes without clock manipulation.
+    -- Used by BIOS and LOADER to return control to BOOT_P1.
+    -- PROG cannot return (one-way handoff).
+    ----------------------------------------------------------------------------
+    constant RET_BIT : natural := 24;
+
+    constant CMD_RET : std_logic_vector(31 downto 0) := x"E1000000";  -- RUN + RET
+
+    ----------------------------------------------------------------------------
+    -- LOADER Control (CR0[23:21])
     --
-    -- Contract:
-    --   - STATE_SYNC_SAFE is always 000000 (power-on default, inherently safe)
-    --   - Main FSM latches all parameters in INITIALIZING before transitioning
-    --   - To update parameters mid-operation: pulse fault_clear to force re-init
+    -- CR0[23:22] - Buffer count (00=1, 01=2, 10=3, 11=4)
+    -- CR0[21]    - Data strobe (falling edge triggers action)
+    ----------------------------------------------------------------------------
+    constant LOADER_BUFCNT_HI  : natural := 23;
+    constant LOADER_BUFCNT_LO  : natural := 22;
+    constant LOADER_STROBE_BIT : natural := 21;
+
+    ----------------------------------------------------------------------------
+    -- BOOT FSM States (6-bit encoding)
     --
-    -- See: N/network-register-sync.md for design rationale
+    -- Used by BOOT module and for HVS encoding on OutputC.
+    -- HVS voltage = state * 0.2V (using DIGITAL_UNITS_PER_STATE = 1311)
+    ----------------------------------------------------------------------------
+    constant BOOT_STATE_P0          : std_logic_vector(5 downto 0) := "000000";  -- 0.0V
+    constant BOOT_STATE_P1          : std_logic_vector(5 downto 0) := "000001";  -- 0.2V
+    constant BOOT_STATE_BIOS_ACTIVE : std_logic_vector(5 downto 0) := "000010";  -- 0.4V
+    constant BOOT_STATE_LOAD_ACTIVE : std_logic_vector(5 downto 0) := "000011";  -- 0.6V
+    constant BOOT_STATE_PROG_ACTIVE : std_logic_vector(5 downto 0) := "000100";  -- 0.8V
+    constant BOOT_STATE_FAULT       : std_logic_vector(5 downto 0) := "111111";  -- Negative
+
+    ----------------------------------------------------------------------------
+    -- LOADER FSM States (6-bit encoding)
+    --
+    -- Used by LOADER module for internal state tracking and HVS.
+    ----------------------------------------------------------------------------
+    constant LOAD_STATE_P0    : std_logic_vector(5 downto 0) := "000000";  -- Setup
+    constant LOAD_STATE_P1    : std_logic_vector(5 downto 0) := "000001";  -- Transfer
+    constant LOAD_STATE_P2    : std_logic_vector(5 downto 0) := "000010";  -- Validate
+    constant LOAD_STATE_P3    : std_logic_vector(5 downto 0) := "000011";  -- Complete
+    constant LOAD_STATE_FAULT : std_logic_vector(5 downto 0) := "111111";  -- CRC error
+
+    ----------------------------------------------------------------------------
+    -- ENV_BBUF Parameters
+    --
+    -- Four 4KB BRAM buffers for environment/configuration data.
+    -- Allocated by BOOT, populated by LOADER, used by PROG.
+    ----------------------------------------------------------------------------
+    constant ENV_BBUF_COUNT      : natural := 4;
+    constant ENV_BBUF_SIZE_BYTES : natural := 4096;
+    constant ENV_BBUF_WORDS      : natural := 1024;  -- 4096 / 4
+    constant ENV_BBUF_ADDR_WIDTH : natural := 10;    -- log2(1024)
+    constant ENV_BBUF_DATA_WIDTH : natural := 32;
+
+    ----------------------------------------------------------------------------
+    -- HVS Parameters
+    --
+    -- BOOT subsystem uses compressed 0.2V steps (0-1V range for 5 states).
+    -- Standard PROG applications use 0.5V steps.
+    ----------------------------------------------------------------------------
+    constant HVS_BOOT_UNITS_PER_STATE : natural := 1311;  -- ~0.2V @ ±5V FS
+    constant HVS_PROG_UNITS_PER_STATE : natural := 3277;  -- ~0.5V @ ±5V FS
+
+    ----------------------------------------------------------------------------
+    -- CRC-16-CCITT Parameters
+    --
+    -- Used by LOADER for buffer validation.
+    ----------------------------------------------------------------------------
+    constant CRC16_POLYNOMIAL : std_logic_vector(15 downto 0) := x"1021";
+    constant CRC16_INIT       : std_logic_vector(15 downto 0) := x"FFFF";
+
+    ----------------------------------------------------------------------------
+    -- Network Synchronization
+    --
+    -- STATE_SYNC_SAFE is the canonical "safe to update registers" state.
+    -- For BOOT context, this is BOOT_P0 or the module's P0 state.
     ----------------------------------------------------------------------------
     constant STATE_SYNC_SAFE : std_logic_vector(5 downto 0) := "000000";
-
-    ----------------------------------------------------------------------------
-    -- Application Register Range (CR1-CR10)
-    --
-    -- MCC provides 16 control registers (CR0-CR15)
-    -- CR0 reserved for FORGE control scheme (bits 31:29)
-    -- CR1-CR10 available for application (10 registers)
-    -- CR11-CR15 unused (future expansion)
-    --
-    -- These are mapped to friendly signal names in the generated shim layer:
-    --   Example: "arm_enable" → arm_enable : std_logic
-    ----------------------------------------------------------------------------
-    constant APP_REG_MIN : natural := 1;
-    constant APP_REG_MAX : natural := 10;
 
     ----------------------------------------------------------------------------
     -- Helper Functions
     ----------------------------------------------------------------------------
 
-    -- Combine FORGE_READY control bits into global enable signal
-    -- Returns '1' only when ALL four conditions are met (safe by default)
-    function combine_forge_ready(
-        forge_ready  : std_logic;
-        user_enable  : std_logic;
-        clk_enable   : std_logic;
-        loader_done  : std_logic
-    ) return std_logic;
+    -- Check if RUN gate is fully enabled
+    function is_run_active(cr0 : std_logic_vector(31 downto 0)) return boolean;
+
+    -- Extract module select bits and check for valid (single) selection
+    function get_module_select(cr0 : std_logic_vector(31 downto 0))
+        return std_logic_vector;  -- Returns 4-bit P/B/L/R
+
+    -- Check if exactly one module select bit is set
+    function is_valid_select(cr0 : std_logic_vector(31 downto 0)) return boolean;
+
+    -- Extract LOADER buffer count (0-3, representing 1-4 buffers)
+    function get_loader_bufcnt(cr0 : std_logic_vector(31 downto 0))
+        return natural;
 
 end package forge_common_pkg;
 
 package body forge_common_pkg is
 
-    -- Combine all 4 ready conditions for global enable
-    -- Implements: global_enable = forge_ready AND user_enable AND clk_enable AND loader_done
-    function combine_forge_ready(
-        forge_ready  : std_logic;
-        user_enable  : std_logic;
-        clk_enable   : std_logic;
-        loader_done  : std_logic
-    ) return std_logic is
+    -- Check if all RUN gate bits are set
+    function is_run_active(cr0 : std_logic_vector(31 downto 0)) return boolean is
     begin
-        return forge_ready and user_enable and clk_enable and loader_done;
+        return cr0(RUN_READY_BIT) = '1' and
+               cr0(RUN_USER_BIT) = '1' and
+               cr0(RUN_CLK_BIT) = '1';
+    end function;
+
+    -- Extract module select bits (P/B/L/R)
+    function get_module_select(cr0 : std_logic_vector(31 downto 0))
+        return std_logic_vector is
+    begin
+        return cr0(SEL_PROG_BIT downto SEL_RESET_BIT);
+    end function;
+
+    -- Check if exactly one module select bit is set (valid selection)
+    function is_valid_select(cr0 : std_logic_vector(31 downto 0)) return boolean is
+        variable sel : std_logic_vector(3 downto 0);
+    begin
+        sel := cr0(SEL_PROG_BIT downto SEL_RESET_BIT);
+        case sel is
+            when "1000" => return true;  -- RUNP only
+            when "0100" => return true;  -- RUNB only
+            when "0010" => return true;  -- RUNL only
+            when "0001" => return true;  -- RUNR only
+            when "0000" => return true;  -- No selection (stay in current state)
+            when others => return false; -- Multiple bits = invalid
+        end case;
+    end function;
+
+    -- Extract LOADER buffer count from CR0[23:22]
+    function get_loader_bufcnt(cr0 : std_logic_vector(31 downto 0))
+        return natural is
+    begin
+        return to_integer(unsigned(cr0(LOADER_BUFCNT_HI downto LOADER_BUFCNT_LO)));
     end function;
 
 end package body forge_common_pkg;
