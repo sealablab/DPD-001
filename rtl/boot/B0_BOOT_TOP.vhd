@@ -39,8 +39,8 @@ use WORK.forge_common_pkg.all;
 
 -- This is the BootWrapper architecture for BOOT subsystem
 -- Implements the standard Moku CloudCompile interface
--- Note: Uses BootWrapper entity (not CustomWrapper) to avoid GHDL collision
-architecture boot_forge of BootWrapper is
+-- Note: Architecture renamed to boot_dispatcher for integration with CustomWrapper
+architecture boot_dispatcher of BootWrapper is
 
     ----------------------------------------------------------------------------
     -- Hardware Validation Configuration
@@ -255,11 +255,47 @@ begin
     ----------------------------------------------------------------------------
     prog_enable <= '1' when boot_state = BOOT_STATE_PROG_ACTIVE else '0';
 
-    -- For now, stub outputs - in real implementation, instantiate DPD_shim
-    -- and connect it here
-    prog_output_a <= (others => '0');
-    prog_output_b <= (others => '0');
-    prog_output_c <= to_signed(4 * HVS_BOOT_UNITS_PER_STATE, 16);  -- 0.8V stub
+    -- Only enable DPD when in PROG_ACTIVE state
+    -- The DPD_shim handles its own HVS encoding
+    PROG_DPD_INST: entity WORK.DPD_shim
+        port map (
+            Clk          => Clk,
+            Reset        => Reset,
+
+            -- FORGE control: all '1' when PROG is active
+            forge_ready  => prog_enable,
+            user_enable  => prog_enable,
+            clk_enable   => prog_enable,
+            loader_done  => '1',  -- Assume loader is done
+
+            -- Lifecycle control from CR0 (always available)
+            arm_enable   => Control0(2),
+            fault_clear  => Control0(1),
+            sw_trigger   => Control0(0),
+
+            -- Configuration registers CR2-CR10
+            app_reg_2    => Control2,
+            app_reg_3    => Control3,
+            app_reg_4    => Control4,
+            app_reg_5    => Control5,
+            app_reg_6    => Control6,
+            app_reg_7    => Control7,
+            app_reg_8    => Control8,
+            app_reg_9    => Control9,
+            app_reg_10   => Control10,
+
+            -- BRAM interface (optional - tie off for now)
+            bram_addr    => (others => '0'),
+            bram_data    => (others => '0'),
+            bram_we      => '0',
+
+            -- MCC I/O
+            InputA       => InputA,
+            InputB       => InputB,
+            OutputA      => prog_output_a,
+            OutputB      => prog_output_b,
+            OutputC      => prog_output_c
+        );
 
     -- BRAM read interface (for PROG to read ENV_BBUFs)
     -- In real implementation, PROG would drive these
@@ -447,4 +483,4 @@ begin
         end case;
     end process;
 
-end architecture boot_forge;
+end architecture boot_dispatcher;
