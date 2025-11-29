@@ -150,6 +150,28 @@ package forge_common_pkg is
     -- S=21-23 reserved for LOADER expansion
 
     ----------------------------------------------------------------------------
+    -- BIOS FSM States (6-bit encoding)
+    --
+    -- Internal BIOS FSM states. For HVS encoding, these map to global S values:
+    --   BIOS_IDLE  -> S=8  (0.240V)
+    --   BIOS_RUN   -> S=9  (0.270V)
+    --   BIOS_DONE  -> S=10 (0.301V)
+    --   BIOS_FAULT -> S=11 (0.331V, negated if status[7]=1)
+    --   S=12-15 reserved for BIOS expansion
+    ----------------------------------------------------------------------------
+    constant BIOS_STATE_IDLE  : std_logic_vector(5 downto 0) := "000000";  -- Waiting
+    constant BIOS_STATE_RUN   : std_logic_vector(5 downto 0) := "000001";  -- Executing
+    constant BIOS_STATE_DONE  : std_logic_vector(5 downto 0) := "000010";  -- Complete
+    constant BIOS_STATE_FAULT : std_logic_vector(5 downto 0) := "111111";  -- Error
+
+    -- BIOS HVS global state mapping (S values 8-15)
+    constant BIOS_HVS_S_IDLE  : natural := 8;
+    constant BIOS_HVS_S_RUN   : natural := 9;
+    constant BIOS_HVS_S_DONE  : natural := 10;
+    constant BIOS_HVS_S_FAULT : natural := 11;
+    -- S=12-15 reserved for BIOS expansion
+
+    ----------------------------------------------------------------------------
     -- ENV_BBUF Parameters
     --
     -- Four 4KB BRAM buffers for environment/configuration data.

@@ -227,8 +227,14 @@ LOADER_HVS_S_P2 = 18
 LOADER_HVS_S_P3 = 19
 LOADER_HVS_S_FAULT = 20
 
-# BIOS base S value
-BIOS_HVS_S_ACTIVE = 8
+# BIOS state to global S mapping
+BIOS_HVS_S_IDLE = 8
+BIOS_HVS_S_RUN = 9
+BIOS_HVS_S_DONE = 10
+BIOS_HVS_S_FAULT = 11
+
+# Legacy alias (deprecated - use BIOS_HVS_S_IDLE instead)
+BIOS_HVS_S_ACTIVE = BIOS_HVS_S_IDLE
 
 
 def decode_pre_prog(digital_value: int) -> tuple:

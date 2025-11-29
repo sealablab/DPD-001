@@ -30,7 +30,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from py_tools.boot_constants import (
     CMD, BOOTState, BOOT_HVS,
     encode_pre_prog, BOOT_HVS_S_P0, BOOT_HVS_S_P1,
-    LOADER_HVS_S_P0, BIOS_HVS_S_ACTIVE
+    LOADER_HVS_S_P0, BIOS_HVS_S_RUN
 )
 
 # BOOT HVS digital values (new pre-PROG encoding: 197 units/state)
@@ -146,10 +146,11 @@ async def test_boot_p1_to_bios_active(dut):
     dut.Control0.value = CMD.RUNB
     await ClockCycles(dut.Clk, 5)
 
-    # After RUNB, OutputC is muxed to BIOS's HVS (S=8)
-    bios_active_digital = encode_pre_prog(BIOS_HVS_S_ACTIVE, 0)  # S=8: 1576
-    assert_state(dut, "BIOS_ACTIVE", bios_active_digital, "after RUNB")
-    dut._log.info("PASS: RUNB transitions to BIOS_ACTIVE")
+    # After RUNB, OutputC is muxed to BIOS's HVS
+    # BIOS transitions IDLE→RUN on dispatch, so after 5 cycles we see RUN (S=9)
+    bios_run_digital = encode_pre_prog(BIOS_HVS_S_RUN, 0)  # S=9: 1773
+    assert_state(dut, "BIOS_RUN", bios_run_digital, "after RUNB")
+    dut._log.info("PASS: RUNB transitions to BIOS_ACTIVE (now in RUN state)")
 
 
 @cocotb.test()

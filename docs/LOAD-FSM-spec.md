@@ -34,15 +34,16 @@ stateDiagram-v2
 
 ## State Definitions
 
-| State | 6-bit Encoding | HVS Voltage | Description |
-|-------|----------------|-------------|-------------|
-| LOAD_P0 | `000000` | 0.0V | Setup phase - waiting for config |
-| LOAD_P1 | `000001` | 0.2V | Transfer phase - receiving data |
-| LOAD_P2 | `000010` | 0.4V | Validate phase - checking CRCs |
-| LOAD_P3 | `000011` | 0.6V | Complete - ready for RET |
-| FAULT | `111111` | Negative | CRC mismatch or protocol error |
+| State | 6-bit Encoding | Global S | HVS Voltage | Description |
+|-------|----------------|----------|-------------|-------------|
+| LOAD_P0 | `000000` | 16 | 0.481V | Setup phase - waiting for config |
+| LOAD_P1 | `000001` | 17 | 0.511V | Transfer phase - receiving data |
+| LOAD_P2 | `000010` | 18 | 0.541V | Validate phase - checking CRCs |
+| LOAD_P3 | `000011` | 19 | 0.571V | Complete - ready for RET |
+| FAULT | `111111` | 20 | Negative | CRC mismatch or protocol error |
 
-> **Note:** LOADER uses the same compressed HVS range as BOOT (0.2V steps) for consistency during boot-time debugging.
+> **Note:** LOADER uses the pre-PROG HVS encoding (197 units/state) with global S values 16-23.
+> See [BOOT-HVS-state-reference.md](boot/BOOT-HVS-state-reference.md) for complete voltage table.
 
 ## CR Allocation for LOADER
 
@@ -135,7 +136,7 @@ Since the Python client cannot receive feedback from the bitstream (except via o
 │   - Any mismatch → Transitions to FAULT                         │
 │                                                                 │
 │ Client: Polls OutputC via oscilloscope                          │
-│   - Positive voltage (0.6V) = LOAD_P3 = Success                 │
+│   - ~0.57V = LOAD_P3 = Success (S=19)                           │
 │   - Negative voltage = FAULT = CRC mismatch                     │
 └─────────────────────────────────────────────────────────────────┘
 
@@ -145,7 +146,7 @@ Since the Python client cannot receive feedback from the bitstream (except via o
 │ Client sets CR0[24] = 1 (RET)                                   │
 │                                                                 │
 │ LOADER: Returns control to BOOT_P1                              │
-│ BOOT: OutputC shows BOOT_P1 voltage (0.2V)                      │
+│ BOOT: OutputC shows BOOT_P1 voltage (~0.03V, S=1)               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -238,23 +239,26 @@ This is deliberately conservative. Speed is not a concern for one-time startup l
 
 ## HVS Integration
 
-LOADER uses the same compressed HVS range as BOOT:
+LOADER uses the pre-PROG HVS encoding with global S values 16-23:
 
 ```vhdl
 loader_hvs_encoder : forge_hierarchical_encoder
     generic map (
-        DIGITAL_UNITS_PER_STATE => 1311  -- ~0.2V steps
+        DIGITAL_UNITS_PER_STATE  => 197,   -- ~30mV steps
+        DIGITAL_UNITS_PER_STATUS => 11.0   -- ~1.7mV per status LSB
     )
     port map (...);
 ```
 
-| OutputC Voltage | LOADER State |
-|-----------------|--------------|
-| 0.0V | LOAD_P0 (setup) |
-| 0.2V | LOAD_P1 (transfer) |
-| 0.4V | LOAD_P2 (validate) |
-| 0.6V | LOAD_P3 (complete) |
-| Negative | FAULT |
+| OutputC Voltage | Global S | LOADER State |
+|-----------------|----------|--------------|
+| 0.481V | 16 | LOAD_P0 (setup) |
+| 0.511V | 17 | LOAD_P1 (transfer) |
+| 0.541V | 18 | LOAD_P2 (validate) |
+| 0.571V | 19 | LOAD_P3 (complete) |
+| Negative | 20 | FAULT |
+
+> See [BOOT-HVS-state-reference.md](boot/BOOT-HVS-state-reference.md) for complete voltage table.
 
 ## Python Client Example
 
@@ -323,6 +327,7 @@ class BootLoader:
 
 ## See Also
 
-- [BOOT-FSM-spec](../BOOT-FSM-spec.md) - BOOT module specification
-- [boot-process-terms](../boot-process-terms.md) - Naming conventions
-- [volo_bram_loader.vhd](../../rtl/volo_bram_loader.vhd) - Reference implementation (simpler protocol)
+- [BOOT-HVS-state-reference.md](boot/BOOT-HVS-state-reference.md) - **Authoritative** HVS state table with all voltages
+- [BOOT-FSM-spec.md](BOOT-FSM-spec.md) - BOOT module specification
+- [HVS-encoding-scheme.md](HVS-encoding-scheme.md) - Pre-PROG encoding design rationale
+- [boot-process-terms.md](boot-process-terms.md) - Naming conventions

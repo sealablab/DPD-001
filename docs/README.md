@@ -45,6 +45,11 @@ Liquid Instruments' future "Custom Instrument" terminology with explicit ClkEn/E
 
 How DPD encodes FSM state + status into OutputC voltage for oscilloscope debugging. Explains 500mV state steps, ±15mV status noise, fault detection via sign flip, and digital unit conversion formulas.
 
+### BOOT Subsystem
+[boot/BOOT-HVS-state-reference.md](boot/BOOT-HVS-state-reference.md) - **Pre-PROG HVS Encoding (Authoritative)**
+
+Complete state table for all pre-PROG modules (BOOT, BIOS, LOADER) using the number-theory optimized encoding scheme (197 units/state, 11 units/status). All pre-PROG states stay under 1V for clean separation from PROG.
+
 ### Network Register Synchronization
 [network-register-sync.md](network-register-sync.md) - **Race Condition Prevention**
 
