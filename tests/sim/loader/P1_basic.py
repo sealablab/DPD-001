@@ -26,19 +26,18 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from py_tools.boot_constants import (
-    CMD, BOOTState, LOADState, BOOT_HVS,
+    CMD, BOOTState, LOADState,
     LOADER_CTRL, CRC16, ENV_BBUF,
     build_loader_cr0,
+    encode_pre_prog,
+    LOADER_HVS_S_P0, LOADER_HVS_S_P1, LOADER_HVS_S_P2, LOADER_HVS_S_P3
 )
 
-# BOOT HVS digital values
-BOOT_DIGITAL_LOAD_ACTIVE = BOOT_HVS.DIGITAL_LOAD_ACTIVE
-
-# LOADER state digital values (0.2V steps = 1311 units per state)
-LOADER_DIGITAL_P0 = 0 * BOOT_HVS.UNITS_PER_STATE
-LOADER_DIGITAL_P1 = 1 * BOOT_HVS.UNITS_PER_STATE
-LOADER_DIGITAL_P2 = 2 * BOOT_HVS.UNITS_PER_STATE
-LOADER_DIGITAL_P3 = 3 * BOOT_HVS.UNITS_PER_STATE
+# LOADER state digital values (new pre-PROG encoding: S=16-23)
+LOADER_DIGITAL_P0 = encode_pre_prog(LOADER_HVS_S_P0, 0)  # S=16: 3152
+LOADER_DIGITAL_P1 = encode_pre_prog(LOADER_HVS_S_P1, 0)  # S=17: 3349
+LOADER_DIGITAL_P2 = encode_pre_prog(LOADER_HVS_S_P2, 0)  # S=18: 3546
+LOADER_DIGITAL_P3 = encode_pre_prog(LOADER_HVS_S_P3, 0)  # S=19: 3743
 
 # Tolerance for simulation (tighter than HW)
 BOOT_SIM_HVS_TOLERANCE = 150  # +/-150 digital units (~23mV)
