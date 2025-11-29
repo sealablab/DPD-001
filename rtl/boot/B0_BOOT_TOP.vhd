@@ -36,7 +36,6 @@ use IEEE.numeric_std.all;
 
 library WORK;
 use WORK.forge_common_pkg.all;
-use WORK.forge_hierarchical_encoder;
 
 -- This is the BootWrapper architecture for BOOT subsystem
 -- Implements the standard Moku CloudCompile interface
@@ -81,14 +80,11 @@ architecture boot_forge of BootWrapper is
 
     -- HVS encoding: map internal states to global S values
     signal boot_hvs_s_global   : std_logic_vector(5 downto 0);  -- BOOT: S=0-7
+    signal boot_status         : std_logic_vector(7 downto 0);   -- BOOT status
+    signal boot_hvs_output     : signed(15 downto 0);             -- BOOT encoded HVS
     signal loader_hvs_s_global : std_logic_vector(5 downto 0);  -- LOADER: S=16-23
     signal bios_hvs_s_global  : std_logic_vector(5 downto 0);  -- BIOS: S=8-15
     signal bios_status        : std_logic_vector(7 downto 0);   -- BIOS status
-
-    -- HVS encoding: map BOOT internal states to global S values (0-7)
-    signal boot_hvs_s_global : std_logic_vector(5 downto 0);  -- Global S value for BOOT
-    signal boot_status       : std_logic_vector(7 downto 0);   -- Status vector for HVS
-    signal boot_hvs_output   : signed(15 downto 0);            -- Encoded HVS output
 
     -- PROG enable (for DPD_shim)
     signal prog_enable : std_logic;
