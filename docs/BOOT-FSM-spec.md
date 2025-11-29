@@ -1,7 +1,8 @@
 ---
 created: 2025-11-28
-modified: 2025-11-28
-status: DRAFT
+modified: 2025-11-28 17:10:00
+status: AUTHORITATIVE
+accessed: 2025-11-28 17:10:05
 ---
 # BOOT-FSM Specification
 
@@ -22,21 +23,21 @@ stateDiagram-v2
     state "PROG_ACTIVE (000100)" as PROG_ACTIVE
     state "FAULT (111111)" as FAULT
 
-    BOOT_P0 --> BOOT_P1: CR0[31:29]=RUN\n(ENV_BBUFs zeroed)
+    BOOT_P0 --> BOOT_P1: RUN bits set
 
-    BOOT_P1 --> PROG_ACTIVE: RUNP (CR0[28]=1)
-    BOOT_P1 --> BIOS_ACTIVE: RUNB (CR0[27]=1)
-    BOOT_P1 --> LOAD_ACTIVE: RUNL (CR0[26]=1)
-    BOOT_P1 --> BOOT_P0: RUNR (CR0[25]=1)\n(soft reset)
-    BOOT_P1 --> FAULT: Multiple select bits set
+    BOOT_P1 --> PROG_ACTIVE: RUNP
+    BOOT_P1 --> BIOS_ACTIVE: RUNB
+    BOOT_P1 --> LOAD_ACTIVE: RUNL
+    BOOT_P1 --> BOOT_P0: RUNR
+    BOOT_P1 --> FAULT: Multiple select bits
 
-    BIOS_ACTIVE --> BOOT_P1: RET (CR0[24]=1)
-    BIOS_ACTIVE --> FAULT: BIOS internal fault
+    BIOS_ACTIVE --> BOOT_P1: RET
+    BIOS_ACTIVE --> FAULT: BIOS fault
 
-    LOAD_ACTIVE --> BOOT_P1: RET (CR0[24]=1)
-    LOAD_ACTIVE --> FAULT: LOAD internal fault
+    LOAD_ACTIVE --> BOOT_P1: RET
+    LOAD_ACTIVE --> FAULT: LOAD fault
 
-    PROG_ACTIVE -[dashed]-> BOOT_P0: Platform reset only
+    PROG_ACTIVE --> BOOT_P0: Platform reset only
 
     FAULT --> BOOT_P0: fault_clear
 
@@ -50,14 +51,14 @@ stateDiagram-v2
 
 ## State Definitions
 
-| State | 6-bit Encoding | HVS Voltage | Description |
-|-------|----------------|-------------|-------------|
-| BOOT_P0 | `000000` | 0.0V | Initial/Reset phase. All CRs zeroed by platform. |
-| BOOT_P1 | `000001` | 0.5V | Settled/Dispatcher. Platform ready, awaiting module selection. |
-| BIOS_ACTIVE | `000010` | 1.0V | Control transferred to BIOS diagnostic module. |
-| LOAD_ACTIVE | `000011` | 1.5V | Control transferred to BUFFER LOADER module. |
-| PROG_ACTIVE | `000100` | 2.0V | Control transferred to main application (PROG). |
-| FAULT | `111111` | Negative | Boot-level fault. Sign-flipped HVS indicates error. |
+| State       | 6-bit Encoding | HVS Voltage | Description                                                    |
+| ----------- | -------------- | ----------- | -------------------------------------------------------------- |
+| BOOT_P0     | `000000`       | 0.0V        | Initial/Reset phase. All CRs zeroed by platform.               |
+| BOOT_P1     | `000001`       | 0.2V        | Settled/Dispatcher. Platform ready, awaiting module selection. |
+| BIOS_ACTIVE | `000010`       | 0.4V        | Control transferred to BIOS diagnostic module.                 |
+| LOAD_ACTIVE | `000011`       | 0.6V        | Control transferred to BUFFER LOADER module.                   |
+| PROG_ACTIVE | `000100`       | 0.8V        | Control transferred to main application (PROG).                |
+| FAULT       | `111111`       | Negative    | Boot-level fault. Sign-flipped HVS indicates error.            |
 
 ## CR0 Bit Allocation
 
@@ -144,23 +145,34 @@ This ensures the muxing is transparent to the PROG application with only ~1-2ns 
 
 ## HVS Integration
 
-The BOOT module uses the same HVS (Hierarchical Voltage Scaling) scheme as the rest of the project:
+The BOOT module uses the same HVS (Hierarchical Voltage Scaling) encoder as the rest of the project, but with a **reduced voltage step** to keep all BOOT states within the 0V-1V range:
 
-- **DIGITAL_UNITS_PER_STATE = 3277** (500mV steps)
+```vhdl
+-- BOOT module uses smaller steps to fit 0-1V range
+boot_hvs_encoder : forge_hierarchical_encoder
+    generic map (
+        DIGITAL_UNITS_PER_STATE => 1311  -- ~0.2V steps (vs 3277 for 0.5V)
+    )
+    port map (...);
+```
+
+- **DIGITAL_UNITS_PER_STATE = 1311** (~200mV steps for BOOT context)
 - **OutputC** encodes current BOOT state when in BOOT_P0/P1
 - When a sub-module is active, OutputC is muxed from that module's HVS output
 - **FAULT indication:** Negative voltage (sign flip when STATUS[7]=1)
 
 ### Oscilloscope Debugging
 
-| OutputC Voltage | BOOT State |
-|-----------------|------------|
-| 0.0V | BOOT_P0 (initial) |
-| 0.5V | BOOT_P1 (dispatcher ready) |
-| 1.0V | BIOS_ACTIVE |
-| 1.5V | LOAD_ACTIVE |
-| 2.0V | PROG_ACTIVE |
-| Negative | FAULT |
+| OutputC Voltage | BOOT State | Digital Units |
+|-----------------|------------|---------------|
+| 0.0V | BOOT_P0 (initial) | 0 |
+| 0.2V | BOOT_P1 (dispatcher ready) | 1311 |
+| 0.4V | BIOS_ACTIVE | 2622 |
+| 0.6V | LOAD_ACTIVE | 3933 |
+| 0.8V | PROG_ACTIVE | 5244 |
+| Negative | FAULT | -N |
+
+> **Note:** The compressed 0-1V range allows the BOOT states to be monitored alongside other signals on a scope without dominating the display. Once PROG takes over, it uses the standard 500mV/state scaling.
 
 ## ENV_BBUF (Environment BRAM Buffers)
 
@@ -224,6 +236,6 @@ Usability: when a user manually sets bits from MSB to LSB in a GUI, they natural
 - [B000_BOOT](B000_BOOT.md) - BOOT module overview
 - [B010_BIOS](B010_BIOS.md) - BIOS diagnostic module
 - [B100_PROG](B100_PROG.md) - PROG application handoff
-- [boot-process-terms](boot-process-terms.md) - Naming conventions
+- [boot-process-terms](docs/boot-process-terms.md) - Naming conventions
 - [api-v4](../api-v4.md) - Control register calling convention
 - [hvs](../hvs.md) - HVS encoding documentation
