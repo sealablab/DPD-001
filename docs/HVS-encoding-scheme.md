@@ -1,8 +1,7 @@
 ---
 created: 2025-11-29
-status: PROPOSAL
-modified: 2025-11-28 22:08:50
-accessed: 2025-11-28 22:09:05
+status: AUTHORITATIVE
+modified: 2025-11-29
 ---
 
 # HVS Encoding Scheme: Pre-PROG Band
