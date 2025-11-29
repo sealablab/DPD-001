@@ -42,6 +42,8 @@ from prompt_toolkit.formatted_text import HTML
 from enum import Enum, auto
 from typing import Optional, Callable, Dict, List
 from dataclasses import dataclass, field
+import threading
+import time
 import sys
 
 # Import BOOT constants
@@ -70,13 +72,164 @@ class ShellContext(Enum):
 @dataclass
 class ShellState:
     """Mutable shell state."""
+    # Context is CLIENT-AUTHORITATIVE (we assume commands work)
     context: ShellContext = ShellContext.BOOT_P0
+
+    # LOADER state
     loader_offset: int = 0          # Current LOADER word offset (0-1023)
     loader_buffers: int = 1         # Number of buffers being loaded
+
+    # Command tracking
     last_cr0: int = 0               # Last CR0 value sent
+
+    # Connection state
     connected: bool = False         # True if connected to hardware
     device_ip: Optional[str] = None
     verbose: bool = False
+
+    # Live HVS data (updated by monitor thread)
+    hvs_voltage: float = 0.0        # Current voltage reading
+    hvs_digital: int = 0            # Raw digital units
+    hvs_state_name: str = "---"     # Interpreted state name (context-aware)
+    hvs_is_fault: bool = False      # True if negative voltage detected
+    hvs_last_update: float = 0.0    # Timestamp of last update
+
+    # Thread safety
+    _lock: threading.Lock = field(default_factory=threading.Lock)
+
+    def update_hvs(self, digital: int, voltage: float, state_name: str, is_fault: bool):
+        """Thread-safe HVS update."""
+        with self._lock:
+            self.hvs_digital = digital
+            self.hvs_voltage = voltage
+            self.hvs_state_name = state_name
+            self.hvs_is_fault = is_fault
+            self.hvs_last_update = time.time()
+
+    def get_hvs_snapshot(self) -> tuple:
+        """Thread-safe HVS read."""
+        with self._lock:
+            return (self.hvs_voltage, self.hvs_digital,
+                    self.hvs_state_name, self.hvs_is_fault)
+
+
+# =============================================================================
+# HVS Monitor Thread
+# =============================================================================
+
+class HVSMonitor(threading.Thread):
+    """Background thread that continuously reads OutputC and interprets it.
+
+    Key design: The CONTEXT is client-authoritative (we assume RUN+X commands
+    work). The HVS just tells us sub-state within that context.
+
+    Same voltage, different meaning:
+        0.2V in BOOT context  → BOOT_P1
+        0.2V in LOADER context → LOAD_P1
+        0.5V in PROG context   → DPD_IDLE
+    """
+
+    # Interpretation tables per context
+    # {context: {digital_value: state_name}}
+    # Using ranges with tolerance of ±150 digital units
+
+    BOOT_STATES = {
+        0: "P0", 1311: "P1", 2622: "BIOS", 3933: "LOAD", 5244: "PROG"
+    }
+    LOADER_STATES = {
+        0: "P0:SETUP", 1311: "P1:XFER", 2622: "P2:VALIDATE", 3933: "P3:DONE"
+    }
+    # DPD uses 3277 units/state (0.5V steps)
+    DPD_STATES = {
+        0: "INIT", 3277: "IDLE", 6554: "ARMED", 9831: "FIRING",
+        13108: "COOL", -3277: "FAULT"
+    }
+
+    TOLERANCE = 200  # ±200 digital units for matching
+
+    def __init__(self, state: ShellState, hw: Optional["HardwareInterface"] = None,
+                 poll_hz: float = 20.0):
+        super().__init__(daemon=True)
+        self.state = state
+        self.hw = hw
+        self.poll_interval = 1.0 / poll_hz
+        self.running = False
+
+    def run(self):
+        """Main polling loop."""
+        self.running = True
+        while self.running:
+            try:
+                if self.hw and self.state.connected:
+                    digital = self.hw.get_output_c()
+                else:
+                    # Simulation: derive from last CR0
+                    digital = self._simulate_hvs()
+
+                voltage = self._digital_to_volts(digital)
+                is_fault = digital < -self.TOLERANCE
+                state_name = self._interpret(digital, self.state.context)
+
+                self.state.update_hvs(digital, voltage, state_name, is_fault)
+
+            except Exception as e:
+                self.state.update_hvs(0, 0.0, f"ERR:{e}", False)
+
+            time.sleep(self.poll_interval)
+
+    def stop(self):
+        """Stop the monitor thread."""
+        self.running = False
+
+    def _simulate_hvs(self) -> int:
+        """Simulate HVS output based on assumed context."""
+        # In simulation, just return the "expected" value for current context
+        context = self.state.context
+        if context == ShellContext.BOOT_P0:
+            return 0
+        elif context == ShellContext.BOOT_P1:
+            return 1311
+        elif context == ShellContext.BIOS:
+            return 2622
+        elif context == ShellContext.LOADER:
+            # Could add offset-based simulation here
+            return 1311  # LOAD_P1 (transfer phase)
+        elif context == ShellContext.PROG:
+            return 3277  # DPD_IDLE
+        elif context == ShellContext.FAULT:
+            return -1311
+        return 0
+
+    def _digital_to_volts(self, digital: int) -> float:
+        """Convert digital units to voltage."""
+        return (digital / 32768.0) * 5.0
+
+    def _interpret(self, digital: int, context: ShellContext) -> str:
+        """Interpret HVS reading based on current context.
+
+        This is where the "same voltage, different meaning" logic lives.
+        """
+        # Select interpretation table based on context
+        if context in (ShellContext.BOOT_P0, ShellContext.BOOT_P1):
+            table = self.BOOT_STATES
+        elif context == ShellContext.BIOS:
+            table = self.BOOT_STATES  # BIOS shows as BIOS in BOOT encoding
+        elif context == ShellContext.LOADER:
+            table = self.LOADER_STATES
+        elif context == ShellContext.PROG:
+            table = self.DPD_STATES
+        elif context == ShellContext.FAULT:
+            return "FAULT"
+        else:
+            table = self.BOOT_STATES
+
+        # Find closest match
+        for expected, name in table.items():
+            if abs(digital - expected) <= self.TOLERANCE:
+                return name
+
+        # No match - show raw value
+        return f"?{digital}"
 
 
 # =============================================================================
@@ -347,12 +500,20 @@ class BootShell:
     }
 
     STYLE = Style.from_dict({
+        # Prompt styles
         "p0": "#888888",           # Gray - not running
         "run": "#00aa00 bold",     # Green - dispatcher ready
         "bios": "#aa8800 bold",    # Yellow - BIOS
         "load": "#0088aa bold",    # Cyan - LOADER
         "prog": "#aa00aa bold",    # Magenta - PROG (one-way)
         "fault": "#aa0000 bold",   # Red - fault
+        # Toolbar styles
+        "bottom-toolbar": "bg:#222222 #aaaaaa",
+        "bottom-toolbar.text": "bg:#222222 #aaaaaa",
+        "hvs-ok": "bg:#005500 #ffffff bold",
+        "hvs-fault": "bg:#aa0000 #ffffff bold",
+        "hvs-voltage": "bg:#333333 #00ff00",
+        "ctx-indicator": "bg:#444444 #ffffff",
     })
 
     def __init__(self, device_ip: Optional[str] = None):
@@ -367,14 +528,19 @@ class BootShell:
         # Command handler
         self.handler = CommandHandler(self.state, self.hw)
 
+        # HVS Monitor thread
+        self.monitor = HVSMonitor(self.state, self.hw, poll_hz=20.0)
+
         # Key bindings
         self.kb = self._create_key_bindings()
 
-        # Prompt session
+        # Prompt session with live toolbar
         self.session = PromptSession(
             history=InMemoryHistory(),
             key_bindings=self.kb,
             style=self.STYLE,
+            bottom_toolbar=self._get_bottom_toolbar,
+            refresh_interval=0.1,  # Refresh toolbar at 10Hz
         )
 
     def _create_key_bindings(self) -> KeyBindings:
@@ -421,9 +587,44 @@ class BootShell:
         """Get completer for current context."""
         return WordCompleter(self.handler.get_completions(), ignore_case=True)
 
+    def _get_bottom_toolbar(self):
+        """Generate live status bar with HVS data.
+
+        Layout:
+        ┌──────────────────────────────────────────────────────────────┐
+        │ ◉ LOADER │ P1:XFER │ +0.20V │ SIM │ 00:01:23               │
+        └──────────────────────────────────────────────────────────────┘
+        """
+        voltage, digital, state_name, is_fault = self.state.get_hvs_snapshot()
+
+        # Context indicator
+        ctx = self.state.context.name.replace("BOOT_", "")
+
+        # Connection mode
+        mode = "HW" if self.state.connected else "SIM"
+
+        # Voltage display (show sign for clarity)
+        v_str = f"{voltage:+.2f}V"
+
+        # State indicator with fault highlighting
+        if is_fault:
+            state_style = "class:hvs-fault"
+            indicator = "!"
+        else:
+            state_style = "class:hvs-ok"
+            indicator = "◉"
+
+        # Build toolbar
+        return HTML(
+            f'<ctx-indicator> {indicator} {ctx:6s} </ctx-indicator>'
+            f'<{state_style[6:]}> {state_name:12s} </{state_style[6:]}>'
+            f'<hvs-voltage> {v_str:8s} </hvs-voltage>'
+            f'<ctx-indicator> {mode:3s} </ctx-indicator>'
+        )
+
     def run(self):
         """Run the interactive shell."""
-        print("BOOT Shell v0.1")
+        print("BOOT Shell v0.2 (with live HVS monitor)")
         print("Type 'help' for commands, Ctrl+C to quit")
 
         if self.state.device_ip:
@@ -441,10 +642,14 @@ class BootShell:
         # Start in P0, user must 'run' to get to P1
         self.state.context = ShellContext.BOOT_P0
 
+        # Start HVS monitor thread
+        self.monitor.start()
+
         try:
             while True:
                 try:
                     # Get input with context-aware prompt and completion
+                    # The bottom toolbar updates automatically via refresh_interval
                     text = self.session.prompt(
                         self._get_prompt(),
                         completer=self._get_completer(),
@@ -469,6 +674,8 @@ class BootShell:
         except KeyboardInterrupt:
             print("\nGoodbye!")
         finally:
+            # Stop monitor thread
+            self.monitor.stop()
             if self.hw:
                 self.hw.disconnect()
 
