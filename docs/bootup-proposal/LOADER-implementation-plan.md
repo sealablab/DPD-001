@@ -19,26 +19,47 @@ The implementation has three main tracks:
 
 ## Track 1: VHDL Implementation
 
+### Shared Package: forge_common_pkg.vhd
+
+**CRITICAL:** All BOOT subsystem modules MUST use `rtl/forge_common_pkg.vhd` as the single source of truth for CR0 bit definitions. This package is shared across BOOT, BIOS, LOADER, and PROG modules.
+
+```vhdl
+-- Every module that touches CR0 must include:
+library WORK;
+use WORK.forge_common_pkg.all;
+
+-- Then use named constants, NOT hardcoded values:
+if cr0(SEL_LOADER_BIT) = '1' then ...    -- Good
+if cr0(26) = '1' then ...                 -- Bad (hardcoded)
+
+-- Use command constants for Python/VHDL alignment:
+-- CMD_RUN, CMD_RUNP, CMD_RUNB, CMD_RUNL, CMD_RUNR, CMD_RET
+```
+
+The package provides:
+- **RUN gate bits**: `RUN_READY_BIT`, `RUN_USER_BIT`, `RUN_CLK_BIT`
+- **Module select bits**: `SEL_PROG_BIT`, `SEL_BIOS_BIT`, `SEL_LOADER_BIT`, `SEL_RESET_BIT`
+- **LOADER control**: `LOADER_BUFCNT_HI/LO`, `LOADER_STROBE_BIT`
+- **FSM states**: `BOOT_STATE_*`, `LOAD_STATE_*`
+- **Parameters**: `ENV_BBUF_*`, `HVS_*`, `CRC16_*`
+- **Helper functions**: `is_run_active()`, `is_valid_select()`, `get_loader_bufcnt()`
+
 ### File Structure
 
 ```
-rtl/boot/
-├── L2_BUFF_LOADER.vhd        # Main LOADER FSM (exists as stub)
-├── L2_BUFF_LOADER.vhd.md     # Documentation (exists as stub)
-├── loader_crc16.vhd          # CRC-16-CCITT calculator (NEW)
-├── loader_bram_ctrl.vhd      # BRAM write controller (NEW, optional)
-└── loader_pkg.vhd            # Constants and types (NEW)
+rtl/
+├── forge_common_pkg.vhd      # AUTHORITATIVE: CR0 bit definitions (SHARED)
+└── boot/
+    ├── L2_BUFF_LOADER.vhd    # Main LOADER FSM (exists as stub)
+    ├── L2_BUFF_LOADER.vhd.md # Documentation (exists as stub)
+    └── loader_crc16.vhd      # CRC-16-CCITT calculator (NEW)
 ```
 
 ### Implementation Order
 
-#### Phase 1: Package and CRC
-1. **loader_pkg.vhd** - Define constants, types, FSM states
-   - `LOAD_P0`, `LOAD_P1`, `LOAD_P2`, `LOAD_P3`, `FAULT` state constants
-   - `WORDS_PER_BUFFER = 1024`
-   - `CRC_INIT = 0xFFFF`
-
-2. **loader_crc16.vhd** - CRC-16-CCITT calculator
+#### Phase 1: CRC Module
+1. **loader_crc16.vhd** - CRC-16-CCITT calculator
+   - Uses `CRC16_POLYNOMIAL` and `CRC16_INIT` from `forge_common_pkg`
    - Input: 32-bit word, current CRC
    - Output: updated CRC
    - Pure combinatorial (no clock)
@@ -135,13 +156,40 @@ T_WORD_SIM = 20    # cycles between words
 
 ## Track 3: Python CLI (`RUN>` Shell)
 
+### Shared Constants: Alignment with VHDL
+
+The Python CLI must use the same CR0 bit definitions as `forge_common_pkg.vhd`. Create a Python mirror of the VHDL constants:
+
+```python
+# py_tools/boot_constants.py - MUST match forge_common_pkg.vhd
+
+# RUN Gate (CR0[31:29])
+RUN_READY_BIT = 31
+RUN_USER_BIT = 30
+RUN_CLK_BIT = 29
+
+# Module Select (CR0[28:25])
+SEL_PROG_BIT = 28
+SEL_BIOS_BIT = 27
+SEL_LOADER_BIT = 26
+SEL_RESET_BIT = 25
+
+# Command values (must match CMD_* in VHDL)
+CMD_RUN  = 0xE0000000
+CMD_RUNP = 0xF0000000
+CMD_RUNB = 0xE8000000
+CMD_RUNL = 0xE4000000
+CMD_RUNR = 0xE2000000
+CMD_RET  = 0xE1000000
+```
+
 ### File Structure
 
 ```
 py_tools/
+├── boot_constants.py         # CR0 bit definitions (mirrors forge_common_pkg.vhd)
 ├── boot_cli.py               # Main CLI entry point (NEW)
 ├── boot_loader.py            # LOADER protocol implementation (NEW)
-├── boot_constants.py         # CR0 bit definitions (NEW)
 └── moku_cli_common.py        # Existing common utilities
 ```
 
@@ -279,9 +327,13 @@ class BootShell(cmd.Cmd):
 
 ## Dependencies
 
+### Shared Package (AUTHORITATIVE)
+- **`rtl/forge_common_pkg.vhd`** - Single source of truth for CR0 bit definitions
+  - All VHDL modules MUST use this package
+  - Python code MUST mirror these constants in `py_tools/boot_constants.py`
+
 ### Existing Code to Reuse
-- `forge_hierarchical_encoder.vhd` - HVS encoding (use with 1311 units/state)
-- `forge_common_pkg.vhd` - Common types
+- `forge_hierarchical_encoder.vhd` - HVS encoding (use with `HVS_BOOT_UNITS_PER_STATE`)
 - `tests/sim/conftest.py` - CocoTB fixtures
 - `py_tools/moku_cli_common.py` - Moku connection helpers
 
