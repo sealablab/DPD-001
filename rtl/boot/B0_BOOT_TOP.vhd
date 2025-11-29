@@ -68,12 +68,21 @@ architecture boot_forge of BootWrapper is
     signal bram_rd_data : std_logic_vector(ENV_BBUF_DATA_WIDTH-1 downto 0);
 
     -- Output signals from each module
+    -- BOOT:
     signal boot_output_a   : signed(15 downto 0);
     signal boot_output_b   : signed(15 downto 0);
     signal boot_output_c   : signed(15 downto 0);
-
+    -- @JC: I think we should incldue loader_output_a and loader_output_b for consistency.
+    -- LOADER:
+    signal loader_output_a   : signed(15 downto 0);
+    signal loader_output_b   : signed(15 downto 0);
     signal loader_output_c : signed(15 downto 0);
+    -- @JC: I think we should incldue bios_output_a and bios_output_b for consistency.
+    -- BIOS:
+    signal bios_output_a   : signed(15 downto 0);
+    signal bios_output_b   : signed(15 downto 0);
     signal bios_output_c   : signed(15 downto 0);
+    -- PROG: 
     signal prog_output_a   : signed(15 downto 0);
     signal prog_output_b   : signed(15 downto 0);
     signal prog_output_c   : signed(15 downto 0);
