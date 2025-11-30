@@ -1,3 +1,8 @@
+---
+created: 2025-11-30
+modified: 2025-11-30 12:53:43
+accessed: 2025-11-30 12:53:37
+---
 # BOOT/BIOS Bitstream Synthesis & Validation Guide
 
 > [!info] Session Context
@@ -7,6 +12,8 @@
 > **Branch**: `claude/boot-bios-bitstream-*`
 
 ---
+
+@JC: START here :P
 
 ## Overview
 

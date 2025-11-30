@@ -1,3 +1,8 @@
+---
+created: 2025-11-28
+modified: 2025-11-28 23:10:43
+accessed: 2025-11-30 12:53:38
+---
 # BOOT Hardware Validation Plan
 
 **Branch:** `feature/boot-hw-validation`
