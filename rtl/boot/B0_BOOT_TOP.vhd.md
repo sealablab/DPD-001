@@ -3,8 +3,8 @@ file: B0_BOOT_TOP.vhd.md
 type: rtl_md
 author: jellch
 created: 2025-11-28
-modified: 2025-11-28 02:20:40
-accessed: 2025-11-29 00:01:29
+modified: 2025-11-30 13:57:15
+accessed: 2025-11-30 13:56:43
 code_link: "[[rtl/boot/B0_BOOT_TOP.vhd|B0_BOOT_TOP.vhd]]"
 doc_link: "[[rtl/boot/B0_BOOT_TOP.vhd.md|B0_BOOT_TOP.vhd.md]]"
 self_link: "[[rtl/boot/B0_BOOT_TOP.vhd.md|B0_BOOT_TOP.vhd.md]]"

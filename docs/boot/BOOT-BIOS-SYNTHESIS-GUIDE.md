@@ -1,7 +1,7 @@
 ---
 created: 2025-11-30
-modified: 2025-11-30 12:53:43
-accessed: 2025-11-30 12:53:37
+modified: 2025-11-30 14:06:26
+accessed: 2025-11-30 13:56:51
 ---
 # BOOT/BIOS Bitstream Synthesis & Validation Guide
 
@@ -28,21 +28,21 @@ accessed: 2025-11-30 12:53:37
 └─────────────────────────────────────────────────────────┘
 ```
 
-### What Already Exists
 
-| Component | Location | Status |
-|-----------|----------|--------|
-| BOOT Dispatcher | `rtl/boot/B0_BOOT_TOP.vhd` | ✅ Complete |
-| BIOS Stub | `rtl/boot/B1_BOOT_BIOS.vhd` | ✅ Complete |
-| Buffer Loader | `rtl/boot/L2_BUFF_LOADER.vhd` | ✅ Complete |
-| CRC-16 Module | `rtl/boot/loader_crc16.vhd` | ✅ Complete |
-| Test Stub | `rtl/boot/BootWrapper_test_stub.vhd` | ✅ Complete |
-| Python Constants | `py_tools/boot_constants.py` | ✅ Complete |
-| Interactive Shell | `py_tools/boot_shell.py` | ✅ Exists |
-| CocoTB P1 Tests | `tests/sim/boot_fsm/P1_basic.py` | ✅ Exists |
-| LOADER P1 Tests | `tests/sim/loader/P1_basic.py` | ✅ Exists |
+| Component         | read | approved | Location                             | `RTL`   (code) `py`                                                      | `MD` (docs)                                                           | Status     |
+| ----------------- | ---- | -------- | ------------------------------------ | ------------------------------------------------------------------------ | --------------------------------------------------------------------- | ---------- |
+| BOOT Dispatcher   |      |          | `rtl/boot/B0_BOOT_TOP.vhd`           | [rtl/boot/B0_BOOT_TOP.vhd](rtl/boot/B0_BOOT_TOP.vhd)                     | [B0_BOOT_TOP.vhd.md](rtl/boot/B0_BOOT_TOP.vhd.md)                     | ✅ Complete |
+| BIOS Stub         |      |          | `rtl/boot/B1_BOOT_BIOS.vhd`          | [rtl/boot/B1_BOOT_BIOS.vhd](rtl/boot/B1_BOOT_BIOS.vhd)                   | [B1_BOOT_BIOS.vhd.md](rtl/boot/B1_BOOT_BIOS.vhd.md)                   | ✅ Complete |
+| Buffer Loader     |      |          | `rtl/boot/L2_BUFF_LOADER.vhd`        | [rtl/boot/L2_BUFF_LOADER.vhd](rtl/boot/L2_BUFF_LOADER.vhd)               | [L2_BUFF_LOADER.vhd.md](rtl/boot/L2_BUFF_LOADER.vhd.md)               | ✅ Complete |
+| CRC-16 Module     |      |          | `rtl/boot/loader_crc16.vhd`          | [rtl/boot/loader_crc16.vhd](rtl/boot/loader_crc16.vhd)                   | [loader_crc16.vhd.md](rtl/boot/loader_crc16.vhd.md)                   | ✅ Complete |
+| Test Stub         |      |          | `rtl/boot/BootWrapper_test_stub.vhd` | [rtl/boot/BootWrapper_test_stub.vhd](rtl/boot/BootWrapper_test_stub.vhd) | [BootWrapper_test_stub.vhd.md](rtl/boot/BootWrapper_test_stub.vhd.md) | ✅ Complete |
+| Python Constants  |      |          | `py_tools/boot_constants.py`         | [py_tools/boot_constants.py](py_tools/boot_constants.py)                 |                                                                       | ✅ Complete |
+| Interactive Shell |      |          | `py_tools/boot_shell.py`             | [py_tools/boot_shell.py](py_tools/boot_shell.py)                         |                                                                       | ✅ Exists   |
+| CocoTB P1 Tests   |      |          | `tests/sim/boot_fsm/P1_basic.py`     | [tests/sim/boot_fsm/P1_basic.py](tests/sim/boot_fsm/P1_basic.py)         |                                                                       | ✅ Exists   |
+| LOADER P1 Tests   |      |          | `tests/sim/loader/P1_basic.py`       | [tests/sim/loader/P1_basic.py](tests/sim/loader/P1_basic.py)             |                                                                       | ✅ Exists   |
 
-### What We're Building
+
+### What We're Buildingtmux 
 
 | Deliverable | Location | Phase |
 |-------------|----------|-------|

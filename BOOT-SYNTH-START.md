@@ -1,7 +1,7 @@
 ---
 created: 2025-11-30
-modified: 2025-11-30 13:02:14
-accessed: 2025-11-30 13:02:14
+modified: 2025-11-30 13:43:55
+accessed: 2025-11-30 13:37:28
 publish: "true"
 type: documentation
 tags: 
@@ -14,6 +14,13 @@ NOTE: This work should / will be performed 'on main' for the sake of convenience
 ## Overview
 ## See Also
 ## S1)  [BOOT-BIOS-SYNTHESIS-GUIDE](docs/boot/BOOT-BIOS-SYNTHESIS-GUIDE.md)
+
+`/rtl/boot/obsidian://open?vault=DPD-001&file=rtl%2Fboot%2FB0_BOOT_TOP.vhd
+
+## S1) BOOT
+ [B0_BOOT_TOP.vhd](rtl/boot/B0_BOOT_TOP.vhd.md)
+ 
+
 ## S2) [oscilloscope-widget-handoff](docs/boot/oscilloscope-widget-handoff.md)
 
 
