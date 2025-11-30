@@ -34,14 +34,15 @@ This is a **validation stub** — not the full BIOS implementation. It auto-adva
 2. BIOS detects rising edge → transitions IDLE → RUN
 3. Delay counter counts down in RUN state
 4. Counter expires → transitions RUN → DONE, asserts `bios_complete`
-5. BOOT issues RET → `bios_enable` goes low → BIOS resets to IDLE
+5. User sets CR0[24] = 1 (RET) → `bios_enable` goes low → BIOS resets to IDLE
+6. Control returns to `BOOT_P1`
 
 ## Observability
 
 HVS encoding via parent's `forge_hierarchical_encoder`:
 - **S=8** (BIOS_IDLE) — Entry state after dispatch
 - **S=9** (BIOS_RUN) — Executing (visible for `RUN_DELAY_CYCLES`)
-- **S=10** (BIOS_DONE) — Complete, waiting for RET
+- **S=10** (BIOS_DONE) — Complete, waiting for RET (CR0[24])
 - **S=11** (BIOS_FAULT) — Error state (reserved)
 
 ---
@@ -103,7 +104,7 @@ Architecture: `rtl of B1_BOOT_BIOS`
     │ BIOS_IDLE│──────────────▶│ BIOS_RUN │────────────▶│ BIOS_DONE│
     └──────────┘               └──────────┘             └──────────┘
          ▲                                                   │
-         │              bios_enable = '0' (RET)              │
+         │           bios_enable = '0' (CR0[24]=RET)          │
          └───────────────────────────────────────────────────┘
 ```
 

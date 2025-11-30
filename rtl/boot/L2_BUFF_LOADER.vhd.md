@@ -3,7 +3,7 @@ file: L2_BUFF_LOADER.vhd.md
 type: rtl_md
 author: jellch
 created: 2025-11-28
-modified: 2025-11-30 16:05:54
+modified: 2025-11-30 16:06:33
 accessed: 2025-11-30 16:15:00
 code_link: "[[rtl/boot/L2_BUFF_LOADER.vhd|L2_BUFF_LOADER.vhd]]"
 doc_link: "[[rtl/boot/L2_BUFF_LOADER.vhd.md|L2_BUFF_LOADER.vhd.md]]"
@@ -40,7 +40,7 @@ The LOADER receives data via CR1-CR4 (one word per buffer per strobe) and writes
 4. Host sends 1024 data strobes → write CR1-4 to BRAMs, update running CRCs
 5. After 1024 words → transition to `LOAD_P2` (validate phase)
 6. Compare running CRCs vs expected → `LOAD_P3` (complete) or `FAULT`
-7. BOOT issues RET → return to `BOOT_P1`
+7. User sets CR0[24] = 1 (RET) → return to `BOOT_P1`
 
 ## Observability
 
@@ -48,7 +48,7 @@ HVS encoding via parent's `forge_hierarchical_encoder`:
 - **S=16** (LOAD_P0) — Setup phase, waiting for config strobe
 - **S=17** (LOAD_P1) — Transfer phase, receiving data
 - **S=18** (LOAD_P2) — Validate phase, checking CRCs
-- **S=19** (LOAD_P3) — Complete, ready for RET
+- **S=19** (LOAD_P3) — Complete, ready for RET (CR0[24])
 - **S=20** (LOAD_FAULT) — CRC mismatch detected
 
 ---

@@ -55,6 +55,19 @@ bios_complete : out std_logic -- Asserted when BIOS reaches DONE state
 
 BIOS does not directly read CR registers - all configuration comes through the BOOT dispatcher.
 
+### CR0 Bits (handled by BOOT parent)
+
+```
+CR0[31:29] = RUN gate (must remain set)
+CR0[27]    = B (must remain set - BIOS selected)
+CR0[24]    = RET (return to BOOT_P1 when asserted)
+```
+
+| Command | CR0 Value | Action |
+|---------|-----------|--------|
+| RUNB | `0xE8000000` | Dispatch to BIOS |
+| RET | `0xE1000000` | Return from BIOS to BOOT_P1 |
+
 ## State Transitions
 
 ### BIOS_IDLE → BIOS_RUN
