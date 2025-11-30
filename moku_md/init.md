@@ -14,11 +14,6 @@ accessed: 2025-11-29 17:19:07
 ---
 
 # Overview
-@Claude: What do you think about utilizing these (formerly) '__init__' files and turn them into 'README.md's (either figuritavely or literally). 
-
-@Claude: What do you think about 'anonymizing' the path_to_py frontmatter so that it is relative to the pip module (natural). 
-
-
 This is the main initialization module for the Moku Python package. It provides the core classes and functionality for connecting to and controlling Liquid Instruments Moku devices. The module handles device connection, ownership management, bitstream deployment, and provides a base class for all instruments.
 
 > [!info] Key Dependencies
