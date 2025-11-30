@@ -28,7 +28,7 @@
 --   implement the full transfer protocol.
 --
 -- Reference:
---   docs/LOAD-FSM-spec.md (authoritative)
+--   docs/bootup-proposal/LOAD-FSM-spec.md (authoritative)
 --   docs/bootup-proposal/LOADER-implementation-plan.md
 --------------------------------------------------------------------------------
 

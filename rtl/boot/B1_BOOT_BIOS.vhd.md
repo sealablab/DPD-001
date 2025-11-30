@@ -137,5 +137,7 @@ generic (
 
 - [[rtl/boot/B0_BOOT_TOP.vhd.md|B0_BOOT_TOP]] — parent dispatcher
 - [[rtl/forge_common_pkg.vhd.md|forge_common_pkg]] — state constants
+- [[docs/boot/BOOT-HVS-state-reference.md|BOOT-HVS-state-reference]] — **authoritative** HVS state table
+- [[docs/BIOS-FSM-spec.md|BIOS-FSM-spec]] — FSM specification
 - [[docs/boot/BOOT-HW-VALIDATION-PLAN.md|BOOT-HW-VALIDATION-PLAN]] — test plan
 - [[docs/hvs.md|HVS]] — voltage encoding scheme
