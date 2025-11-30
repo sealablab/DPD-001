@@ -2,6 +2,9 @@
 date: 2025-11-17
 path_to_py_file: /Users/johnycsh/workspace/SimpleSliderApp/.venv/lib/python3.12/site-packages/moku/cli.py
 title: cli
+created: 2025-11-19
+modified: 2025-11-29 17:20:01
+accessed: 2025-11-29 17:20:01
 ---
 
 # Overview

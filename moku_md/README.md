@@ -2,8 +2,13 @@
 publish: "true"
 type: reference
 created: 2025-11-17
-modified: 2025-11-25
-tags: [moku, api, reference, documentation]
+modified: 2025-11-29 17:22:52
+tags:
+  - moku
+  - api
+  - reference
+  - documentation
+accessed: 2025-11-29 17:20:06
 ---
 # Moku Python API Documentation
 
@@ -13,7 +18,7 @@ This directory contains comprehensive markdown documentation for the Moku Python
 
 ### Core Modules
 
-- [__init__.md](__init__.md) - Main package initialization, `Moku` base class, and `MultiInstrumentSlottable` mixin
+- [__init__.md](moku_md/init.md) - Main package initialization, `Moku` base class, and `MultiInstrumentSlottable` mixin
 - [session.md](session.md) - HTTP session management and API communication (`RequestSession`)
 - [finder.md](finder.md) - Device discovery via Zeroconf/mDNS (`Finder`)
 - [exceptions.md](exceptions.md) - Exception hierarchy (15 exception classes)
@@ -24,48 +29,57 @@ This directory contains comprehensive markdown documentation for the Moku Python
 
 ### Instruments
 
-- [instruments/__init__.md](instruments/__init__.md) - Instrument package exports (all 17 instruments)
+- [instruments/__init__.md](moku_md/instruments/init.md) - Instrument package exports (all 17 instruments)
 
 #### Signal Generators
-- [instruments/_waveformgenerator.md](_waveformgenerator.md) - Basic waveform generation (Sine, Square, Ramp, Pulse, Noise, DC)
-- [instruments/_awg.md](_awg.md) - Arbitrary Waveform Generator with custom waveforms
+- [instruments/_waveformgenerator.md](moku_md/instruments/waveformgenerator.md) - Basic waveform generation (Sine, Square, Ramp, Pulse, Noise, DC)
+- [instruments/_awg.md](moku_md/instruments/awg.md) - Arbitrary Waveform Generator with custom waveforms
 
 #### Analyzers & Measurement
-- [instruments/_oscilloscope.md](_oscilloscope.md) - Oscilloscope with triggering and data acquisition
-- [instruments/_spectrumanalyzer.md](_spectrumanalyzer.md) - Frequency-domain analysis (0Hz-30MHz)
-- [instruments/_phasemeter.md](_phasemeter.md) - Phase and amplitude measurement (2-200MHz)
-- [instruments/_logicanalyzer.md](_logicanalyzer.md) - Digital signal analysis with protocol decoders
-- [instruments/_tfa.md](_tfa.md) - Time-Frequency Analyzer with sub-nanosecond precision
-- [instruments/_fra.md](_fra.md) - Frequency Response Analyzer
+- [instruments/_oscilloscope.md](moku_md/instruments/oscilloscope.md) - Oscilloscope with triggering and data acquisition
+- [instruments/_spectrumanalyzer.md](moku_md/instruments/spectrumanalyzer.md) - Frequency-domain analysis (0Hz-30MHz)
+- [instruments/_phasemeter.md](moku_md/instruments/phasemeter.md) - Phase and amplitude measurement (2-200MHz)
+- [instruments/_logicanalyzer.md](moku_md/instruments/logicanalyzer.md) - Digital signal analysis with protocol decoders
+- [instruments/_tfa.md](moku_md/instruments/tfa.md) - Time-Frequency Analyzer with sub-nanosecond precision
+- [instruments/_fra.md](moku_md/instruments/fra.md) - Frequency Response Analyzer
 
 #### Signal Processing
-- [instruments/_digitalfilterbox.md](_digitalfilterbox.md) - IIR digital filtering
-- [instruments/_firfilter.md](_firfilter.md) - FIR digital filtering
-- [instruments/_lockinamp.md](_lockinamp.md) - Lock-In Amplifier with dual-phase demodulation
+- [instruments/_digitalfilterbox.md](moku_md/instruments/digitalfilterbox.md) - IIR digital filtering
+- [instruments/_firfilter.md](moku_md/instruments/firfilter.md) - FIR digital filtering
+- [instruments/_lockinamp.md](moku_md/instruments/lockinamp.md) - Lock-In Amplifier with dual-phase demodulation
 
 #### Control & Feedback
-- [instruments/_pidcontroller.md](_pidcontroller.md) - PID Controller with comprehensive control loops
-- [instruments/_laserlockbox.md](_laserlockbox.md) - Laser frequency stabilization
+- [instruments/_pidcontroller.md](moku_md/instruments/pidcontroller.md) - PID Controller with comprehensive control loops
+- [instruments/_laserlockbox.md](moku_md/instruments/laserlockbox.md) - Laser frequency stabilization
 
 #### Data Acquisition
-- [instruments/_datalogger.md](_datalogger.md) - Voltage logging and waveform generation
+- [instruments/_datalogger.md](moku_md/instruments/datalogger.md) - Voltage logging and waveform generation
 
 #### Advanced Features
 - [instruments/_mim.md](./instruments/_mim.md) - Multi-Instrument Mode for slot-based management
 - [instruments/_cloudcompile.md](./instruments/_cloudcompile.md) - Cloud-compiled FPGA bitstream deployment
-- [instruments/_nn.md](_nn.md) - Neural Network inference engine
-- [instruments/_stream.md](_stream.md) - Streaming infrastructure base class
+- [instruments/_nn.md](moku_md/instruments/nn.md) - Neural Network inference engine
+- [instruments/_stream.md](moku_md/instruments/stream.md) - Streaming infrastructure base class
 
 ### Neural Network Utilities
 
 - [nn/__init__.md](nn/__init__.md) - Neural network package initialization
 - [nn/_linn.md](_linn.md) - Keras to .linn model conversion utilities
 
+## DPD Project Hot-Path
+
+> [!tip] Working on DPD?
+> See **[DPD-API-HOTPATH.md](docs/DPD-API-HOTPATH.md)** for a focused index of the specific Moku API methods used by the DPD project, including:
+> - MultiInstrument slot configuration & routing
+> - CloudCompile register access patterns
+> - Oscilloscope HVS state observation
+> - Common initialization sequences
+
 ## Quick Reference
 
 ### Most Common Classes
 
-- **Device Management**: [Moku](__init__.md) - Base class for all Moku devices
+- **Device Management**: [Moku](moku_md/init.md) - Base class for all Moku devices
 - **Device Discovery**: [Finder](finder.md) - Find Moku devices on network
 - **Session Management**: [RequestSession](session.md) - HTTP API communication
 
@@ -73,15 +87,15 @@ This directory contains comprehensive markdown documentation for the Moku Python
 
 | Category | Instruments |
 |----------|-------------|
-| **Generators** | [WaveformGenerator](_waveformgenerator.md), [ArbitraryWaveformGenerator](_awg.md) |
-| **Oscilloscopes** | [Oscilloscope](_oscilloscope.md) |
-| **Spectrum** | [SpectrumAnalyzer](_spectrumanalyzer.md), [Phasemeter](_phasemeter.md) |
-| **Filters** | [DigitalFilterBox](_digitalfilterbox.md), [FIRFilterBox](_firfilter.md) |
-| **Control** | [PIDController](_pidcontroller.md), [LaserLockBox](_laserlockbox.md) |
-| **Analysis** | [FrequencyResponseAnalyzer](_fra.md), [LockInAmp](_lockinamp.md), [TimeFrequencyAnalyzer](_tfa.md) |
-| **Digital** | [LogicAnalyzer](_logicanalyzer.md) |
-| **Data** | [Datalogger](_datalogger.md) |
-| **Advanced** | [MultiInstrument](./instruments/_mim.md), [CloudCompile](./instruments/_cloudcompile.md), [NeuralNetwork](_nn.md) |
+| **Generators** | [WaveformGenerator](moku_md/instruments/waveformgenerator.md), [ArbitraryWaveformGenerator](moku_md/instruments/awg.md) |
+| **Oscilloscopes** | [Oscilloscope](moku_md/instruments/oscilloscope.md) |
+| **Spectrum** | [SpectrumAnalyzer](moku_md/instruments/spectrumanalyzer.md), [Phasemeter](moku_md/instruments/phasemeter.md) |
+| **Filters** | [DigitalFilterBox](moku_md/instruments/digitalfilterbox.md), [FIRFilterBox](moku_md/instruments/firfilter.md) |
+| **Control** | [PIDController](moku_md/instruments/pidcontroller.md), [LaserLockBox](moku_md/instruments/laserlockbox.md) |
+| **Analysis** | [FrequencyResponseAnalyzer](moku_md/instruments/fra.md), [LockInAmp](moku_md/instruments/lockinamp.md), [TimeFrequencyAnalyzer](moku_md/instruments/tfa.md) |
+| **Digital** | [LogicAnalyzer](moku_md/instruments/logicanalyzer.md) |
+| **Data** | [Datalogger](moku_md/instruments/datalogger.md) |
+| **Advanced** | [MultiInstrument](./instruments/_mim.md), [CloudCompile](./instruments/_cloudcompile.md), [NeuralNetwork](moku_md/instruments/nn.md) |
 
 ## Documentation Format
 

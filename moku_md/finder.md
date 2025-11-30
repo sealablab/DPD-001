@@ -4,7 +4,13 @@ type: reference
 date: 2025-11-17
 path_to_py_file: /Users/johnycsh/workspace/SimpleSliderApp/.venv/lib/python3.12/site-packages/moku/finder.py
 title: Finder
-tags: [moku, api, discovery]
+tags:
+  - moku
+  - api
+  - discovery
+created: 2025-11-25
+modified: 2025-11-25 19:33:58
+accessed: 2025-11-29 17:23:00
 ---
 
 # Overview

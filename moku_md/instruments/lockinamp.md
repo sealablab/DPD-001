@@ -2,11 +2,14 @@
 date: 2025-11-17
 path_to_py_file: /Users/johnycsh/workspace/SimpleSliderApp/.venv/lib/python3.12/site-packages/moku/instruments/_lockinamp.py
 title: LockInAmp
+created: 2025-11-19
+modified: 2025-11-19 15:41:39
+accessed: 2025-11-29 17:21:46
 ---
 
 # Overview
 
-The LockInAmp instrument provides dual-phase demodulation (XY/R¸) capabilities with an integrated oscilloscope and data logger. This instrument is part of the Moku multi-instrument platform and supports lock-in amplifier functionality for precision signal measurement and analysis.
+The LockInAmp instrument provides dual-phase demodulation (XY/Rï¿½) capabilities with an integrated oscilloscope and data logger. This instrument is part of the Moku multi-instrument platform and supports lock-in amplifier functionality for precision signal measurement and analysis.
 
 > [!info] Key Dependencies
 > - `moku.Moku` - Base Moku instrument functionality
@@ -69,7 +72,7 @@ class LockInAmp(MultiInstrumentSlottable, Moku, StreamInstrument):
     LockInAmp instrument object.
 
     The LockInAmp instrument supports dual-phase
-    demodulation (XY/R¸) with integrated oscilloscope
+    demodulation (XY/Rï¿½) with integrated oscilloscope
     and data logger
 
     Read more at https://apis.liquidinstruments.com/reference/lia

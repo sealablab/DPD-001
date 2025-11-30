@@ -101,7 +101,7 @@ WIP/
 # Note: handoffs/ is tracked - they're valuable session artifacts
 
 # External reference docs (can be fetched separately)
-moku_md/
+# moku_md/ - now tracked for documentation
 
 # Obsidian trash
 .trash/

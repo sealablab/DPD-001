@@ -40,33 +40,33 @@ Multi-Instrument Mode controller for running multiple instruments simultaneously
 ## Instrument Categories
 
 ### Signal Generators
-- [_waveformgenerator.md](_waveformgenerator.md) - Basic waveform generation (Sine, Square, Ramp, Pulse, Noise, DC)
-- [_awg.md](_awg.md) - Arbitrary Waveform Generator with custom waveforms
+- [_waveformgenerator.md](moku_md/instruments/waveformgenerator.md) - Basic waveform generation (Sine, Square, Ramp, Pulse, Noise, DC)
+- [_awg.md](moku_md/instruments/awg.md) - Arbitrary Waveform Generator with custom waveforms
 
 ### Analyzers & Measurement
-- [_oscilloscope.md](_oscilloscope.md) - Oscilloscope with triggering and data acquisition
-- [_spectrumanalyzer.md](_spectrumanalyzer.md) - Frequency-domain analysis (0Hz-30MHz)
-- [_phasemeter.md](_phasemeter.md) - Phase and amplitude measurement (2-200MHz)
-- [_logicanalyzer.md](_logicanalyzer.md) - Digital signal analysis with protocol decoders
-- [_tfa.md](_tfa.md) - Time-Frequency Analyzer with sub-nanosecond precision
-- [_fra.md](_fra.md) - Frequency Response Analyzer
+- [_oscilloscope.md](moku_md/instruments/oscilloscope.md) - Oscilloscope with triggering and data acquisition
+- [_spectrumanalyzer.md](moku_md/instruments/spectrumanalyzer.md) - Frequency-domain analysis (0Hz-30MHz)
+- [_phasemeter.md](moku_md/instruments/phasemeter.md) - Phase and amplitude measurement (2-200MHz)
+- [_logicanalyzer.md](moku_md/instruments/logicanalyzer.md) - Digital signal analysis with protocol decoders
+- [_tfa.md](moku_md/instruments/tfa.md) - Time-Frequency Analyzer with sub-nanosecond precision
+- [_fra.md](moku_md/instruments/fra.md) - Frequency Response Analyzer
 
 ### Signal Processing
-- [_digitalfilterbox.md](_digitalfilterbox.md) - IIR digital filtering
-- [_firfilter.md](_firfilter.md) - FIR digital filtering
-- [_lockinamp.md](_lockinamp.md) - Lock-In Amplifier with dual-phase demodulation
+- [_digitalfilterbox.md](moku_md/instruments/digitalfilterbox.md) - IIR digital filtering
+- [_firfilter.md](moku_md/instruments/firfilter.md) - FIR digital filtering
+- [_lockinamp.md](moku_md/instruments/lockinamp.md) - Lock-In Amplifier with dual-phase demodulation
 
 ### Control & Feedback
-- [_pidcontroller.md](_pidcontroller.md) - PID Controller with comprehensive control loops
-- [_laserlockbox.md](_laserlockbox.md) - Laser frequency stabilization
+- [_pidcontroller.md](moku_md/instruments/pidcontroller.md) - PID Controller with comprehensive control loops
+- [_laserlockbox.md](moku_md/instruments/laserlockbox.md) - Laser frequency stabilization
 
 ### Data Acquisition
-- [_datalogger.md](_datalogger.md) - Voltage logging and waveform generation
+- [_datalogger.md](moku_md/instruments/datalogger.md) - Voltage logging and waveform generation
 
 ### Infrastructure
-- [_stream.md](_stream.md) - Streaming infrastructure base class
-- [_nn.md](_nn.md) - Neural Network inference engine
-- [__init__.md](__init__.md) - Instrument package initialization and exports
+- [_stream.md](moku_md/instruments/stream.md) - Streaming infrastructure base class
+- [_nn.md](moku_md/instruments/nn.md) - Neural Network inference engine
+- [__init__.md](moku_md/instruments/init.md) - Instrument package initialization and exports
 
 ## See Also
 

@@ -1,3 +1,8 @@
+---
+created: 2025-11-19
+modified: 2025-11-29 17:19:32
+accessed: 2025-11-29 17:19:32
+---
 # Moku API Architecture: Session, Multi-Instrument, and State Management
 
 ## Overview
@@ -557,6 +562,6 @@ def restore_moku_state(ip_address, backup_dir):
 ## See Also
 
 - [session.md](session.md) - RequestSession implementation details
-- [__init__.md](moku_md/__init__.md) - Moku base class and MultiInstrumentSlottable mixin
+- [__init__.md](moku_md/init.md) - Moku base class and MultiInstrumentSlottable mixin
 - [instruments/_mim.md](./instruments/_mim.md) - MultiInstrument class details
 - [instruments/_cloudcompile.md](./instruments/_cloudcompile.md) - CloudCompile special case
