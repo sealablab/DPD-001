@@ -6,10 +6,14 @@
 -- Description:
 --   BIOS module stub for hardware validation. Implements a minimal 3-state FSM
 --   (IDLE → RUN → DONE) that produces observable HVS voltage transitions.
---
---   In validation mode, BIOS auto-advances through states with a configurable
+
+--  NOTE:  In validation/STUB mode, BIOS auto-advances through states with a configurable
 --   delay counter, allowing oscilloscope observation of state transitions.
---
+
+-- Concerns / #TODOS
+-- - @C / @JC we need to authoritatively decide how to handle the 'boot/bios/loader' 'boot time' constants and definitions. Since we allow BIOS/LOADER->BOOT transitions, these interfaces, though designed to be conceptually independent, may actually have a little bit of cross module bit level symbol references. After we make CR0->BOOT_CR0 things will improve in that regard 
+
+
 -- FSM States:
 --   BIOS_IDLE  (S=8)  - Entry state after dispatch from BOOT_P1
 --   BIOS_RUN   (S=9)  - Executing (auto-advances after delay)
@@ -36,9 +40,12 @@ use WORK.forge_common_pkg.all;
 
 entity B1_BOOT_BIOS is
     generic (
+        
+        -- @C: Renamed this generic for clarity on use-case 
         -- Delay cycles in RUN state before transitioning to DONE
         -- Default: 125000 cycles = 1ms @ 125MHz (observable on scope)
-        RUN_DELAY_CYCLES : natural := 125000
+        BIOS_STUB_DELAY_CYCLES : natural := 125000 
+
     );
     port (
         -- Clock and Reset
@@ -141,14 +148,14 @@ begin
 
     ----------------------------------------------------------------------------
     -- Delay Counter
-    -- Counts down from RUN_DELAY_CYCLES when in RUN state
+    -- Counts down from BIOS_STUB_DELAY_CYCLES when in RUN state
     ----------------------------------------------------------------------------
     process(Clk)
     begin
         if rising_edge(Clk) then
             if Reset = '1' or state = BIOS_STATE_IDLE then
                 -- Load counter when entering IDLE (ready for next RUN)
-                delay_counter <= to_unsigned(RUN_DELAY_CYCLES, delay_counter'length);
+                delay_counter <= to_unsigned(BIOS_STUB_DELAY_CYCLES, delay_counter'length);
             elsif state = BIOS_STATE_RUN and delay_counter > 0 then
                 delay_counter <= delay_counter - 1;
             end if;
