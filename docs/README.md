@@ -60,6 +60,16 @@ Why configuration registers (CR2-CR10) only update during INITIALIZING state. Ex
 
 Hardware specifications for Moku platforms (focus on Moku:Go). Clock rates, ADC/DAC specs, I/O ranges, and platform-specific constraints for VHDL design.
 
+### Moku Clock Domains
+[moku-clock-domains.md](moku-clock-domains.md) - **Critical: ADC vs MCC Clocks**
+
+**Essential reading for CloudCompile developers.** Documents the distinction between ADC/DAC sample rate clocks (125 MHz for Go) and MCC fabric clocks (31.25 MHz for Go). Includes platform reference table, common pitfalls, and portable clock utility patterns. Based on official Liquid Instruments examples.
+
+### MCC Fabric Clock Theory
+[mcc-fabric-clock.md](mcc-fabric-clock.md) - **BIOS Timing Implications & Experiment**
+
+Exploratory document theorizing about when/where the MCC fabric clock matters for the BIOS project. Includes a **simple experiment design** using SQR_04_128 ROM playback to empirically measure the actual FPGA clock frequency on Moku:Go and Moku:Lab.
+
 ---
 
 ## Testing & Validation
@@ -143,7 +153,8 @@ docs/
 │   ├── custom-instrument.md          # Future MCC interface standard
 │   ├── hvs.md                        # FSM state debugging via voltage
 │   ├── network-register-sync.md      # CR sync protocol
-│   └── platform-implementation-notes.md  # Moku hardware specs
+│   ├── platform-implementation-notes.md  # Moku hardware specs
+│   └── moku-clock-domains.md         # ADC vs MCC clock domains (CRITICAL)
 │
 ├── Testing & Validation
 │   ├── progressive-testing.md        # P1/P2/P3 methodology
@@ -177,7 +188,8 @@ Many of these documents were migrated from the FORGE-V5 project (`/Users/johnycs
 ## See Also
 
 - [CLAUDE.md](../CLAUDE.md) - Quick reference and build commands
-- [N/CLAUDE.md](../N/CLAUDE.md) - Comprehensive project guide
+- [moku_md/DPD-API-HOTPATH.md](docs/DPD-API-HOTPATH.md) - **Moku API hot-path index** (bridges Moku Python API with DPD usage)
+- [moku_md/README.md](../moku_md/README.md) - Full Moku Python API documentation
 - [rtl/DPD-RTL.yaml](../rtl/DPD-RTL.yaml) - Register specification
 - [tests/sim/](../tests/sim/) - CocoTB simulation tests
 - [tests/lib/](../tests/lib/) - Unified test infrastructure (API v4.0)

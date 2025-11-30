@@ -60,6 +60,27 @@ class MultiInstrument(Moku):
 > [!warning] Important
 > The `platform_id` parameter is required and cannot be empty. It defines the number of available instrument slots. Either `ip` or `serial` must be provided to identify the target Moku device.
 
+## Platform Reference
+
+| Platform | `platform_id` | Slots | ADC/DAC Clock | MCC Fabric Clock | Analog I/O |
+|----------|---------------|-------|---------------|------------------|------------|
+| Moku:Go | 2 | 2 | 125 MHz | 31.25 MHz | 2 IN / 2 OUT |
+| Moku:Lab | 2 | 2 | 500 MHz | 125 MHz | 2 IN / 2 OUT |
+| Moku:Pro | 4 | 4 | 1250 MHz | 312.5 MHz | 4 IN / 4 OUT |
+| Moku:Delta | 3* | 3 | 5000 MHz | 1250 MHz | 8 IN / 8 OUT |
+
+\* Delta supports 8-slot advanced mode (not modeled)
+
+> [!tip] Pydantic Platform Models
+> For type-safe platform specifications with validation, use [moku-models-v4](../../libs/moku-models-v4/):
+> ```python
+> from moku_models import MOKU_GO_PLATFORM, MOKU_PRO_PLATFORM
+> print(f"{MOKU_GO_PLATFORM.name}: {MOKU_GO_PLATFORM.slots} slots")
+> ```
+
+> [!tip] Example Reference
+> See [mim_mgo_wg_mcc.py](../../moku_trim_examples/mcc/Moderate/SweptPulse/MokuGo/mim_mgo_wg_mcc.py) for a clean Moku:Go MIM + CloudCompile example.
+
 > [!note] Implementation Notes
 > - The operation group is set to "mim" for all API calls
 > - Empty slots are automatically filled with placeholder bitstreams when setting an instrument
@@ -134,6 +155,47 @@ Establishes connections between instrument slots and physical I/O channels, enab
 **Parameters:**
 - `connections` - List of connection mappings specifying source and destination points
 
+### Connection Naming Convention
+
+**Slot-to-Slot Routing:**
+- Sources: `Slot1OutA`, `Slot1OutB`, `Slot1OutC`, `Slot2OutA`, etc.
+- Destinations: `Slot1InA`, `Slot1InB`, `Slot2InA`, etc.
+
+**Physical I/O:**
+- Inputs: `Input1`, `Input2` (analog inputs with frontend)
+- Outputs: `Output1`, `Output2` (analog outputs)
+- Digital: `DIO` (bidirectional digital I/O port)
+
+### Common Routing Patterns
+
+**Pattern 1: Simple Signal Chain (WaveformGenerator → Oscilloscope)**
+```python
+connections = [
+    dict(source="Slot1OutA", destination="Slot2InA"),   # WG to Osc Ch1
+    dict(source="Slot1OutA", destination="Slot2InB"),   # WG to Osc Ch2 (dual monitor)
+]
+```
+
+**Pattern 2: External Input → CloudCompile → Oscilloscope**
+```python
+connections = [
+    dict(source="Input1", destination="Slot2InA"),      # External ADC → MCC
+    dict(source="Slot2OutA", destination="Slot1InA"),   # MCC processed → Osc
+    dict(source="Slot2OutC", destination="Output1"),    # MCC state → physical out
+]
+```
+
+**Pattern 3: Bidirectional Filter Testing (FIR ↔ FRA)**
+```python
+connections = [
+    dict(source='Slot2OutA', destination='Slot1InA'),   # FRA → FIR
+    dict(source='Slot1OutA', destination='Slot2InA'),   # FIR → FRA (feedback)
+]
+```
+
+> [!tip] Example Reference
+> See [BoxcarControlPanel.py:73-77](../../moku_trim_examples/mcc/HDLCoder/hdlcoder_boxcar/python/BoxcarControlPanel.py) for a complete routing example with CloudCompile + Oscilloscope.
+
 ## set_frontend
 
 ```python
@@ -197,6 +259,21 @@ Configures the direction (input/output) for digital I/O ports.
 - `direction` - List of DIO directions (0 for input, 1 for output); defaults to all inputs
 - `direction_map` - Alternative list-based mapping of DIO directions
 - `strict` - Boolean to disable implicit conversions (default: True)
+
+### DIO Configuration Example (Moku:Go 16-bit)
+
+```python
+# Typical configuration: inputs (bits 0-7), outputs (bits 8-15)
+m.set_dio(direction=[0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1])
+#         bit:       [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15]
+#         direction: ←──── Input pins ────→ ←──── Output pins ────→
+
+# Route DIO to CloudCompile slot
+m.set_connections([
+    dict(source="DIO", destination="Slot2InA"),      # DIO → MCC input
+    dict(source="Slot2OutA", destination="DIO"),     # MCC → DIO output pins
+])
+```
 
 ## get_connections
 

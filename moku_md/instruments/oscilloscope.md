@@ -3,8 +3,8 @@ date: 2025-11-17
 path_to_py_file: /Users/johnycsh/workspace/SimpleSliderApp/.venv/lib/python3.12/site-packages/moku/instruments/_oscilloscope.py
 title: Oscilloscope
 created: 2025-11-19
-modified: 2025-11-19 15:41:39
-accessed: 2025-11-29 17:22:02
+modified: 2025-11-29 17:37:18
+accessed: 2025-11-29 17:58:26
 ---
 
 # Overview
@@ -90,6 +90,16 @@ Configures the analog frontend for an input channel.
 - `strict` (boolean) - Disable implicit conversions (default: True)
 
 **Returns:** API response from session
+
+> [!warning] Parameter Order Varies by Instrument!
+> Oscilloscope uses: `(channel, impedance, coupling, range)`
+>
+> But LockInAmp, FIRFilterBox, LaserLockBox use: `(channel, coupling, impedance, attenuation/gain)`
+>
+> Always use keyword arguments for clarity:
+> ```python
+> osc.set_frontend(channel=1, impedance='50Ohm', coupling='DC', range='4Vpp')
+> ```
 
 ## Source Configuration
 
@@ -192,13 +202,27 @@ Returns a dictionary containing the acquired data frame and timebase information
 - `wait_complete` (boolean) - Wait until entire frame is available
 - `measurements` (boolean) - Include measurement data for each channel
 
-**Returns:** Dictionary with data frame and timebase information
+**Returns:** Dictionary with keys `ch1`, `ch2`, `time` (numpy arrays), plus metadata
 
 > [!warning] Important
 > Default timeout for reading data is 10 seconds. For longer acquisitions, increase the read timeout:
 > ```python
 > oscilloscope.session.read_timeout = 100  # seconds
 > ```
+
+> [!danger] Critical: `wait_reacquire` in Control Loops
+> When using Oscilloscope in a MIM control loop with CloudCompile, **always use `wait_reacquire=True`** to ensure you get a NEW frame after register changes:
+> ```python
+> # Control loop pattern
+> while running:
+>     mcc.set_control(0, new_value)           # Change register
+>     data = osc.get_data(wait_reacquire=True) # Wait for NEW frame
+>     process(data)
+> ```
+> Without `wait_reacquire=True`, you may read stale data from before the register change.
+
+> [!tip] Example Reference
+> See [cloud_compile_arithmetic.py](../../moku_trim_examples/python-api/cloud_compile_arithmetic.py) for a complete MIM control loop with proper `wait_reacquire` usage.
 
 ## Acquisition Modes
 
@@ -216,6 +240,36 @@ Configures the data acquisition mode.
 - `strict` (boolean) - Disable implicit conversions (default: True)
 
 **Returns:** API response from session
+
+### Acquisition Mode Comparison
+
+| Mode | Use Case | Sample Rate | Buffer | Notes |
+|------|----------|-------------|--------|-------|
+| **Normal** | Real-time display | Full | Standard | Default, fastest refresh |
+| **Precision** | Noise averaging | Reduced | Standard | Better SNR, lower bandwidth |
+| **DeepMemory** | High-res capture | Full | Multi-GB | Requires `save_high_res_buffer()` |
+| **PeakDetect** | Glitch capture | Full | Standard | Captures min/max per interval |
+
+**Deep Memory Workflow:**
+```python
+osc.set_acquisition_mode('DeepMemory')
+osc.set_timebase(t1=-5e-3, t2=20e-3)
+
+# Capture with wait flags
+data = osc.get_data(wait_reacquire=True, wait_complete=True)
+
+# Save to device storage
+response = osc.save_high_res_buffer(comments="Triggered capture")
+file_name = response['file_name']
+
+# Download from device (platform-specific storage)
+osc.download("ssd", file_name, f"{file_name}.li")  # Moku:Pro uses "ssd"
+# Use "persist" for Moku:Go, "tmp" for Moku:Lab
+```
+
+> [!tip] Example Reference
+> See [oscilloscope_deep_memory_mode.py](../../moku_trim_examples/python-api/oscilloscope_deep_memory_mode.py) for complete deep memory capture workflow.
+> See [oscilloscope_averaging.py](../../moku_trim_examples/python-api/oscilloscope_averaging.py) for precision mode with rolling average.
 
 ## Waveform Generation
 
