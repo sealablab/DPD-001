@@ -34,7 +34,7 @@ The complete API documentation is organized in the **[moku_md/](moku_md/)** dire
 - **[moku_md/README.md](moku_md/README.md)** - Start here! Complete overview, quick reference tables, and navigation guide
 
 ### 🔧 Core Modules
-- [Moku Base Class](moku_md/__init__.md) - Device connection and ownership management
+- [Moku Base Class](moku_md/init.md) - Device connection and ownership management
 - [Device Discovery](moku_md/finder.md) - Find Moku devices on your network
 - [Session Management](moku_md/session.md) - HTTP API communication
 - [Exceptions](moku_md/exceptions.md) - Error handling hierarchy
@@ -43,15 +43,15 @@ The complete API documentation is organized in the **[moku_md/](moku_md/)** dire
 
 | Category | Instruments | Use Cases |
 |----------|-------------|-----------|
-| **Signal Generation** | [WaveformGenerator](moku_md/instruments/_waveformgenerator.md), [AWG](moku_md/instruments/_awg.md) | Test signals, stimulus generation |
-| **Oscilloscopes** | [Oscilloscope](moku_md/instruments/_oscilloscope.md) | Waveform capture, triggering |
-| **Spectrum Analysis** | [SpectrumAnalyzer](moku_md/instruments/_spectrumanalyzer.md), [Phasemeter](moku_md/instruments/_phasemeter.md) | Frequency domain, phase measurements |
-| **Signal Processing** | [DigitalFilterBox](moku_md/instruments/_digitalfilterbox.md), [FIRFilterBox](moku_md/instruments/_firfilter.md), [LockInAmp](moku_md/instruments/_lockinamp.md) | Filtering, demodulation |
-| **Control Systems** | [PIDController](moku_md/instruments/_pidcontroller.md), [LaserLockBox](moku_md/instruments/_laserlockbox.md) | Feedback control, laser stabilization |
-| **Analysis** | [FrequencyResponseAnalyzer](moku_md/instruments/_fra.md), [TimeFrequencyAnalyzer](moku_md/instruments/_tfa.md) | System characterization |
-| **Digital** | [LogicAnalyzer](moku_md/instruments/_logicanalyzer.md) | Digital signal analysis, protocol decode |
-| **Data Acquisition** | [Datalogger](moku_md/instruments/_datalogger.md) | Long-term voltage logging |
-| **Advanced** | [MultiInstrument](moku_md/instruments/_mim.md), [CloudCompile](moku_md/instruments/_cloudcompile.md), [NeuralNetwork](moku_md/instruments/_nn.md) | Custom FPGA, ML inference |
+| **Signal Generation** | [WaveformGenerator](moku_md/instruments/waveformgenerator.md), [AWG](moku_md/instruments/awg.md) | Test signals, stimulus generation |
+| **Oscilloscopes** | [Oscilloscope](moku_md/instruments/oscilloscope.md) | Waveform capture, triggering |
+| **Spectrum Analysis** | [SpectrumAnalyzer](moku_md/instruments/spectrumanalyzer.md), [Phasemeter](moku_md/instruments/phasemeter.md) | Frequency domain, phase measurements |
+| **Signal Processing** | [DigitalFilterBox](moku_md/instruments/digitalfilterbox.md), [FIRFilterBox](moku_md/instruments/firfilter.md), [LockInAmp](moku_md/instruments/lockinamp.md) | Filtering, demodulation |
+| **Control Systems** | [PIDController](moku_md/instruments/pidcontroller.md), [LaserLockBox](moku_md/instruments/laserlockbox.md) | Feedback control, laser stabilization |
+| **Analysis** | [FrequencyResponseAnalyzer](moku_md/instruments/fra.md), [TimeFrequencyAnalyzer](moku_md/instruments/tfa.md) | System characterization |
+| **Digital** | [LogicAnalyzer](moku_md/instruments/logicanalyzer.md) | Digital signal analysis, protocol decode |
+| **Data Acquisition** | [Datalogger](moku_md/instruments/datalogger.md) | Long-term voltage logging |
+| **Advanced** | [MultiInstrument](moku_md/instruments/_mim.md), [CloudCompile](moku_md/instruments/_cloudcompile.md), [NeuralNetwork](moku_md/instruments/nn.md) | Custom FPGA, ML inference |
 
 ## Project Context
 

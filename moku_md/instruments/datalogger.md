@@ -3,8 +3,8 @@ date: 2025-11-17
 path_to_py_file: /Users/johnycsh/workspace/SimpleSliderApp/.venv/lib/python3.12/site-packages/moku/instruments/_datalogger.py
 title: Datalogger
 created: 2025-11-19
-modified: 2025-11-19 15:41:39
-accessed: 2025-11-29 17:21:19
+modified: 2025-11-29 17:37:18
+accessed: 2025-11-29 17:58:12
 ---
 
 # Overview

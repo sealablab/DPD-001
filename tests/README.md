@@ -1,9 +1,52 @@
-# DPD / BOOT Test Suite
+---
+created: 2025-11-28
+modified: 2025-11-29 16:55:21
+accessed: 2025-11-29 16:53:11
+---
+## [README](tests/README.md)  DPD / BOOT Test Suite
+
 
 Unified test infrastructure for Demo Probe Driver (DPD) and the BOOT subsystem.
 The same high‑level test patterns are used for simulation (CocoTB/GHDL) and
 hardware (Moku), with async adapters hiding backend differences.
 
+## Struture
+@CLAUDE: Convert the directory tree below into a few nested hierarchical links 
+
+```
+tests/
+
+       ├── run.py                          # Unified sim/hw test runner (entry point)
+       ├── adapters/                       # Async platform adapters
+       │   ├── __init__.py                 # Factory function: get_harness()
+       │   ├── base.py                     # Abstract interfaces for FSM control
+       │   ├── cocotb.py                   # CocoTB simulation implementation
+       │   └── moku.py                     # Moku hardware implementation (KEY FILE)
+       ├── hw/                             # Hardware-specific setup
+       │   ├── __init__.py
+       │   └── plumbing.py                 # MokuSession context manager (KEY FILE)
+       ├── shared/                        # Shared control abstractions
+       │   ├── __init__.py
+       │   └── control_interface.py        # ControlInterface + CocoTBControl + MokuControl
+       ├── lib/                            # Constants & utilities
+       │   ├── __init__.py
+       │   ├── hw.py                       # Re-exports from py_tools
+       │   ├── clk.py
+       │   ├── dpd_config.py
+       │   ├── timing.py
+       │   ├── tolerances.py
+       │   ├── test_base.py
+       │   └── timeouts.py
+       └── sim/                            # Simulation tests (CocoTB/GHDL)
+           ├── run.py                      # Sim-only runner
+           ├── conftest.py
+           ├── dpd/
+           │   └── P1_basic.py             # DPD application tests
+           ├── boot_fsm/
+           │   └── P1_basic.py
+           └── loader/
+               └── P1_basic.py
+```
 ## Quick Start
 
 ### Simulation – DPD (application)
