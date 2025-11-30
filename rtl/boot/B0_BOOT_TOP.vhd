@@ -2,12 +2,16 @@
 -- File: B0_BOOT_TOP.vhd
 -- Author: Moku Instrument Forge Team
 -- Created: 2025-11-29
+-- Reviewed: 2025-11-30 15:30
+-- Status: 'Silver' 
 --
 -- Description:
 --   BOOT subsystem top-level module implementing the CustomWrapper architecture.
 --   This is the dispatcher FSM that routes control to BIOS, LOADER, or PROG
 --   based on CR0[28:25] module select bits.
 --
+-- Concerns / #TODOS 
+-- - we need to authoritatively decide how to handle the 'boot/bios/loader' 'boot time' constants and definitions. Since we allow BIOS/LOADER->BOOT transitions, these interfaces, though designed to be conceptually indepdent, may actually have a little bit of cross module bit level symbol references. After we make CR0->BOOT_CR0 things will improve in that regard 
 -- FSM States:
 --   BOOT_P0 (000000) - Initial/Reset state, waiting for RUN gate
 --   BOOT_P1 (000001) - Settled/Dispatcher, waiting for module select

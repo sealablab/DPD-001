@@ -1,7 +1,7 @@
 ---
 created: 2025-11-30
-modified: 2025-11-30 14:06:26
-accessed: 2025-11-30 13:56:51
+modified: 2025-11-30 14:54:47
+accessed: 2025-11-30 15:22:11
 ---
 # BOOT/BIOS Bitstream Synthesis & Validation Guide
 
@@ -42,7 +42,7 @@ accessed: 2025-11-30 13:56:51
 | LOADER P1 Tests   |      |          | `tests/sim/loader/P1_basic.py`       | [tests/sim/loader/P1_basic.py](tests/sim/loader/P1_basic.py)             |                                                                       | ✅ Exists   |
 
 
-### What We're Buildingtmux 
+### What We're Building
 
 | Deliverable | Location | Phase |
 |-------------|----------|-------|
@@ -73,7 +73,6 @@ accessed: 2025-11-30 13:56:51
 ```
 synth/
 └── boot/
-    ├── CustomWrapper.vhd      # Top-level entity (CloudCompile expects this name)
     ├── forge_common_pkg.vhd
     ├── forge_hierarchical_encoder.vhd
     ├── loader_crc16.vhd
@@ -82,6 +81,35 @@ synth/
     ├── B0_BOOT_TOP.vhd
     └── boot-synth.tar         # Final upload package
 ```
+
+
+#### forge_common_pkg.vhd
+
+- RTL: [forge_common_pkg.vhd](rtl/forge_common_pkg.vhd)
+- Docs: [forge_common_pkg.vhd.md](rtl/forge_common_pkg.vhd.md)
+
+#### forge_hierarchical_encoder.vhd
+
+- RTL: [forge_hierarchical_encoder.vhd](rtl/forge_hierarchical_encoder.vhd)
+- Docs: [forge_hierarchical_encoder.vhd.md](rtl/forge_hierarchical_encoder.vhd.md)
+
+#### loader_crc16.vhd
+
+- RTL: [loader_crc16.vhd](rtl/boot/loader_crc16.vhd)
+- Docs: [loader_crc16.vhd.md](rtl/boot/loader_crc16.vhd.md)
+#### B0_BOOT_TOP.vhd
+
+- RTL: [B0_BOOT_TOP.vhd](rtl/boot/B0_BOOT_TOP.vhd)
+- Docs: [B0_BOOT_TOP.vhd.md](rtl/boot/B0_BOOT_TOP.vhd.md)
+
+#### B1_BOOT_BIOS.vhd
+
+- RTL: [B1_BOOT_BIOS.vhd](rtl/boot/B1_BOOT_BIOS.vhd)
+- Docs: [B1_BOOT_BIOS.vhd.md](rtl/boot/B1_BOOT_BIOS.vhd.md)
+#### L2_BUFF_LOADER.vhd
+
+- RTL: [L2_BUFF_LOADER.vhd](rtl/boot/L2_BUFF_LOADER.vhd)
+- Docs: [L2_BUFF_LOADER.vhd.md](rtl/boot/L2_BUFF_LOADER.vhd.md)
 
 ### Steps
 
