@@ -1,3 +1,8 @@
+---
+created: 2025-11-25
+modified: 2025-11-25 17:51:34
+accessed: 2025-11-29 18:24:23
+---
 # GHDL Output Filter
 
 **Last Updated:** 2025-11-04 (migrated 2025-01-28)  

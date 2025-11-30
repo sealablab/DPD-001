@@ -1,8 +1,8 @@
 ---
 created: 2025-11-29
-modified: 2025-11-29 15:57:53
+modified: 2025-11-29 16:21:25
 status: DRAFT
-accessed: 2025-11-29 16:01:35
+accessed: 2025-11-29 18:24:25
 ---
 # BOOT ROM Primitives Specification
 
@@ -35,24 +35,24 @@ Even when a waveform *could* be computed (e.g., triangle from counter), we store
 
 ## ROM Contents Overview
 
-| Bank | ROM ID | Name | Entries | Bits | Bytes | Description |
-|------|--------|------|---------|------|-------|-------------|
-| 0 | 0 | `SIN_128` | 128 | 16 | 256 | Full sine cycle |
-| 0 | 1 | `COS_128` | 128 | 16 | 256 | Full cosine cycle (sin + 90°) |
-| 0 | 2 | `TRI_128` | 128 | 16 | 256 | Symmetric triangle |
-| 0 | 3 | `SAW_UP_128` | 128 | 16 | 256 | Sawtooth rising |
-| 0 | 4 | `SAW_DN_128` | 128 | 16 | 256 | Sawtooth falling |
-| 0 | 5 | `SQR_64_128` | 128 | 16 | 256 | Square 64 high, 64 low |
-| 0 | 6 | `SQR_32_128` | 128 | 16 | 256 | Square 32 high, 96 low |
-| 0 | 7 | `SQR_04_128` | 128 | 16 | 256 | Square 4 high, 124 low |
-| **Subtotal** | | | | | **2048** | **Bank 0: Waveforms** |
-| 1 | 8 | `PCT_LINEAR` | 101 | 16 | 202 | Linear 0-100% |
-| 1 | 9 | `PCT_LOG` | 101 | 16 | 202 | Logarithmic curve |
-| 1 | 10 | `PCT_SQRT` | 101 | 16 | 202 | Square root curve |
-| 1 | 11 | `PCT_GAMMA22` | 101 | 16 | 202 | Gamma 2.2 curve |
-| 1 | - | Reserved | 101×4 | 16 | 808 | Future curves |
-| **Subtotal** | | | | | **~1616** | **Bank 1: Percentages** |
-| **Total** | | | | | **~3664** | Fits in single 18Kb BRAM |
+| Bank         | ROM ID | Name          | Entries | Bits | Bytes     | Description                   |
+| ------------ | ------ | ------------- | ------- | ---- | --------- | ----------------------------- |
+| 0            | 0      | `SIN_128`     | 128     | 16   | 256       | Full sine cycle               |
+| 0            | 1      | `COS_128`     | 128     | 16   | 256       | Full cosine cycle (sin + 90°) |
+| 0            | 2      | `TRI_128`     | 128     | 16   | 256       | Symmetric triangle            |
+| 0            | 3      | `SAW_UP_128`  | 128     | 16   | 256       | Sawtooth rising               |
+| 0            | 4      | `SAW_DN_128`  | 128     | 16   | 256       | Sawtooth falling              |
+| 0            | 5      | `SQR_64_128`  | 128     | 16   | 256       | Square 64 high, 64 low        |
+| 0            | 6      | `SQR_32_128`  | 128     | 16   | 256       | Square 32 high, 96 low        |
+| 0            | 7      | `SQR_04_128`  | 128     | 16   | 256       | Square 4 high, 124 low        |
+| **Subtotal** |        |               |         |      | **2048**  | **Bank 0: Waveforms**         |
+| 1            | 8      | `PCT_LINEAR`  | 101     | 16   | 202       | Linear 0-100%                 |
+| 1            | 9      | `PCT_LOG`     | 101     | 16   | 202       | Logarithmic curve             |
+| 1            | 10     | `PCT_SQRT`    | 101     | 16   | 202       | Square root curve             |
+| 1            | 11     | `PCT_GAMMA22` | 101     | 16   | 202       | Gamma 2.2 curve               |
+| 1            | -      | Reserved      | 101×4   | 16   | 808       | Future curves                 |
+| **Subtotal** |        |               |         |      | **~1616** | **Bank 1: Percentages**       |
+| **Total**    |        |               |         |      | **~3664** | Fits in single 18Kb BRAM      |
 
 ## Waveform LUTs (Bank 0)
 
