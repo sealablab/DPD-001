@@ -37,20 +37,21 @@ Even when a waveform *could* be computed (e.g., triangle from counter), we store
 
 | Bank         | ROM ID | Name          | Entries | Bits | Bytes     | Description                   |
 | ------------ | ------ | ------------- | ------- | ---- | --------- | ----------------------------- |
-| 0            | 0      | `SIN_128`     | 128     | 16   | 256       | Full sine cycle               |
-| 0            | 1      | `COS_128`     | 128     | 16   | 256       | Full cosine cycle (sin + 90°) |
-| 0            | 2      | `TRI_128`     | 128     | 16   | 256       | Symmetric triangle            |
-| 0            | 3      | `SAW_UP_128`  | 128     | 16   | 256       | Sawtooth rising               |
-| 0            | 4      | `SAW_DN_128`  | 128     | 16   | 256       | Sawtooth falling              |
-| 0            | 5      | `SQR_64_128`  | 128     | 16   | 256       | Square 64 high, 64 low        |
-| 0            | 6      | `SQR_32_128`  | 128     | 16   | 256       | Square 32 high, 96 low        |
-| 0            | 7      | `SQR_04_128`  | 128     | 16   | 256       | Square 4 high, 124 low        |
+| 0            | 0      | `SIN`         | 128     | 16   | 256       | Full sine cycle               |
+| 0            | 1      | `TRI`         | 128     | 16   | 256       | Symmetric triangle            |
+| 0            | 2      | `SAW`         | 128     | 16   | 256       | Sawtooth rising               |
+| 0            | 3      | `SQR_64_128`  | 128     | 16   | 256       | Square 64 high, 64 low        |
+| 0            | 4      | `SQR_32_128`  | 128     | 16   | 256       | Square 32 high, 96 low        |
+| 0            | 5      | `SQR_04_128`  | 128     | 16   | 256       | Square 4 high, 124 low        |
+| 0            | 6      | `NOISE`       | 128     | 16   | 256       | White noise (deterministic)   |
+| 0            | 7      | `DC`          | 128     | 16   | 256       | Constant high (canvas)        |
 | **Subtotal** |        |               |         |      | **2048**  | **Bank 0: Waveforms**         |
+
+**Note:** COS and SAW_DN removed — derivable via shift and FLIP effect. See [BIOS-interface-spec.md](BIOS-interface-spec.md).
 | 1            | 8      | `PCT_LINEAR`  | 101     | 16   | 202       | Linear 0-100%                 |
-| 1            | 9      | `PCT_LOG`     | 101     | 16   | 202       | Logarithmic curve             |
-| 1            | 10     | `PCT_SQRT`    | 101     | 16   | 202       | Square root curve             |
-| 1            | 11     | `PCT_GAMMA22` | 101     | 16   | 202       | Gamma 2.2 curve               |
-| 1            | -      | Reserved      | 101×4   | 16   | 808       | Future curves                 |
+| 1            | 9      | `PCT_SQRT`    | 101     | 16   | 202       | Power % → amplitude           |
+| 1            | 10     | `PCT_EXP`     | 101     | 16   | 202       | Exponential (decade-spanning) |
+| 1            | -      | Reserved      | 101×5   | 16   | 1010      | Future curves                 |
 | **Subtotal** |        |               |         |      | **~1616** | **Bank 1: Percentages**       |
 | **Total**    |        |               |         |      | **~3664** | Fits in single 18Kb BRAM      |
 
@@ -68,7 +69,7 @@ All waveform LUTs use **16-bit signed** values with **unipolar data constraints*
 
 **Safety Design**: ROM data constrained to `0` to `+32767` range. Direct ROM-to-DAC assignment (`DAC_output <= ROM[index]`) with native signed interface compatibility.
 
-### SIN_128 - Sinusoid
+### SIN - Sinusoid
 
 Full 360° sine cycle, 128 samples, offset to unipolar range.
 
@@ -85,26 +86,11 @@ Phase:    0°   45°   90°  135°  180°   225°   270°   315°  ~357°
 - Phase relationship verification
 - Audio/RF waveform generation
 
-### COS_128 - Cosine
+**Derived waveforms:**
+- COS = SIN with shift=4 (32 samples = 90°)
+- -SIN = SIN with FLIP effect
 
-Full 360° cosine cycle, 128 samples, offset to unipolar range.
-
-```
-Entry[i] = round(16384 + 16383 × cos(2π × i / 128))
-         = round(16384 + 16383 × sin(2π × i / 128 + π/2))
-
-Index:    0    16    32    48    64    80    96   112   127
-Value:32767 27969 16384  4799     1  4799 16384 27969 32463
-Phase:    0°   45°   90°  135°  180°   225°   270°   315°  ~357°
-```
-
-**Use Cases:**
-- Quadrature signal generation (I/Q)
-- Differential signaling
-- X/Y oscilloscope patterns
-- Phase-shifted AC signals
-
-### TRI_128 - Triangle
+### TRI - Triangle
 
 Symmetric triangle wave, 128 samples.
 
@@ -122,7 +108,7 @@ Value:    0  16384 32767 32767 16384     0
 - Linear sweep generation
 - PWM modulation source
 
-### SAW_UP_128 - Sawtooth Rising
+### SAW - Sawtooth Rising
 
 Linear ramp from minimum to maximum, 128 samples.
 
@@ -138,21 +124,8 @@ Value:    0   8192 16384 24576 32767
 - Time-base generation
 - Frequency sweep source
 
-### SAW_DN_128 - Sawtooth Falling
-
-Linear ramp from maximum to minimum, 128 samples.
-
-```
-Entry[i] = 32767 - (i × 32767) / 127
-
-Index:    0    32    64    96   127
-Value:32767 24575 16383  8191     0
-```
-
-**Use Cases:**
-- Reverse sweep
-- Decay envelope
-- Complementary signal generation
+**Derived waveforms:**
+- SAW_DN (falling) = SAW with FLIP effect
 
 ### SQR_64_128 - Square Wave (64 high, 64 low)
 
@@ -198,18 +171,72 @@ Entry[i] =
 - Trigger signal generation
 - Timing verification (narrow pulse visible on scope)
 
+### NOISE - White Noise
+
+Deterministic pseudo-random sequence, 128 samples. Generated from LFSR for reproducibility.
+
+```
+Entry[i] = LFSR_sequence[i]   -- 0 to 32767 range
+
+Index:    0      1      2      3    ...   127
+Value: varies (pseudo-random, full 0-32767 range)
+```
+
+**Generation:**
+```python
+# 16-bit LFSR with taps at bits 16, 14, 13, 11 (maximal length)
+def gen_noise_128():
+    lfsr = 0xACE1  # Non-zero seed
+    samples = []
+    for _ in range(128):
+        samples.append(lfsr >> 1)  # Use upper 15 bits (0-32767)
+        bit = ((lfsr >> 0) ^ (lfsr >> 2) ^ (lfsr >> 3) ^ (lfsr >> 5)) & 1
+        lfsr = (lfsr >> 1) | (bit << 15)
+    return samples
+```
+
+**Use Cases:**
+- Noise source for testing
+- Dithering
+- Randomized test patterns
+- Raw material for QUANTIZE effect (bit-crushed noise)
+
+**Note:** Deterministic sequence ensures repeatable test results.
+
+### DC - Constant High
+
+Constant maximum value, 128 samples. A "blank canvas" for effects.
+
+```
+Entry[i] = 32767   -- All samples at maximum
+
+Index:    0    32    64    96   127
+Value:32767 32767 32767 32767 32767
+```
+
+**Use Cases:**
+- Canvas for effects in isolation
+- DC + FLIP = constant zero
+- DC + NOISE effect = pure noise at controlled level
+- DC + any modulation effect = that effect only
+- Baseline/reference signal
+
+**Note:** While seemingly trivial, DC enables testing effects independently of waveform shape.
+
 ## Percentage LUTs (Bank 1)
 
 ### Value Encoding
 
-All percentage LUTs use **16-bit unsigned** values:
+All percentage LUTs use **16-bit signed** values with **unipolar data constraints** (matching waveform LUTs):
 
 ```
-    0 = 0%
-65535 = 100%
+    0 = 0%   (minimum output)
+32767 = 100% (maximum output)
 
 Normalized output = LUT[percentage_index]
 ```
+
+**Safety Design**: ROM data constrained to `0` to `+32767` range. Same representation as waveform LUTs for consistency — direct assignment to DAC outputs without type conversion.
 
 The percentage index range is **0 to 100** (101 valid entries). Indices 101-127 should clamp to 100%.
 
@@ -218,61 +245,51 @@ The percentage index range is **0 to 100** (101 valid entries). Indices 101-127 
 Direct linear mapping from percentage to normalized value.
 
 ```
-Entry[i] = round(65535 × i / 100)
+Entry[i] = round(32767 × i / 100)
 
 Index:    0    25    50    75   100
-Value:    0 16384 32768 49151 65535
+Value:    0  8192 16384 24576 32767
 ```
 
 **Use Cases:**
 - Most common case (linear probes, standard DACs)
 - Default curve when no special mapping needed
-
-### PCT_LOG - Logarithmic Percentage
-
-Logarithmic mapping for audio/perceptual applications.
-
-```
-Entry[i] = round(65535 × log10(1 + 9×i/100) / log10(10))
-         = round(65535 × log10(1 + 0.09×i))
-
-Index:    0    25    50    75   100
-Value:    0 23171 39794 52876 65535
-```
-
-**Use Cases:**
-- Audio volume control (perceived loudness)
-- Light intensity (perceived brightness)
+- Direct voltage control: "50% = half voltage"
 
 ### PCT_SQRT - Square Root Percentage
 
 Square root mapping for power-to-amplitude conversion.
 
 ```
-Entry[i] = round(65535 × sqrt(i / 100))
+Entry[i] = round(32767 × sqrt(i / 100))
 
 Index:    0    25    50    75   100
-Value:    0 32768 46341 56756 65535
+Value:    0 16384 23170 28378 32767
 ```
 
+**Physical basis:** Power ∝ Voltage², so Voltage ∝ √Power.
+
 **Use Cases:**
-- Power percentage to amplitude conversion
+- Power percentage to amplitude conversion (RF, laser, heater)
+- "50% power" → 70.7% voltage
 - Energy-based scaling
 
-### PCT_GAMMA22 - Gamma 2.2 Percentage
+### PCT_EXP - Exponential Percentage
 
-Gamma 2.2 curve for display/visual applications.
+Exponential mapping for decade-spanning control with fine resolution at low values.
 
 ```
-Entry[i] = round(65535 × (i / 100)^2.2)
+Entry[i] = round(32767 × (10^(i/50) - 1) / 99)  for i > 0
+Entry[0] = 0
 
 Index:    0    25    50    75   100
-Value:    0  3664 18350 43366 65535
+Value:    0  1037  5240 16544 32767
 ```
 
 **Use Cases:**
-- Display calibration
-- Perceptual luminance mapping
+- Fine control at low end, coarse at high end
+- Human-facing controls (if needed)
+- Spanning wide dynamic range (1% to 100% with resolution at bottom)
 
 ## Memory Architecture
 
@@ -283,20 +300,20 @@ Value:    0  3664 18350 43366 65535
 │                    BOOT ROM BANK 0                          │
 │                 (Waveforms - 2KB)                           │
 │  ┌─────────┬─────────┬─────────┬─────────┐                 │
-│  │ SIN_128 │ COS_128 │ TRI_128 │SAW_UP   │  0x000 - 0x3FF  │
-│  │ 256B    │ 256B    │ 256B    │ 256B    │                 │
+│  │   SIN   │   TRI   │   SAW   │ SQR_64  │  0x000 - 0x3FF  │
+│  │  256B   │  256B   │  256B   │  256B   │                 │
 │  ├─────────┼─────────┼─────────┼─────────┤                 │
-│  │ SAW_DN  │ SQR_64  │ SQR_32  │ SQR_04  │  0x400 - 0x7FF  │
-│  │ 256B    │ 256B    │ 256B    │ 256B    │                 │
+│  │ SQR_32  │ SQR_04  │  NOISE  │   DC    │  0x400 - 0x7FF  │
+│  │  256B   │  256B   │  256B   │  256B   │                 │
 │  └─────────┴─────────┴─────────┴─────────┘                 │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
 │                    BOOT ROM BANK 1                          │
-│                 (Percentages - ~1.6KB)                      │
+│                 (Percentages - ~0.6KB)                      │
 │  ┌───────────┬───────────┬───────────┬───────────┐         │
-│  │PCT_LINEAR │ PCT_LOG   │ PCT_SQRT  │PCT_GAMMA22│         │
-│  │ 202B      │ 202B      │ 202B      │ 202B      │         │
+│  │PCT_LINEAR │ PCT_SQRT  │  PCT_EXP  │ Reserved  │         │
+│  │   202B    │   202B    │   202B    │   202B    │         │
 │  ├───────────┴───────────┴───────────┴───────────┤         │
 │  │              Reserved (808B)                   │         │
 │  └────────────────────────────────────────────────┘         │
@@ -304,6 +321,8 @@ Value:    0  3664 18350 43366 65535
 
 Total: ~3.6KB - fits in single 36Kb BRAM (4.5KB) or 2× 18Kb BRAMs
 ```
+
+**Note:** COS and SAW_DN removed; NOISE and DC added. Derivable waveforms use effects.
 
 ### Addressing Scheme
 
@@ -341,13 +360,13 @@ entity boot_pct_scaler is
 
         -- Curve selection
         curve_sel   : in  std_logic_vector(1 downto 0);
-        -- "00" = LINEAR, "01" = LOG, "10" = SQRT, "11" = GAMMA22
+        -- "00" = LINEAR, "01" = SQRT, "10" = EXP, "11" = reserved
 
         -- Deployment-time configuration (from ENV_BBUF or CR)
-        v_scale     : in  unsigned(15 downto 0);  -- Full-scale output value
-        v_offset    : in  signed(15 downto 0);    -- Zero-point offset
+        v_scale     : in  signed(15 downto 0);   -- Full-scale output value
+        v_offset    : in  signed(15 downto 0);   -- Zero-point offset
 
-        -- Scaled output (valid 1 cycle after pct_idx changes)
+        -- Scaled output (valid 2 cycles after pct_idx changes)
         voltage_out : out signed(15 downto 0)
     );
 end entity;
@@ -356,8 +375,8 @@ end entity;
 ### Operation
 
 ```
-1. Lookup: raw = PCT_LUT[curve_sel][pct_idx]    -- 0 to 65535
-2. Scale:  scaled = (raw × v_scale) >> 16       -- 0 to v_scale
+1. Lookup: raw = PCT_LUT[curve_sel][pct_idx]    -- 0 to 32767 (signed, unipolar)
+2. Scale:  scaled = (raw × v_scale) >> 15       -- 0 to v_scale
 3. Offset: output = scaled + v_offset           -- Final voltage
 ```
 
@@ -493,30 +512,31 @@ package forge_rom_pkg is
     type wave_lut_t is array(0 to 127) of signed(15 downto 0);
     type wave_bank_t is array(0 to 7) of wave_lut_t;
 
-    -- Percentage ROM types
-    type pct_lut_t is array(0 to 100) of unsigned(15 downto 0);
-    type pct_bank_t is array(0 to 3) of pct_lut_t;
+    -- Percentage ROM types (signed for consistency, unipolar data 0 to 32767)
+    type pct_lut_t is array(0 to 100) of signed(15 downto 0);
+    type pct_bank_t is array(0 to 2) of pct_lut_t;  -- LINEAR, SQRT, EXP
 
-    -- ROM IDs
+    -- ROM IDs (effects-aware set)
     constant WAVE_SIN      : natural := 0;
-    constant WAVE_COS      : natural := 1;
-    constant WAVE_TRI      : natural := 2;
-    constant WAVE_SAW_UP   : natural := 3;
-    constant WAVE_SAW_DN   : natural := 4;
-    constant WAVE_SQR_64   : natural := 5;
-    constant WAVE_SQR_32   : natural := 6;
-    constant WAVE_SQR_04   : natural := 7;
+    constant WAVE_TRI      : natural := 1;
+    constant WAVE_SAW      : natural := 2;
+    constant WAVE_SQR_64   : natural := 3;
+    constant WAVE_SQR_32   : natural := 4;
+    constant WAVE_SQR_04   : natural := 5;
+    constant WAVE_NOISE    : natural := 6;
+    constant WAVE_DC       : natural := 7;
+    -- COS = SIN + shift(4), SAW_DN = SAW + FLIP effect
 
     constant PCT_LINEAR    : natural := 0;
-    constant PCT_LOG       : natural := 1;
-    constant PCT_SQRT      : natural := 2;
-    constant PCT_GAMMA22   : natural := 3;
+    constant PCT_SQRT      : natural := 1;
+    constant PCT_EXP       : natural := 2;
+    -- ID 3-7 reserved for future curves
 
     -- Curve select encoding
     constant CURVE_LINEAR  : std_logic_vector(1 downto 0) := "00";
-    constant CURVE_LOG     : std_logic_vector(1 downto 0) := "01";
-    constant CURVE_SQRT    : std_logic_vector(1 downto 0) := "10";
-    constant CURVE_GAMMA22 : std_logic_vector(1 downto 0) := "11";
+    constant CURVE_SQRT    : std_logic_vector(1 downto 0) := "01";
+    constant CURVE_EXP     : std_logic_vector(1 downto 0) := "10";
+    -- "11" reserved
 
     -- ROM contents (generated - see forge_rom_gen.py)
     constant WAVE_ROM : wave_bank_t;
@@ -569,48 +589,67 @@ A Python script generates the ROM contents for synthesis:
 
 import numpy as np
 
-def gen_sin_128():
+def gen_sin():
     """Full sine cycle, 128 entries, 16-bit signed, offset to unipolar."""
     x = np.linspace(0, 2*np.pi, 128, endpoint=False)
     return np.round(16384 + 16383 * np.sin(x)).astype(np.int16)
 
-def gen_cos_128():
-    """Full cosine cycle, 128 entries, 16-bit signed, offset to unipolar."""
-    x = np.linspace(0, 2*np.pi, 128, endpoint=False)
-    return np.round(16384 + 16383 * np.cos(x)).astype(np.int16)
-
-def gen_tri_128():
+def gen_tri():
     """Symmetric triangle, 128 entries, 16-bit signed (0 to max)."""
     up = np.linspace(0, 32767, 64)
     down = np.linspace(32767, 0, 64, endpoint=False)
     return np.concatenate([up, down]).astype(np.int16)
 
+def gen_saw():
+    """Sawtooth rising, 128 entries."""
+    return np.round(np.linspace(0, 32767, 128)).astype(np.int16)
+
 def gen_sqr_64_128():
-    """Square wave, 64 high, 64 low, 16-bit signed."""
+    """Square wave, 64 high, 64 low."""
     wave = np.full(128, 0, dtype=np.int16)
     wave[:64] = 32767
     return wave
 
 def gen_sqr_32_128():
-    """Pulse wave, 32 high, 96 low, 16-bit signed."""
+    """Pulse wave, 32 high, 96 low."""
     wave = np.full(128, 0, dtype=np.int16)
     wave[:32] = 32767
     return wave
 
 def gen_sqr_04_128():
-    """Narrow pulse, 4 high, 124 low, 16-bit signed."""
+    """Narrow pulse, 4 high, 124 low."""
     wave = np.full(128, 0, dtype=np.int16)
     wave[:4] = 32767
     return wave
 
-def gen_pct_linear():
-    """Linear percentage, 101 entries, 16-bit unsigned."""
-    return np.round(65535 * np.arange(101) / 100).astype(np.uint16)
+def gen_noise():
+    """Deterministic LFSR noise, 128 entries."""
+    lfsr = 0xACE1  # Non-zero seed
+    samples = []
+    for _ in range(128):
+        samples.append(lfsr >> 1)  # Upper 15 bits (0-32767)
+        bit = ((lfsr >> 0) ^ (lfsr >> 2) ^ (lfsr >> 3) ^ (lfsr >> 5)) & 1
+        lfsr = (lfsr >> 1) | (bit << 15)
+    return np.array(samples, dtype=np.int16)
 
-def gen_pct_log():
-    """Logarithmic percentage, 101 entries, 16-bit unsigned."""
-    x = np.arange(101)
-    return np.round(65535 * np.log10(1 + 9*x/100)).astype(np.uint16)
+def gen_dc():
+    """Constant high, 128 entries."""
+    return np.full(128, 32767, dtype=np.int16)
+
+def gen_pct_linear():
+    """Linear percentage, 101 entries."""
+    return np.round(32767 * np.arange(101) / 100).astype(np.int16)
+
+def gen_pct_sqrt():
+    """Square root percentage, 101 entries."""
+    return np.round(32767 * np.sqrt(np.arange(101) / 100)).astype(np.int16)
+
+def gen_pct_exp():
+    """Exponential percentage, 101 entries."""
+    result = np.zeros(101, dtype=np.int16)
+    for i in range(1, 101):
+        result[i] = int(round(32767 * (10**(i/50) - 1) / 99))
+    return result
 
 def gen_vhdl_rom_package():
     """Generate forge_rom_pkg_body.vhd with ROM contents."""
@@ -645,6 +684,12 @@ def gen_vhdl_rom_package():
 2. **Naming convention:** `SQR_X_Y` where X=samples high, Y=total length
    - Rationale: Orthogonal naming using absolute clock counts, not percentages
    - SQR_64_128, SQR_32_128, SQR_04_128 (was SQR_50, SQR_25, SQR_10)
+
+3. **Effects-aware waveform set:** 8 waveforms with derived variants via effects
+   - Removed COS (= SIN + shift), SAW_DN (= SAW + FLIP)
+   - Added NOISE (deterministic LFSR) and DC (constant high canvas)
+   - Rationale: Effects pedal model in BIOS-interface-spec.md enables deriving common variants
+   - Trade-off: One extra operation vs. ROM space savings and interface simplicity
 
 ## See Also
 
