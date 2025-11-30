@@ -9,7 +9,7 @@ accessed: 2025-11-29 17:21:46
 
 # Overview
 
-The LockInAmp instrument provides dual-phase demodulation (XY/R�) capabilities with an integrated oscilloscope and data logger. This instrument is part of the Moku multi-instrument platform and supports lock-in amplifier functionality for precision signal measurement and analysis.
+The LockInAmp instrument provides dual-phase demodulation (XY/Rθ) capabilities with an integrated oscilloscope and data logger. This instrument is part of the Moku multi-instrument platform and supports lock-in amplifier functionality for precision signal measurement and analysis.
 
 > [!info] Key Dependencies
 > - `moku.Moku` - Base Moku instrument functionality
@@ -72,7 +72,7 @@ class LockInAmp(MultiInstrumentSlottable, Moku, StreamInstrument):
     LockInAmp instrument object.
 
     The LockInAmp instrument supports dual-phase
-    demodulation (XY/R�) with integrated oscilloscope
+    demodulation (XY/Rθ) with integrated oscilloscope
     and data logger
 
     Read more at https://apis.liquidinstruments.com/reference/lia
