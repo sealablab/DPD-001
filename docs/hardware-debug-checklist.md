@@ -363,7 +363,7 @@ m.relinquish_ownership()
 - [API v4.0 Reference](api-v4.md) - Authoritative SW/HW calling convention
 - [HVS Encoding](hvs.md) - Understanding OutputC voltage encoding
 - [Network Register Sync](network-register-sync.md) - Why config only updates in INITIALIZING
-- [Custom Wrapper](custom-wrapper.md) - Control register details
+- [Custom Wrapper](docs/N/CustomWrapper.md) - Control register details
 
 ---
 

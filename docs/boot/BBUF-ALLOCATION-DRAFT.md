@@ -1,6 +1,8 @@
 ---
 created: 2025-11-30
 status: DRAFT
+modified: 2025-11-30 18:04:53
+accessed: 2025-11-30 18:04:53
 ---
 
 # ENV_BBUF Allocation and Access Architecture

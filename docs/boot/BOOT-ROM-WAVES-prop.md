@@ -1,8 +1,8 @@
 ---
 created: 2025-11-29
-modified: 2025-11-30 16:22:40
+modified: 2025-11-30 17:47:47
 status: PROPOSED
-accessed: 2025-11-30 16:20:07
+accessed: 2025-11-30 18:04:58
 ---
 # BOOT ROM Primitives Specification
 

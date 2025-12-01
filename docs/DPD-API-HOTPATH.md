@@ -312,7 +312,7 @@ The `RequestSession` class handles HTTP communication. DPD doesn't interact with
 | [hvs.md](../docs/hvs.md) | HVS encoding scheme |
 | [hardware-debug-checklist.md](../docs/hardware-debug-checklist.md) | Step-by-step hardware debugging |
 | [network-register-sync.md](../docs/network-register-sync.md) | Register sync protocol |
-| [custom-wrapper.md](../docs/custom-wrapper.md) | CustomWrapper interface spec |
+| [custom-wrapper.md](docs/N/CustomWrapper.md) | CustomWrapper interface spec |
 
 ### DPD Test Infrastructure (`tests/`)
 

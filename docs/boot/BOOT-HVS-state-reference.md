@@ -1,8 +1,8 @@
 ---
 created: 2025-11-29
-modified: 2025-11-30 16:04:26
+modified: 2025-11-30 17:20:35
 status: AUTHORITATIVE
-accessed: 2025-11-30 16:04:26
+accessed: 2025-11-30 17:41:12
 ---
 
 # BOOT Subsystem HVS State Reference

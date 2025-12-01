@@ -1,13 +1,16 @@
 ---
 type: N
 created: 2025-11-30
-modified: 2025-11-30 17:54:41
-accessed: 2025-11-30 17:54:41
+modified: 2025-11-30 18:12:55
+accessed: 2025-11-30 18:12:55
 ---
 
-# BootWrapper
-
-The **BootWrapper pattern** separates VHDL entity declaration from architecture implementation across two files.
+# [BOOT-ROM-WAVE-TABLE](docs/N/BOOT-ROM-WAVE-TABLE.md)
+The **Boot-ROM WAVE TABLE **  is a universally shared resource.
+The contents of it are described in detail in: 
+# See Also
+## [BOOT-ROM-WAVE-TABLE-spec](docs/boot/BOOT-ROM-WAVE-TABLE-spec.md)
+## [[BOOT-ROM-WAVE-TABLE-GEN-util]]
 
 
 ## The Problem

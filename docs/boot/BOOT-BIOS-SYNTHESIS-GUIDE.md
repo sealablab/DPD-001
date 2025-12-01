@@ -1,7 +1,7 @@
 ---
 created: 2025-11-30
-modified: 2025-11-30 14:54:47
-accessed: 2025-11-30 15:22:11
+modified: 2025-11-30 15:22:11
+accessed: 2025-11-30 17:41:13
 ---
 # BOOT/BIOS Bitstream Synthesis & Validation Guide
 

@@ -1,7 +1,8 @@
 ---
 type: N
 created: 2025-11-30
-modified: 2025-11-30
+modified: 2025-11-30 18:26:37
+accessed: 2025-11-30 18:34:08
 ---
 
 # BOOT_CR0 Quick Reference

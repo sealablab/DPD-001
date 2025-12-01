@@ -192,7 +192,7 @@ STATE_VOLTAGE_TOLERANCE = 0.30  # ±300mV (accounts for ADC noise)
 - [Network Register Sync](network-register-sync.md) - Why INITIALIZING is state 0
 - [Hardware Debug Checklist](hardware-debug-checklist.md) - Debugging with HVS voltages
 - [Test Architecture](test-architecture/forge_hierarchical_encoder_test_design.md) - Comprehensive test design
-- [Custom Wrapper](custom-wrapper.md) - HVS integration in CustomWrapper
+- [Custom Wrapper](docs/N/CustomWrapper.md) - HVS integration in CustomWrapper
 
 ---
 

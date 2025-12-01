@@ -30,13 +30,13 @@ This documentation directory contains detailed architectural notes, test design 
 The SW/HW interface reference for DPD. Documents CR0 lifecycle control, configuration registers (CR2-CR10), usage patterns, FSM states, and migration from v3. **Start here when writing or updating code that interfaces with DPD.**
 
 ### Custom Wrapper
-[custom-wrapper.md](custom-wrapper.md) - **Current MCC Standard**
+[custom-wrapper.md](docs/N/CustomWrapper.md) - **Current MCC Standard**
 
 The CustomWrapper entity interface (Clk, Reset, InputA/B/C, OutputA/B/C, Control0-15) that DPD-001 implements. Includes FORGE control scheme (CR0[31:29]), register mapping, and I/O port usage. Critical reference for understanding DPD's top-level interface.
 
  
 ### Custom Instrument
-[custom-instrument.md](custom-instrument.md) - **Future Standard**
+[custom-instrument.md](docs/N/CustomInstrument.md) - **Future Standard**
 
 Liquid Instruments' future "Custom Instrument" terminology with explicit ClkEn/Enable ports and state/status vectors. Comparison with CustomWrapper and migration path notes.
 

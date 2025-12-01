@@ -125,7 +125,7 @@ end process;
 
 - [Hardware Debug Checklist](hardware-debug-checklist.md) - Step-by-step debugging guide
 - [HVS Encoding](hvs.md) - Why INITIALIZING is state 0
-- [Custom Wrapper](custom-wrapper.md) - Control register details
+- [Custom Wrapper](docs/N/CustomWrapper.md) - Control register details
 - [FORGE Control Scheme](../CLAUDE.md#forge-control-scheme) - FORGE_READY bits in CR0
 
 ---
