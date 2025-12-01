@@ -1,7 +1,7 @@
 ---
 created: 2025-11-26
-modified: 2025-11-30 18:52:56
-accessed: 2025-11-30 18:41:08
+modified: 2025-12-01 15:33:12
+accessed: 2025-12-01 15:33:12
 type: N
 ---
 # [CustomInstrument](docs/N/CustomInstrument.md)

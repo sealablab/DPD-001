@@ -3,8 +3,8 @@ file: env_bbuf_pkg.vhd.md
 type: rtl_md
 author: jellch
 created: 2025-12-01
-modified: 2025-12-01 15:22:00
-accessed: 2025-12-01 15:14:57
+modified: 2025-12-01 15:23:24
+accessed: 2025-12-01 15:33:29
 code_link: "[[rtl/boot/env_bbuf_pkg.vhd|env_bbuf_pkg.vhd]]"
 doc_link: "[[rtl/boot/env_bbuf_pkg.vhd.md|env_bbuf_pkg.vhd.md]]"
 self_link: "[[rtl/boot/env_bbuf_pkg.vhd.md|env_bbuf_pkg.vhd.md]]"
