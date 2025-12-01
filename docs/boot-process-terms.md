@@ -37,10 +37,10 @@ The platform's initial state immediately after power-on or hard reset:
 
 ### `BOOT-P1`: Settled / RUN
 
-The platform has stabilized and the RUN gate (CR0[31:29]) is set:
+The platform has stabilized and the RUN gate (BOOT_CR0[31:29]) is set:
 - ENV_BBUFs are zeroed during this transition
 - BOOT-FSM dispatcher is active
-- User can select one of four transitions via CR0[28:25]
+- User can select one of four transitions via BOOT_CR0[28:25]
 
 > **User Experience:** The transition from `BOOT-P0` → `BOOT-P1` occurs when the user/driver sets the RUN bits, proving the platform has settled and a "head" (controller) is attached.
 
@@ -69,14 +69,16 @@ Control has been transferred to the main application:
 
 ## Command Reference
 
-| Command | CR0 Bits | Action |
-|---------|----------|--------|
-| `RUN` | CR0[31:29] = `111` | Transition BOOT-P0 → BOOT-P1 |
-| `RUNP` | CR0[28] = `1` | Transfer to PROG (one-way) |
-| `RUNB` | CR0[27] = `1` | Transfer to BIOS |
-| `RUNL` | CR0[26] = `1` | Transfer to LOADER |
-| `RUNR` | CR0[25] = `1` | Soft reset to BOOT-P0 |
-| `RET` | CR0[24] = `1` | Return to BOOT-P1 (from BIOS/LOAD only) |
+| Command | BOOT_CR0 Bits | Action |
+|---------|---------------|--------|
+| `RUN` | BOOT_CR0[31:29] = `111` | Transition BOOT-P0 → BOOT-P1 |
+| `RUNP` | BOOT_CR0[28] = `1` | Transfer to PROG (one-way) |
+| `RUNB` | BOOT_CR0[27] = `1` | Transfer to BIOS |
+| `RUNL` | BOOT_CR0[26] = `1` | Transfer to LOADER |
+| `RUNR` | BOOT_CR0[25] = `1` | Soft reset to BOOT-P0 |
+| `RET` | BOOT_CR0[24] = `1` | Return to BOOT-P1 (from BIOS/LOAD only) |
+
+> **Reference:** See [BOOT-CR0.md](boot/BOOT-CR0.md) for authoritative bit allocation.
 
 ## Expert Workflow Example
 
@@ -99,10 +101,10 @@ This workflow allows:
 
 ## Design Principles
 
-### CR0 as Privileged Register
+### BOOT_CR0 as Privileged Register
 
-CR0 is treated as a privileged/special-case register:
-- Application (PROG) logic should not access CR0 directly
+BOOT_CR0 is treated as a privileged/special-case register:
+- Application (PROG) logic should not access BOOT_CR0 directly
 - Boot-level control is managed by the Python client
 - This separation ensures clean handoff semantics
 
@@ -122,6 +124,7 @@ All modules (BOOT, BIOS, LOAD, PROG) use the canonical 6-bit FSM representation:
 
 ## See Also
 
+- [BOOT-CR0.md](boot/BOOT-CR0.md) - **Authoritative** BOOT_CR0 register specification
 - [BOOT-HVS-state-reference.md](boot/BOOT-HVS-state-reference.md) - **Authoritative** HVS state table with all voltages
 - [BOOT-FSM-spec.md](BOOT-FSM-spec.md) - Detailed BOOT FSM specification
 - [LOAD-FSM-spec.md](LOAD-FSM-spec.md) - LOADER buffer transfer protocol

@@ -21,10 +21,12 @@ The implementation has three main tracks:
 
 ### Shared Package: forge_common_pkg.vhd
 
-**CRITICAL:** All BOOT subsystem modules MUST use `rtl/forge_common_pkg.vhd` as the single source of truth for CR0 bit definitions. This package is shared across BOOT, BIOS, LOADER, and PROG modules.
+**CRITICAL:** All BOOT subsystem modules MUST use `rtl/forge_common_pkg.vhd` as the single source of truth for BOOT_CR0 bit definitions. This package is shared across BOOT, BIOS, LOADER, and PROG modules.
+
+> **Reference:** See [BOOT-CR0.md](../boot/BOOT-CR0.md) for authoritative register specification.
 
 ```vhdl
--- Every module that touches CR0 must include:
+-- Every module that touches BOOT_CR0 must include:
 library WORK;
 use WORK.forge_common_pkg.all;
 
@@ -48,7 +50,7 @@ The package provides:
 
 ```
 rtl/
-├── forge_common_pkg.vhd      # AUTHORITATIVE: CR0 bit definitions (SHARED)
+├── forge_common_pkg.vhd      # AUTHORITATIVE: BOOT_CR0 bit definitions (SHARED)
 └── boot/
     ├── L2_BUFF_LOADER.vhd    # Main LOADER FSM (exists as stub)
     ├── L2_BUFF_LOADER.vhd.md # Documentation (exists as stub)
@@ -67,7 +69,7 @@ rtl/
 
 #### Phase 2: Core FSM
 3. **L2_BUFF_LOADER.vhd** - Main LOADER module
-   - Inputs: CR0-CR4, Clk, Reset
+   - Inputs: BOOT_CR0, CR1-CR4, Clk, Reset
    - Outputs: state_vector, status_vector, bram_* signals
    - Internal: offset counter, 4x running CRCs, 4x expected CRCs
 
@@ -165,17 +167,17 @@ T_WORD_SIM = 20    # cycles between words
 
 ### Shared Constants: Alignment with VHDL
 
-The Python CLI must use the same CR0 bit definitions as `forge_common_pkg.vhd`. Create a Python mirror of the VHDL constants:
+The Python CLI must use the same BOOT_CR0 bit definitions as `forge_common_pkg.vhd`. Create a Python mirror of the VHDL constants:
 
 ```python
 # py_tools/boot_constants.py - MUST match forge_common_pkg.vhd
 
-# RUN Gate (CR0[31:29])
+# RUN Gate (BOOT_CR0[31:29])
 RUN_READY_BIT = 31
 RUN_USER_BIT = 30
 RUN_CLK_BIT = 29
 
-# Module Select (CR0[28:25])
+# Module Select (BOOT_CR0[28:25])
 SEL_PROG_BIT = 28
 SEL_BIOS_BIT = 27
 SEL_LOADER_BIT = 26
@@ -194,7 +196,7 @@ CMD_RET  = 0xE1000000
 
 ```
 py_tools/
-├── boot_constants.py         # CR0 bit definitions (mirrors forge_common_pkg.vhd)
+├── boot_constants.py         # BOOT_CR0 bit definitions (mirrors forge_common_pkg.vhd)
 ├── boot_cli.py               # Main CLI entry point (NEW)
 ├── boot_loader.py            # LOADER protocol implementation (NEW)
 └── moku_cli_common.py        # Existing common utilities
@@ -220,7 +222,7 @@ Commands:
 
   LOAD <file> [file2] [file3] [file4]  - Load 1-4 buffer files
   STATUS   - Show current state (from OutputC)
-  CR0      - Show CR0 value
+  BOOT_CR0 - Show BOOT_CR0 value
   QUIT     - Exit
 
 RUN> RUNL
@@ -261,7 +263,7 @@ class BootLoader:
         # 4. Validate phase (check OutputC)
 
     def _strobe(self):
-        """Pulse CR0[21] high then low."""
+        """Pulse BOOT_CR0[21] high then low."""
 
     def _read_state(self) -> str:
         """Read OutputC via oscilloscope, decode HVS."""
@@ -335,7 +337,7 @@ class BootShell(cmd.Cmd):
 ## Dependencies
 
 ### Shared Package (AUTHORITATIVE)
-- **`rtl/forge_common_pkg.vhd`** - Single source of truth for CR0 bit definitions
+- **`rtl/forge_common_pkg.vhd`** - Single source of truth for BOOT_CR0 bit definitions
   - All VHDL modules MUST use this package
   - Python code MUST mirror these constants in `py_tools/boot_constants.py`
 

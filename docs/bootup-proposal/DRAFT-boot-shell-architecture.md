@@ -17,7 +17,7 @@ The BOOT shell provides an interactive command-line interface that mirrors the B
 
 ```
                     ┌─────────────────┐
-  User Commands ──▶ │  CommandHandler │ ──▶ CR0 writes
+  User Commands ──▶ │  CommandHandler │ ──▶ BOOT_CR0 writes
                     └────────┬────────┘
                              │
             context switch   │  (client-authoritative)

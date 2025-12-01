@@ -83,7 +83,7 @@ BOOT_CR0[24]    = RET (return to BOOT_P1 when asserted)
 - **Validation stub:** After `BIOS_STUB_DELAY_CYCLES` (default 125000 = 1ms @ 125MHz)
 
 ### BIOS_DONE → BOOT_P1
-- **Trigger:** User issues RET (CR0[24] = 1), causing `bios_enable` to go low
+- **Trigger:** User issues RET (BOOT_CR0[24] = 1), causing `bios_enable` to go low
 - **Actions:** BIOS resets to IDLE, control returns to BOOT dispatcher
 
 ### BIOS_RUN/DONE → BIOS_FAULT
