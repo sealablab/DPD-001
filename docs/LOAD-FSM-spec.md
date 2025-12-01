@@ -1,8 +1,8 @@
 ---
 created: 2025-11-28
-modified: 2025-11-30 15:59:51
+modified: 2025-11-30 16:04:08
 status: AUTHORITATIVE
-accessed: 2025-11-30 15:59:51
+accessed: 2025-11-30 17:50:43
 ---
 # LOAD-FSM Specification
 
@@ -45,17 +45,19 @@ stateDiagram-v2
 > **Note:** LOADER uses the pre-PROG HVS encoding (197 units/state) with global S values 16-23.
 > See [BOOT-HVS-state-reference.md](boot/BOOT-HVS-state-reference.md) for complete voltage table.
 
-## CR Allocation for LOADER
+## BOOT_CR0 Allocation for LOADER
 
-When LOADER is active, it uses CR0 control bits and CR1-CR4 for data:
+> **Authoritative Reference:** [BOOT-CR0.md](boot/BOOT-CR0.md)
+
+When LOADER is active, it uses BOOT_CR0 control bits and CR1-CR4 for data:
 
 ```
-CR0[31:29] = RUN gate (must remain set)
-CR0[26]    = L (must remain set - LOADER selected)
-CR0[24]    = RET (return to BOOT_P1 when asserted)
-CR0[23:22] = Buffer count (00=1, 01=2, 10=3, 11=4)
-CR0[21]    = Data strobe (falling edge triggers action)
-CR0[20:0]  = Reserved
+BOOT_CR0[31:29] = RUN gate (must remain set)
+BOOT_CR0[26]    = L (must remain set - LOADER selected)
+BOOT_CR0[24]    = RET (return to BOOT_P1 when asserted)
+BOOT_CR0[23:22] = Buffer count (00=1, 01=2, 10=3, 11=4)
+BOOT_CR0[21]    = Data strobe (falling edge triggers action)
+BOOT_CR0[20:0]  = Reserved
 
 CR1 = ENV_BBUF_0: CRC-16 during setup, data word during transfer
 CR2 = ENV_BBUF_1: CRC-16 during setup, data word during transfer
@@ -65,8 +67,8 @@ CR4 = ENV_BBUF_3: CRC-16 during setup, data word during transfer
 
 ### Buffer Count Encoding
 
-| CR0[23:22] | Buffers Used | CRs Active |
-|------------|--------------|------------|
+| BOOT_CR0[23:22] | Buffers Used | CRs Active |
+|-----------------|--------------|------------|
 | `00` | 1 buffer | CR1 only |
 | `01` | 2 buffers | CR1-CR2 |
 | `10` | 3 buffers | CR1-CR3 |
@@ -92,11 +94,11 @@ Since the Python client cannot receive feedback from the bitstream (except via o
 ┌─────────────────────────────────────────────────────────────────┐
 │ Phase 0: Setup                                                  │
 ├─────────────────────────────────────────────────────────────────┤
-│ 1. Client sets CR0[23:22] = buffer_count                        │
+│ 1. Client sets BOOT_CR0[23:22] = buffer_count                   │
 │ 2. Client sets CR1-CR4 = expected CRC-16 values (one per buf)   │
-│ 3. Client sets CR0[21] = 1 (strobe HIGH)                        │
+│ 3. Client sets BOOT_CR0[21] = 1 (strobe HIGH)                   │
 │ 4. Client waits T_STROBE (1ms)                                  │
-│ 5. Client sets CR0[21] = 0 (strobe LOW) ← LOADER latches config │
+│ 5. Client sets BOOT_CR0[21] = 0 (strobe LOW) ← LOADER latches   │
 │ 6. Client waits T_SETUP (10ms)                                  │
 │                                                                 │
 │ LOADER: Latches buffer_count and CRC values on falling edge     │
@@ -109,9 +111,9 @@ Since the Python client cannot receive feedback from the bitstream (except via o
 ├─────────────────────────────────────────────────────────────────┤
 │ For each word (offset 0 to 1023):                               │
 │   1. Client sets CR1-CR4 = data words for all buffers           │
-│   2. Client sets CR0[21] = 1 (strobe HIGH)                      │
+│   2. Client sets BOOT_CR0[21] = 1 (strobe HIGH)                 │
 │   3. Client waits T_STROBE (1ms)                                │
-│   4. Client sets CR0[21] = 0 (strobe LOW) ← LOADER writes       │
+│   4. Client sets BOOT_CR0[21] = 0 (strobe LOW) ← LOADER writes  │
 │   5. Client waits T_WORD (1ms)                                  │
 │                                                                 │
 │ LOADER: On falling edge:                                        │
@@ -143,7 +145,7 @@ Since the Python client cannot receive feedback from the bitstream (except via o
 ┌─────────────────────────────────────────────────────────────────┐
 │ Phase 1026: Return                                              │
 ├─────────────────────────────────────────────────────────────────┤
-│ Client sets CR0[24] = 1 (RET)                                   │
+│ Client sets BOOT_CR0[24] = 1 (CMD_RET)                          │
 │                                                                 │
 │ LOADER: Returns control to BOOT_P1                              │
 │ BOOT: OutputC shows BOOT_P1 voltage (~0.03V, S=1)               │
@@ -265,6 +267,7 @@ loader_hvs_encoder : forge_hierarchical_encoder
 ```python
 import time
 from moku.instruments import CloudCompile
+from py_tools.boot_constants import CMD, BOOT_CR0_LOADER_STROBE_BIT
 
 class BootLoader:
     T_STROBE = 0.001   # 1ms strobe width
@@ -285,8 +288,9 @@ class BootLoader:
         crcs += [0] * (4 - len(crcs))  # Pad to 4
 
         # Phase 0: Setup
+        # BOOT_CR0 = CMD_RUNL | (buffer_count << 22)
         buffer_count = len(buffers) - 1  # 0=1buf, 1=2buf, etc.
-        self.moku.set_control(0, 0xE4000000 | (buffer_count << 22))
+        self.moku.set_control(0, CMD.RUNL | (buffer_count << 22))
         self.moku.set_control(1, crcs[0])
         self.moku.set_control(2, crcs[1])
         self.moku.set_control(3, crcs[2])
@@ -311,11 +315,11 @@ class BootLoader:
         return self._check_success()
 
     def _strobe(self):
-        """Pulse CR0[21] high then low."""
-        cr0 = self.moku.get_control(0)
-        self.moku.set_control(0, cr0 | (1 << 21))
+        """Pulse BOOT_CR0[21] high then low."""
+        boot_cr0 = self.moku.get_control(0)
+        self.moku.set_control(0, boot_cr0 | (1 << BOOT_CR0_LOADER_STROBE_BIT))
         time.sleep(self.T_STROBE)
-        self.moku.set_control(0, cr0 & ~(1 << 21))
+        self.moku.set_control(0, boot_cr0 & ~(1 << BOOT_CR0_LOADER_STROBE_BIT))
 
     def _check_success(self) -> bool:
         """Check OutputC via oscilloscope for success/fault."""
@@ -327,7 +331,9 @@ class BootLoader:
 
 ## See Also
 
+- [BOOT-CR0.md](boot/BOOT-CR0.md) - **Authoritative** BOOT_CR0 register specification
 - [BOOT-HVS-state-reference.md](boot/BOOT-HVS-state-reference.md) - **Authoritative** HVS state table with all voltages
 - [BOOT-FSM-spec.md](BOOT-FSM-spec.md) - BOOT module specification
+- [BIOS-FSM-spec.md](BIOS-FSM-spec.md) - BIOS diagnostics state machine
 - [HVS-encoding-scheme.md](HVS-encoding-scheme.md) - Pre-PROG encoding design rationale
 - [boot-process-terms.md](boot-process-terms.md) - Naming conventions

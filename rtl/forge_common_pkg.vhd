@@ -2,30 +2,39 @@
 -- File: forge_common_pkg.vhd
 -- Author: Moku Instrument Forge Team
 -- Created: 2025-11-05
--- Modified: 2025-11-28
+-- Modified: 2025-11-30
 --
 -- Description:
---   Common constants and types for the BOOT subsystem and CR0 privileged
+--   Common constants and types for the BOOT subsystem and BOOT_CR0 privileged
 --   control scheme. This package defines the authoritative bit allocations
---   for CR0 used by BOOT, BIOS, LOADER, and PROG modules.
+--   for BOOT_CR0 used by BOOT, BIOS, LOADER, and PROG modules.
+--
+-- IMPORTANT: BOOT_CR0 vs AppReg
+--   BOOT_CR0 = Moku CloudCompile Control0 during BOOT/BIOS/LOADER phases
+--   AppReg   = Application-level registers used by PROG (different bit layout)
+--
+--   After RUNP handoff to PROG, the application takes ownership of Control0
+--   with its own bit layout. The BOOT_CR0 definitions below are ONLY valid
+--   during boot phases.
 --
 -- Design Pattern:
---   This package is the single source of truth for CR0 bit definitions.
---   All modules in the BOOT subsystem (and applications) must use these
---   constants rather than hardcoding bit positions.
+--   This package is the single source of truth for BOOT_CR0 bit definitions.
+--   All modules in the BOOT subsystem must use these constants rather than
+--   hardcoding bit positions.
 --
--- CR0 Register Map (Authoritative):
---   CR0[31:29] - RUN gate (R/U/N - must all be '1' for operation)
---   CR0[28:25] - Module select (P/B/L/R - mutually exclusive)
---   CR0[24]    - RET (return to BOOT_P1 from BIOS/LOADER)
---   CR0[23:22] - LOADER buffer count
---   CR0[21]    - LOADER data strobe
---   CR0[20:0]  - Reserved
+-- BOOT_CR0 Register Map (Authoritative):
+--   BOOT_CR0[31:29] - RUN gate (R/U/N - must all be '1' for operation)
+--   BOOT_CR0[28:25] - Module select (P/B/L/R - mutually exclusive)
+--   BOOT_CR0[24]    - RET (return to BOOT_P1 from BIOS/LOADER)
+--   BOOT_CR0[23:22] - LOADER buffer count
+--   BOOT_CR0[21]    - LOADER data strobe
+--   BOOT_CR0[20:0]  - Reserved
 --
 -- References:
---   - docs/BOOT-FSM-spec.md (authoritative)
---   - docs/boot-process-terms.md (authoritative)
---   - docs/bootup-proposal/LOAD-FSM-spec.md (authoritative)
+--   - docs/boot/BOOT-CR0.md (AUTHORITATIVE - register specification)
+--   - docs/BOOT-FSM-spec.md (AUTHORITATIVE - FSM specification)
+--   - docs/boot-process-terms.md (authoritative - naming conventions)
+--   - docs/LOAD-FSM-spec.md (authoritative - LOADER protocol)
 --------------------------------------------------------------------------------
 
 library IEEE;
@@ -35,12 +44,12 @@ use IEEE.numeric_std.all;
 package forge_common_pkg is
 
     ----------------------------------------------------------------------------
-    -- RUN Gate (CR0[31:29])
+    -- RUN Gate (BOOT_CR0[31:29])
     --
     -- All three bits must be '1' for the system to operate.
     -- Safe default: All-zero state keeps everything disabled.
     --
-    -- Transition: BOOT_P0 → BOOT_P1 requires CR0[31:29] = "111"
+    -- Transition: BOOT_P0 → BOOT_P1 requires BOOT_CR0[31:29] = "111"
     --
     -- Usage:
     --   run_ready   <= Control0(31);  -- R: Ready (platform settled)
@@ -56,17 +65,17 @@ package forge_common_pkg is
     constant RUN_GATE_MASK : std_logic_vector(31 downto 0) := x"E0000000";
 
     ----------------------------------------------------------------------------
-    -- Module Select (CR0[28:25])
+    -- Module Select (BOOT_CR0[28:25])
     --
     -- Exactly ONE of these bits should be set to select a module.
     -- Multiple bits set = FAULT condition.
     -- Priority (if hardware encoder used): P > B > L > R
     --
     -- Commands:
-    --   RUNP (CR0[28]=1) - Transfer to PROG (one-way)
-    --   RUNB (CR0[27]=1) - Transfer to BIOS
-    --   RUNL (CR0[26]=1) - Transfer to LOADER
-    --   RUNR (CR0[25]=1) - Soft reset to BOOT_P0
+    --   RUNP (BOOT_CR0[28]=1) - Transfer to PROG (one-way)
+    --   RUNB (BOOT_CR0[27]=1) - Transfer to BIOS
+    --   RUNL (BOOT_CR0[26]=1) - Transfer to LOADER
+    --   RUNR (BOOT_CR0[25]=1) - Soft reset to BOOT_P0
     ----------------------------------------------------------------------------
     constant SEL_PROG_BIT   : natural := 28;  -- P: Program
     constant SEL_BIOS_BIT   : natural := 27;  -- B: BIOS
@@ -81,7 +90,7 @@ package forge_common_pkg is
     constant CMD_RUNR : std_logic_vector(31 downto 0) := x"E2000000";  -- RUN + R
 
     ----------------------------------------------------------------------------
-    -- Return Control (CR0[24])
+    -- Return Control (BOOT_CR0[24])
     --
     -- Used by BIOS and LOADER to return control to BOOT_P1.
     -- PROG cannot return (one-way handoff).
@@ -91,10 +100,10 @@ package forge_common_pkg is
     constant CMD_RET : std_logic_vector(31 downto 0) := x"E1000000";  -- RUN + RET
 
     ----------------------------------------------------------------------------
-    -- LOADER Control (CR0[23:21])
+    -- LOADER Control (BOOT_CR0[23:21])
     --
-    -- CR0[23:22] - Buffer count (00=1, 01=2, 10=3, 11=4)
-    -- CR0[21]    - Data strobe (falling edge triggers action)
+    -- BOOT_CR0[23:22] - Buffer count (00=1, 01=2, 10=3, 11=4)
+    -- BOOT_CR0[21]    - Data strobe (falling edge triggers action)
     ----------------------------------------------------------------------------
     constant LOADER_BUFCNT_HI  : natural := 23;
     constant LOADER_BUFCNT_LO  : natural := 22;
@@ -222,44 +231,44 @@ package forge_common_pkg is
     -- Helper Functions
     ----------------------------------------------------------------------------
 
-    -- Check if RUN gate is fully enabled
-    function is_run_active(cr0 : std_logic_vector(31 downto 0)) return boolean;
+    -- Check if BOOT_CR0 RUN gate is fully enabled
+    function is_run_active(boot_cr0 : std_logic_vector(31 downto 0)) return boolean;
 
-    -- Extract module select bits and check for valid (single) selection
-    function get_module_select(cr0 : std_logic_vector(31 downto 0))
+    -- Extract module select bits from BOOT_CR0 and check for valid (single) selection
+    function get_module_select(boot_cr0 : std_logic_vector(31 downto 0))
         return std_logic_vector;  -- Returns 4-bit P/B/L/R
 
-    -- Check if exactly one module select bit is set
-    function is_valid_select(cr0 : std_logic_vector(31 downto 0)) return boolean;
+    -- Check if exactly one module select bit is set in BOOT_CR0
+    function is_valid_select(boot_cr0 : std_logic_vector(31 downto 0)) return boolean;
 
-    -- Extract LOADER buffer count (0-3, representing 1-4 buffers)
-    function get_loader_bufcnt(cr0 : std_logic_vector(31 downto 0))
+    -- Extract LOADER buffer count from BOOT_CR0 (0-3, representing 1-4 buffers)
+    function get_loader_bufcnt(boot_cr0 : std_logic_vector(31 downto 0))
         return natural;
 
 end package forge_common_pkg;
 
 package body forge_common_pkg is
 
-    -- Check if all RUN gate bits are set
-    function is_run_active(cr0 : std_logic_vector(31 downto 0)) return boolean is
+    -- Check if all BOOT_CR0 RUN gate bits are set
+    function is_run_active(boot_cr0 : std_logic_vector(31 downto 0)) return boolean is
     begin
-        return cr0(RUN_READY_BIT) = '1' and
-               cr0(RUN_USER_BIT) = '1' and
-               cr0(RUN_CLK_BIT) = '1';
+        return boot_cr0(RUN_READY_BIT) = '1' and
+               boot_cr0(RUN_USER_BIT) = '1' and
+               boot_cr0(RUN_CLK_BIT) = '1';
     end function;
 
-    -- Extract module select bits (P/B/L/R)
-    function get_module_select(cr0 : std_logic_vector(31 downto 0))
+    -- Extract module select bits (P/B/L/R) from BOOT_CR0
+    function get_module_select(boot_cr0 : std_logic_vector(31 downto 0))
         return std_logic_vector is
     begin
-        return cr0(SEL_PROG_BIT downto SEL_RESET_BIT);
+        return boot_cr0(SEL_PROG_BIT downto SEL_RESET_BIT);
     end function;
 
-    -- Check if exactly one module select bit is set (valid selection)
-    function is_valid_select(cr0 : std_logic_vector(31 downto 0)) return boolean is
+    -- Check if exactly one module select bit is set in BOOT_CR0 (valid selection)
+    function is_valid_select(boot_cr0 : std_logic_vector(31 downto 0)) return boolean is
         variable sel : std_logic_vector(3 downto 0);
     begin
-        sel := cr0(SEL_PROG_BIT downto SEL_RESET_BIT);
+        sel := boot_cr0(SEL_PROG_BIT downto SEL_RESET_BIT);
         case sel is
             when "1000" => return true;  -- RUNP only
             when "0100" => return true;  -- RUNB only
@@ -270,11 +279,11 @@ package body forge_common_pkg is
         end case;
     end function;
 
-    -- Extract LOADER buffer count from CR0[23:22]
-    function get_loader_bufcnt(cr0 : std_logic_vector(31 downto 0))
+    -- Extract LOADER buffer count from BOOT_CR0[23:22]
+    function get_loader_bufcnt(boot_cr0 : std_logic_vector(31 downto 0))
         return natural is
     begin
-        return to_integer(unsigned(cr0(LOADER_BUFCNT_HI downto LOADER_BUFCNT_LO)));
+        return to_integer(unsigned(boot_cr0(LOADER_BUFCNT_HI downto LOADER_BUFCNT_LO)));
     end function;
 
 end package body forge_common_pkg;

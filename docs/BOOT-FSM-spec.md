@@ -1,8 +1,8 @@
 ---
 created: 2025-11-28
-modified: 2025-11-30 16:06:37
+modified: 2025-11-30 16:12:49
 status: AUTHORITATIVE
-accessed: 2025-11-30 15:59:33
+accessed: 2025-11-30 18:18:09
 ---
 # BOOT-FSM Specification
 
@@ -63,48 +63,48 @@ stateDiagram-v2
 > **Note:** When in BIOS/LOAD/PROG_ACTIVE states, OutputC is muxed from the active module's HVS encoder.
 > See [BOOT-HVS-state-reference.md](boot/BOOT-HVS-state-reference.md) for complete voltage table.
 
-## CR0 Bit Allocation
+## BOOT_CR0 Register
+
+> **Authoritative Reference:** [BOOT-CR0.md](boot/BOOT-CR0.md)
+
+The BOOT FSM is controlled by the **BOOT_CR0** register (mapped to Moku CloudCompile's `Control0`).
 
 ```
-CR0[31]    = R (Ready)       ─┐
-CR0[30]    = U (User)         ├─ RUN gate (must all be '1' for operation)
-CR0[29]    = N (clkEnable)   ─┘
-CR0[28]    = P (Program)     ─┐
-CR0[27]    = B (BIOS)         ├─ Module select (mutually exclusive)
-CR0[26]    = L (Loader)       │
-CR0[25]    = R (Reset)       ─┘
-CR0[24]    = RET             ─── Return to BOOT_P1 (from BIOS/LOAD only)
-CR0[23:0]  = Reserved for future use
+BOOT_CR0[31:29] = RUN gate (R/U/N - must all be '1')
+BOOT_CR0[28:25] = Module select (P/B/L/R - one-hot)
+BOOT_CR0[24]    = RET (return to BOOT_P1)
+BOOT_CR0[23:21] = LOADER control (BUFCNT, STROBE)
 ```
 
 ### Module Selection Commands
 
-| Command | CR0 Value | Action |
-|---------|-----------|--------|
-| RUNP | `0xF0000000` | Transfer control to PROG (one-way) |
-| RUNB | `0xE8000000` | Transfer control to BIOS |
-| RUNL | `0xE4000000` | Transfer control to LOADER |
-| RUNR | `0xE2000000` | Soft reset to BOOT_P0 |
-| RET  | `0xE1000000` | Return from BIOS/LOAD to BOOT_P1 |
+| Command | BOOT_CR0 Value | Action |
+|---------|----------------|--------|
+| `CMD_RUN`  | `0xE0000000` | Enable RUN gate only |
+| `CMD_RUNP` | `0xF0000000` | Transfer control to PROG (one-way) |
+| `CMD_RUNB` | `0xE8000000` | Transfer control to BIOS |
+| `CMD_RUNL` | `0xE4000000` | Transfer control to LOADER |
+| `CMD_RUNR` | `0xE2000000` | Soft reset to BOOT_P0 |
+| `CMD_RET`  | `0xE1000000` | Return from BIOS/LOAD to BOOT_P1 |
 
-> **Note:** RUNP sets CR0[28]=1, which combined with RUN bits (CR0[31:29]=111) yields `0xF0000000`. The other commands keep CR0[28]=0.
+> **Note:** After `RUNP` handoff to PROG, the application takes ownership of Control0 with its own bit layout (`AppReg`). The BOOT_CR0 layout is only valid during BOOT/BIOS/LOADER phases.
 
 ## State Transitions
 
 ### BOOT_P0 → BOOT_P1
-- **Trigger:** CR0[31:29] = `111` (RUN bits all set)
+- **Trigger:** `BOOT_CR0[31:29] = "111"` (RUN bits all set)
 - **Actions:**
   - Zero all four ENV_BBUF regions (4x 4KB BRAM)
   - Enable BOOT-FSM dispatcher logic
 - **User Experience:** User/driver sets RUN bits, proving platform has settled and a "head" is attached.
 
 ### BOOT_P1 → Module Selection
-- **Trigger:** Exactly one of CR0[28:25] set
+- **Trigger:** Exactly one of `BOOT_CR0[28:25]` set
 - **Priority:** P > B > L > R (if hardware priority encoder used)
 - **Violation:** Multiple bits set → FAULT
 
 ### BIOS_ACTIVE / LOAD_ACTIVE → BOOT_P1
-- **Trigger:** CR0[24] = `1` (RET bit)
+- **Trigger:** `BOOT_CR0[24] = '1'` (RET bit)
 - **Actions:** Return control to BOOT dispatcher
 - **Use Case:** Expert workflow - load buffers, run diagnostics, then launch PROG
 
@@ -198,28 +198,29 @@ The BOOT module allocates four 4KB BRAM regions for environment/configuration da
 
 ```
 1. Platform powers on
-   └─► BOOT_P0 (CRs zeroed)
+   └─► BOOT_P0 (Control registers zeroed)
 
-2. User sets CR0 = 0xE0000000 (RUN)
+2. User sets BOOT_CR0 = 0xE0000000 (CMD_RUN)
    └─► BOOT_P1 (ENV_BBUFs zeroed, dispatcher ready)
 
-3. User sets CR0 = 0xE4000000 (RUNL)
+3. User sets BOOT_CR0 = 0xE4000000 (CMD_RUNL)
    └─► LOAD_ACTIVE
    └─► User populates ENV_BBUFs via LOADER
 
-4. User sets CR0 = 0xE1000000 (RET)
+4. User sets BOOT_CR0 = 0xE1000000 (CMD_RET)
    └─► BOOT_P1
 
-5. User sets CR0 = 0xE8000000 (RUNB)
+5. User sets BOOT_CR0 = 0xE8000000 (CMD_RUNB)
    └─► BIOS_ACTIVE
    └─► User runs diagnostics (may use populated buffers)
 
-6. User sets CR0 = 0xE1000000 (RET)
+6. User sets BOOT_CR0 = 0xE1000000 (CMD_RET)
    └─► BOOT_P1
 
-7. User sets CR0 = 0xF0000000 (RUNP)
+7. User sets BOOT_CR0 = 0xF0000000 (CMD_RUNP)
    └─► PROG_ACTIVE (one-way handoff)
    └─► Application runs with access to pre-loaded ENV_BBUFs
+   └─► Control0 now owned by application (AppReg layout)
 ```
 
 ## Design Rationale
@@ -238,9 +239,11 @@ Usability: when a user manually sets bits from MSB to LSB in a GUI, they natural
 
 ## See Also
 
+- [BOOT-CR0.md](boot/BOOT-CR0.md) - **Authoritative** BOOT_CR0 register specification
 - [BOOT-HVS-state-reference.md](boot/BOOT-HVS-state-reference.md) - **Authoritative** HVS state table with all voltages
 - [HVS-encoding-scheme.md](HVS-encoding-scheme.md) - Pre-PROG encoding design rationale
 - [LOAD-FSM-spec.md](LOAD-FSM-spec.md) - LOADER buffer transfer protocol
+- [BIOS-FSM-spec.md](BIOS-FSM-spec.md) - BIOS diagnostics state machine
 - [boot-process-terms.md](boot-process-terms.md) - Naming conventions
-- [api-v4.md](api-v4.md) - Control register calling convention
+- [api-v4.md](api-v4.md) - Application-level control register convention (AppReg)
 - [hvs.md](hvs.md) - General HVS encoding documentation

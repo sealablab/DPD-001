@@ -55,18 +55,20 @@ bios_complete : out std_logic -- Asserted when BIOS reaches DONE state
 
 BIOS does not directly read CR registers - all configuration comes through the BOOT dispatcher.
 
-### CR0 Bits (handled by BOOT parent)
+### BOOT_CR0 Bits (handled by BOOT parent)
+
+> **Authoritative Reference:** [BOOT-CR0.md](boot/BOOT-CR0.md)
 
 ```
-CR0[31:29] = RUN gate (must remain set)
-CR0[27]    = B (must remain set - BIOS selected)
-CR0[24]    = RET (return to BOOT_P1 when asserted)
+BOOT_CR0[31:29] = RUN gate (must remain set)
+BOOT_CR0[27]    = B (must remain set - BIOS selected)
+BOOT_CR0[24]    = RET (return to BOOT_P1 when asserted)
 ```
 
-| Command | CR0 Value | Action |
-|---------|-----------|--------|
-| RUNB | `0xE8000000` | Dispatch to BIOS |
-| RET | `0xE1000000` | Return from BIOS to BOOT_P1 |
+| Command | BOOT_CR0 Value | Action |
+|---------|----------------|--------|
+| `CMD_RUNB` | `0xE8000000` | Dispatch to BIOS |
+| `CMD_RET`  | `0xE1000000` | Return from BIOS to BOOT_P1 |
 
 ## State Transitions
 
@@ -151,7 +153,7 @@ The full BIOS implementation will provide:
 1. **ROM Waveform Generation**
    - 8 pre-computed waveforms (SIN, COS, TRI, SAW, SQR variants)
    - 128-sample LUTs, 16-bit signed values
-   - See [BOOT-ROM-primitives-spec.md](docs/boot/ROM-WAVEFORMS-prop.md)
+   - See [BOOT-ROM-primitives-spec.md](docs/boot/BOOT-ROM-WAVES-prop.md)
 
 2. **Diagnostic Functions**
    - DAC/ADC loopback tests
@@ -187,8 +189,9 @@ BIOS needs to know when it's freshly dispatched vs. re-entered. Rising edge of `
 
 ## See Also
 
+- [BOOT-CR0.md](boot/BOOT-CR0.md) - **Authoritative** BOOT_CR0 register specification
 - [BOOT-HVS-state-reference.md](boot/BOOT-HVS-state-reference.md) - **Authoritative** HVS state table with all voltages
 - [BOOT-FSM-spec.md](BOOT-FSM-spec.md) - BOOT dispatcher specification
 - [LOAD-FSM-spec.md](LOAD-FSM-spec.md) - LOADER buffer transfer protocol
-- [BOOT-ROM-primitives-spec.md](docs/boot/ROM-WAVEFORMS-prop.md) - ROM waveform definitions
+- [BOOT-ROM-WAVES-prop.md](boot/BOOT-ROM-WAVES-prop.md) - ROM waveform definitions
 - [HVS-encoding-scheme.md](HVS-encoding-scheme.md) - Pre-PROG encoding design rationale
