@@ -1,7 +1,8 @@
 ---
 created: 2025-11-29
-modified: 2025-11-29
-status: DRAFT
+modified: 2025-11-30 16:22:25
+status: PROPOSED
+accessed: 2025-11-30 16:20:40
 ---
 # BIOS Interface Specification
 
@@ -436,5 +437,5 @@ CR_BIOS_OUT1 = wave=ENV_0(8), center=8, width_sel=4, stride=2, effect=CLIP, para
 
 ## See Also
 
-- [BOOT-ROM-primitives-spec.md](BOOT-ROM-primitives-spec.md) - Waveform definitions
+- [BOOT-ROM-primitives-spec.md](docs/boot/ROM-WAVEFORMS-prop.md) - Waveform definitions
 - [boot-process-terms.md](../boot-process-terms.md) - Naming conventions

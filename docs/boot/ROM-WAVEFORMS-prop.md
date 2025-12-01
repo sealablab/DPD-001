@@ -1,8 +1,8 @@
 ---
 created: 2025-11-29
-modified: 2025-11-29 21:49:37
-status: DRAFT
-accessed: 2025-11-29 21:56:46
+modified: 2025-11-30 16:22:40
+status: PROPOSED
+accessed: 2025-11-30 16:20:07
 ---
 # BOOT ROM Primitives Specification
 
@@ -47,7 +47,7 @@ Even when a waveform *could* be computed (e.g., triangle from counter), we store
 | 0            | 7      | `DC`          | 128     | 16   | 256       | Constant high (canvas)        |
 | **Subtotal** |        |               |         |      | **2048**  | **Bank 0: Waveforms**         |
 
-**Note:** COS and SAW_DN removed — derivable via shift and FLIP effect. See [BIOS-interface-spec.md](BIOS-interface-spec.md).
+**Note:** COS and SAW_DN removed — derivable via shift and FLIP effect. See [BIOS-interface-spec.md](docs/boot/BIOS-interface-prop.md).
 | 1            | 8      | `PCT_LINEAR`  | 101     | 16   | 202       | Linear 0-100%                 |
 | 1            | 9      | `PCT_SQRT`    | 101     | 16   | 202       | Power % → amplitude           |
 | 1            | 10     | `PCT_EXP`     | 101     | 16   | 202       | Exponential (decade-spanning) |

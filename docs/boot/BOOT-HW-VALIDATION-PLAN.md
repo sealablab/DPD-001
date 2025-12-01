@@ -1,7 +1,9 @@
 ---
 created: 2025-11-28
-modified: 2025-11-28 23:10:43
-accessed: 2025-11-30 12:53:38
+modified: 2025-11-30 12:53:38
+accessed: 2025-11-30 15:37:39
+reviewed: 2025-11-30 15:45:00
+status: silver
 ---
 # BOOT Hardware Validation Plan
 
