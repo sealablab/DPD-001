@@ -503,7 +503,7 @@ If the ÷4 ratio holds:
 ## See Also
 
 - [moku-clock-domains.md](moku-clock-domains.md) - Authoritative clock reference
-- [BOOT-ROM-primitives-spec.md](bootup-proposal/BOOT-ROM-primitives-spec.md) - ROM waveforms
+- [BOOT-ROM-primitives-spec.md](docs/boot/ROM-WAVEFORMS-prop.md) - ROM waveforms
 - [BOOT-FSM-spec.md](bootup-proposal/BOOT-FSM-spec.md) - BIOS state machine timing
 - [BoxcarControlPanel.py](../moku_trim_examples/mcc/HDLCoder/hdlcoder_boxcar/python/BoxcarControlPanel.py) - Example period_dict
 

@@ -1,3 +1,8 @@
+---
+created: 2025-11-28
+modified: 2025-11-28 23:10:43
+accessed: 2025-11-30 15:17:35
+---
 # HVS (Hierarchical Voltage Encoding Scheme)
 
 **Last Updated:** 2025-01-28 (migrated from review_me)  

@@ -1,3 +1,8 @@
+---
+created: 2025-11-25
+modified: 2025-11-25 17:51:18
+accessed: 2025-11-30 15:59:15
+---
 # Test Architecture: forge_hierarchical_encoder
 
 **Component:** forge_hierarchical_encoder.vhd  

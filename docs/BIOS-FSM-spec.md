@@ -151,7 +151,7 @@ The full BIOS implementation will provide:
 1. **ROM Waveform Generation**
    - 8 pre-computed waveforms (SIN, COS, TRI, SAW, SQR variants)
    - 128-sample LUTs, 16-bit signed values
-   - See [BOOT-ROM-primitives-spec.md](bootup-proposal/BOOT-ROM-primitives-spec.md)
+   - See [BOOT-ROM-primitives-spec.md](docs/boot/ROM-WAVEFORMS-prop.md)
 
 2. **Diagnostic Functions**
    - DAC/ADC loopback tests
@@ -190,5 +190,5 @@ BIOS needs to know when it's freshly dispatched vs. re-entered. Rising edge of `
 - [BOOT-HVS-state-reference.md](boot/BOOT-HVS-state-reference.md) - **Authoritative** HVS state table with all voltages
 - [BOOT-FSM-spec.md](BOOT-FSM-spec.md) - BOOT dispatcher specification
 - [LOAD-FSM-spec.md](LOAD-FSM-spec.md) - LOADER buffer transfer protocol
-- [BOOT-ROM-primitives-spec.md](bootup-proposal/BOOT-ROM-primitives-spec.md) - ROM waveform definitions
+- [BOOT-ROM-primitives-spec.md](docs/boot/ROM-WAVEFORMS-prop.md) - ROM waveform definitions
 - [HVS-encoding-scheme.md](HVS-encoding-scheme.md) - Pre-PROG encoding design rationale

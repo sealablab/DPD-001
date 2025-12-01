@@ -2,6 +2,8 @@
 status: DRAFT
 created: 2025-11-29
 author: Claude Code session
+modified: 2025-11-28 20:31:02
+accessed: 2025-11-30 16:21:21
 ---
 # HVS Context-Aware Interpretation (DRAFT)
 

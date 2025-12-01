@@ -1,8 +1,8 @@
 ---
 created: 2025-11-28
-modified: 2025-11-29 15:16:38
+modified: 2025-11-30 16:06:37
 status: AUTHORITATIVE
-accessed: 2025-11-29 18:24:20
+accessed: 2025-11-30 15:59:33
 ---
 # BOOT-FSM Specification
 
