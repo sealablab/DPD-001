@@ -10,8 +10,16 @@
 --   This is the dispatcher FSM that routes control to BIOS, LOADER, or PROG
 --   based on CR0[28:25] module select bits.
 --
--- Concerns / #TODOS 
--- - we need to authoritatively decide how to handle the 'boot/bios/loader' 'boot time' constants and definitions. Since we allow BIOS/LOADER->BOOT transitions, these interfaces, though designed to be conceptually indepdent, may actually have a little bit of cross module bit level symbol references. After we make CR0->BOOT_CR0 things will improve in that regard 
+-- Architecture:
+--   ENV_BBUFs (4 × 4KB Block RAM) are owned by this module.
+--   - Zeroed during BOOT_P0 → BOOT_P1 transition
+--   - Written by LOADER via parallel write interface
+--   - Read by BIOS/PROG using BANK_SEL (CR0[23:22])
+--
+--   Constants defined in forge_common_pkg.vhd (authoritative):
+--   - BOOT_CR0 bit positions (RUN gate, module select, BANK_SEL, STROBE)
+--   - FSM state encodings and HVS mappings
+--
 -- FSM States:
 --   BOOT_P0 (000000) - Initial/Reset state, waiting for RUN gate
 --   BOOT_P1 (000001) - Settled/Dispatcher, waiting for module select
@@ -63,6 +71,55 @@ architecture boot_dispatcher of BootWrapper is
     -- BOOT FSM state
     signal boot_state      : std_logic_vector(5 downto 0);
     signal boot_state_next : std_logic_vector(5 downto 0);
+
+    ----------------------------------------------------------------------------
+    -- ENV_BBUF BRAM Arrays (owned by B0_BOOT_TOP)
+    --
+    -- Four 4KB buffers (1024 × 32-bit each) for environment/configuration data.
+    -- - Zeroed during BOOT_P0 → BOOT_P1 transition
+    -- - Written by LOADER (parallel writes to all 4 buffers)
+    -- - Read by BIOS/PROG using global BANK_SEL
+    --
+    -- Reference: docs/boot/BBUF-ALLOCATION-DRAFT.md
+    ----------------------------------------------------------------------------
+    type env_bbuf_t is array (0 to ENV_BBUF_WORDS-1) of
+        std_logic_vector(ENV_BBUF_DATA_WIDTH-1 downto 0);
+
+    signal env_bbuf_0 : env_bbuf_t;
+    signal env_bbuf_1 : env_bbuf_t;
+    signal env_bbuf_2 : env_bbuf_t;
+    signal env_bbuf_3 : env_bbuf_t;
+
+    -- BRAM inference attributes (request block RAM, not distributed)
+    attribute ram_style : string;
+    attribute ram_style of env_bbuf_0 : signal is "block";
+    attribute ram_style of env_bbuf_1 : signal is "block";
+    attribute ram_style of env_bbuf_2 : signal is "block";
+    attribute ram_style of env_bbuf_3 : signal is "block";
+
+    -- BANK_SEL: Global buffer selector for reads (from BOOT_CR0[23:22])
+    signal bank_sel : std_logic_vector(1 downto 0);
+
+    -- Zeroing FSM (runs during BOOT_P0 → BOOT_P1 transition)
+    type zero_state_t is (ZERO_IDLE, ZERO_ACTIVE, ZERO_DONE);
+    signal zero_state     : zero_state_t;
+    signal zero_addr      : unsigned(ENV_BBUF_ADDR_WIDTH-1 downto 0);
+    signal zero_we        : std_logic;
+    signal zeroing_done   : std_logic;
+
+    -- LOADER write interface (parallel writes from L2_BUFF_LOADER)
+    signal loader_wr_data_0 : std_logic_vector(ENV_BBUF_DATA_WIDTH-1 downto 0);
+    signal loader_wr_data_1 : std_logic_vector(ENV_BBUF_DATA_WIDTH-1 downto 0);
+    signal loader_wr_data_2 : std_logic_vector(ENV_BBUF_DATA_WIDTH-1 downto 0);
+    signal loader_wr_data_3 : std_logic_vector(ENV_BBUF_DATA_WIDTH-1 downto 0);
+    signal loader_wr_addr   : std_logic_vector(ENV_BBUF_ADDR_WIDTH-1 downto 0);
+    signal loader_wr_we     : std_logic;
+
+    -- BRAM read outputs (registered for proper BRAM timing)
+    signal bbuf_rd_0 : std_logic_vector(ENV_BBUF_DATA_WIDTH-1 downto 0);
+    signal bbuf_rd_1 : std_logic_vector(ENV_BBUF_DATA_WIDTH-1 downto 0);
+    signal bbuf_rd_2 : std_logic_vector(ENV_BBUF_DATA_WIDTH-1 downto 0);
+    signal bbuf_rd_3 : std_logic_vector(ENV_BBUF_DATA_WIDTH-1 downto 0);
 
     -- RUN gate signals
     signal run_active : std_logic;
@@ -137,8 +194,107 @@ begin
     sel_reset  <= Control0(SEL_RESET_BIT);
     ret_active <= Control0(RET_BIT);
 
+    -- BANK_SEL: Global buffer selector for ENV_BBUF reads
+    bank_sel <= Control0(BANK_SEL_HI downto BANK_SEL_LO);
+
+    ----------------------------------------------------------------------------
+    -- ENV_BBUF Zeroing FSM
+    --
+    -- Runs during BOOT_P0 → BOOT_P1 transition to ensure clean buffer state.
+    -- Takes 1024 cycles (writes zeros to all addresses in all 4 buffers).
+    ----------------------------------------------------------------------------
+    process(Clk)
+    begin
+        if rising_edge(Clk) then
+            if Reset = '1' then
+                zero_state <= ZERO_IDLE;
+                zero_addr <= (others => '0');
+                zeroing_done <= '0';
+            else
+                case zero_state is
+                    when ZERO_IDLE =>
+                        zeroing_done <= '0';
+                        -- Start zeroing when RUN gate becomes active (P0 → P1)
+                        if run_active = '1' and boot_state = BOOT_STATE_P0 then
+                            zero_state <= ZERO_ACTIVE;
+                            zero_addr <= (others => '0');
+                        end if;
+
+                    when ZERO_ACTIVE =>
+                        if zero_addr = to_unsigned(ENV_BBUF_WORDS - 1, zero_addr'length) then
+                            -- Finished zeroing all addresses
+                            zero_state <= ZERO_DONE;
+                            zeroing_done <= '1';
+                        else
+                            zero_addr <= zero_addr + 1;
+                        end if;
+
+                    when ZERO_DONE =>
+                        -- Stay done until next reset or P0 re-entry
+                        if boot_state = BOOT_STATE_P0 and run_active = '0' then
+                            zero_state <= ZERO_IDLE;
+                            zeroing_done <= '0';
+                        end if;
+                end case;
+            end if;
+        end if;
+    end process;
+
+    zero_we <= '1' when zero_state = ZERO_ACTIVE else '0';
+
+    ----------------------------------------------------------------------------
+    -- ENV_BBUF Write Process (Zeroing + LOADER writes)
+    --
+    -- Priority: Zeroing takes precedence over LOADER writes.
+    -- Both write to all 4 buffers in parallel.
+    ----------------------------------------------------------------------------
+    process(Clk)
+    begin
+        if rising_edge(Clk) then
+            if zero_we = '1' then
+                -- Zeroing: write zeros to all buffers at current address
+                env_bbuf_0(to_integer(zero_addr)) <= (others => '0');
+                env_bbuf_1(to_integer(zero_addr)) <= (others => '0');
+                env_bbuf_2(to_integer(zero_addr)) <= (others => '0');
+                env_bbuf_3(to_integer(zero_addr)) <= (others => '0');
+            elsif loader_wr_we = '1' and boot_state = BOOT_STATE_LOAD_ACTIVE then
+                -- LOADER: write parallel data from CR1-CR4 to all buffers
+                env_bbuf_0(to_integer(unsigned(loader_wr_addr))) <= loader_wr_data_0;
+                env_bbuf_1(to_integer(unsigned(loader_wr_addr))) <= loader_wr_data_1;
+                env_bbuf_2(to_integer(unsigned(loader_wr_addr))) <= loader_wr_data_2;
+                env_bbuf_3(to_integer(unsigned(loader_wr_addr))) <= loader_wr_data_3;
+            end if;
+        end if;
+    end process;
+
+    ----------------------------------------------------------------------------
+    -- ENV_BBUF Read Process (Registered for BRAM timing)
+    --
+    -- Reads from all 4 buffers in parallel, then muxes based on BANK_SEL.
+    -- One clock cycle read latency.
+    ----------------------------------------------------------------------------
+    process(Clk)
+    begin
+        if rising_edge(Clk) then
+            bbuf_rd_0 <= env_bbuf_0(to_integer(unsigned(bram_rd_addr)));
+            bbuf_rd_1 <= env_bbuf_1(to_integer(unsigned(bram_rd_addr)));
+            bbuf_rd_2 <= env_bbuf_2(to_integer(unsigned(bram_rd_addr)));
+            bbuf_rd_3 <= env_bbuf_3(to_integer(unsigned(bram_rd_addr)));
+        end if;
+    end process;
+
+    -- Read data mux based on BANK_SEL
+    with bank_sel select bram_rd_data <=
+        bbuf_rd_0 when "00",
+        bbuf_rd_1 when "01",
+        bbuf_rd_2 when "10",
+        bbuf_rd_3 when "11",
+        (others => '0') when others;
+
     ----------------------------------------------------------------------------
     -- LOADER Instantiation
+    --
+    -- L2_BUFF_LOADER outputs parallel write signals; B0_BOOT_TOP owns the BRAMs.
     ----------------------------------------------------------------------------
     LOADER_INST: entity WORK.L2_BUFF_LOADER
         generic map (
@@ -153,13 +309,17 @@ begin
             CR2   => Control2,
             CR3   => Control3,
             CR4   => Control4,
-            state_vector  => loader_state,
-            status_vector => loader_status,
+            state_vector    => loader_state,
+            status_vector   => loader_status,
             loader_fault    => loader_fault,
             loader_complete => loader_complete,
-            bram_rd_addr => bram_rd_addr,
-            bram_rd_sel  => bram_rd_sel,
-            bram_rd_data => bram_rd_data
+            -- BRAM write interface (parallel to B0_BOOT_TOP's BRAMs)
+            wr_data_0 => loader_wr_data_0,
+            wr_data_1 => loader_wr_data_1,
+            wr_data_2 => loader_wr_data_2,
+            wr_data_3 => loader_wr_data_3,
+            wr_addr   => loader_wr_addr,
+            wr_we     => loader_wr_we
         );
 
     ----------------------------------------------------------------------------
@@ -205,7 +365,7 @@ begin
     BIOS_INST: entity WORK.B1_BOOT_BIOS
         generic map (
             -- Delay cycles in RUN state (short for sim, longer for HW scope)
-            RUN_DELAY_CYCLES => BIOS_DELAY_CYCLES
+            BIOS_STUB_DELAY_CYCLES => BIOS_DELAY_CYCLES
         )
         port map (
             Clk           => Clk,

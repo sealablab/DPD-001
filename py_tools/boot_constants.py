@@ -75,30 +75,88 @@ class RET:
 
 
 # ==============================================================================
+# BANK_SEL - Global Buffer Selector (CR0[23:22])
+# ==============================================================================
+
+class BANK_SEL:
+    """Global buffer selector for ENV_BBUF reads (CR0[23:22]).
+
+    Used by BIOS and PROG to select which ENV_BBUF to read.
+    LOADER ignores this for writes (always writes all 4 buffers in parallel).
+
+    Design Decision: Always 4 buffers. LOADER writes all 4 in parallel.
+    BANK_SEL only controls which buffer is read.
+
+    Reference: docs/boot/BBUF-ALLOCATION-DRAFT.md
+    """
+
+    HI_BIT = 23
+    LO_BIT = 22
+    MASK = 0x3 << LO_BIT  # 0x00C00000
+
+    @staticmethod
+    def encode(bank: int) -> int:
+        """Encode bank selector (0-3) into CR0 bits.
+
+        Args:
+            bank: Buffer index (0-3)
+
+        Returns:
+            Value to OR into CR0 (already shifted)
+        """
+        assert 0 <= bank <= 3, f"Bank must be 0-3, got {bank}"
+        return bank << BANK_SEL.LO_BIT
+
+    @staticmethod
+    def decode(cr0: int) -> int:
+        """Decode bank selector from CR0.
+
+        Args:
+            cr0: CR0 register value
+
+        Returns:
+            Buffer index (0-3)
+        """
+        return (cr0 & BANK_SEL.MASK) >> BANK_SEL.LO_BIT
+
+
+# ==============================================================================
 # LOADER Control (CR0[23:21])
 # ==============================================================================
 
 class LOADER_CTRL:
     """LOADER-specific control bits in CR0.
 
-    CR0[23:22] = Buffer count (00=1, 01=2, 10=3, 11=4)
-    CR0[21]    = Data strobe (falling edge triggers action)
+    CR0[23:22] = BANK_SEL (global read selector, NOT used by LOADER for writes)
+    CR0[21]    = Data strobe (falling edge triggers parallel write to all 4 buffers)
+
+    Design Note: LOADER always writes all 4 buffers in parallel.
+    - CR1 → ENV_BBUF_0
+    - CR2 → ENV_BBUF_1
+    - CR3 → ENV_BBUF_2
+    - CR4 → ENV_BBUF_3
+
+    BANK_SEL is only used for CRC validation (which buffer CRCs to check).
     """
 
-    BUFCNT_HI_BIT = 23
-    BUFCNT_LO_BIT = 22
+    # Legacy aliases (use BANK_SEL class for new code)
+    BUFCNT_HI_BIT = BANK_SEL.HI_BIT
+    BUFCNT_LO_BIT = BANK_SEL.LO_BIT
     STROBE_BIT = 21
 
     # Masks
-    BUFCNT_MASK = 0x3 << BUFCNT_LO_BIT  # 0x00C00000
-    STROBE_MASK = 1 << STROBE_BIT        # 0x00200000
+    BUFCNT_MASK = BANK_SEL.MASK  # 0x00C00000
+    STROBE_MASK = 1 << STROBE_BIT  # 0x00200000
 
     @staticmethod
     def encode_bufcnt(num_buffers: int) -> int:
         """Encode buffer count (1-4) into CR0 bits.
 
+        DEPRECATED: Use BANK_SEL.encode() for read selection.
+        This now only affects CRC validation (how many CRCs to check).
+
         Args:
-            num_buffers: Number of buffers (1-4)
+            num_buffers: Number of buffers with valid CRCs (1-4)
 
         Returns:
             Value to OR into CR0 (already shifted)
@@ -109,6 +167,8 @@ class LOADER_CTRL:
     @staticmethod
     def decode_bufcnt(cr0: int) -> int:
         """Decode buffer count from CR0.
+
+        DEPRECATED: Use BANK_SEL.decode() for read selection.
 
         Args:
             cr0: CR0 register value
@@ -407,27 +467,42 @@ class LOADER_TIMING:
 # ==============================================================================
 
 def build_loader_cr0(
-    num_buffers: int = 1,
     strobe: bool = False,
     ret: bool = False,
 ) -> int:
     """Build CR0 value for LOADER operations.
 
+    Note: LOADER always writes all 4 buffers in parallel.
+    BANK_SEL is only used for reads (by BIOS/PROG), not by LOADER.
+
     Args:
-        num_buffers: Number of buffers to load (1-4)
-        strobe: Set strobe bit high
-        ret: Set return bit (exit LOADER)
+        strobe: Set strobe bit high (triggers write on falling edge)
+        ret: Set return bit (exit LOADER back to BOOT_P1)
 
     Returns:
         CR0 value with RUN + RUNL + specified bits
     """
     value = CMD.RUNL  # Start with RUN + L
-    value |= LOADER_CTRL.encode_bufcnt(num_buffers)
     if strobe:
         value |= LOADER_CTRL.STROBE_MASK
     if ret:
         value |= RET.MASK
     return value
+
+
+def build_read_cr0(bank: int, base_cmd: int = CMD.RUN) -> int:
+    """Build CR0 value with BANK_SEL for reading from ENV_BBUF.
+
+    Used by BIOS or PROG to select which buffer to read.
+
+    Args:
+        bank: Buffer index to read from (0-3)
+        base_cmd: Base command (default: CMD.RUN, could be CMD.RUNB, etc.)
+
+    Returns:
+        CR0 value with base command + BANK_SEL
+    """
+    return base_cmd | BANK_SEL.encode(bank)
 
 
 def is_run_active(cr0: int) -> bool:
@@ -470,7 +545,7 @@ if __name__ == "__main__":
     print("BOOT Subsystem Constants - Quick Reference")
     print("=" * 60)
 
-    print("\nCR0 Bit Layout (BOOT):")
+    print("\nCR0 Bit Layout (BOOT_CR0):")
     print("  [31]   R (Ready)    ─┐")
     print("  [30]   U (User)      ├── RUN gate (must all be '1')")
     print("  [29]   N (clkEn)    ─┘")
@@ -479,8 +554,8 @@ if __name__ == "__main__":
     print("  [26]   L (Loader)    │")
     print("  [25]   R (Reset)    ─┘")
     print("  [24]   RET          ─── Return to BOOT_P1")
-    print("  [23:22] Buffer count (LOADER)")
-    print("  [21]   Strobe (LOADER)")
+    print("  [23:22] BANK_SEL    ─── Buffer selector for reads (0-3)")
+    print("  [21]   STROBE       ─── LOADER write trigger (falling edge)")
 
     print("\nCommand Values:")
     for name in ['RUN', 'RUNP', 'RUNB', 'RUNL', 'RUNR', 'RET']:

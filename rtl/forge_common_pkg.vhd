@@ -100,14 +100,24 @@ package forge_common_pkg is
     constant CMD_RET : std_logic_vector(31 downto 0) := x"E1000000";  -- RUN + RET
 
     ----------------------------------------------------------------------------
-    -- LOADER Control (BOOT_CR0[23:21])
+    -- BANK_SEL and LOADER Control (BOOT_CR0[23:21])
     --
-    -- BOOT_CR0[23:22] - Buffer count (00=1, 01=2, 10=3, 11=4)
-    -- BOOT_CR0[21]    - Data strobe (falling edge triggers action)
+    -- BOOT_CR0[23:22] - BANK_SEL: Global buffer selector for reads (0-3)
+    --                   Used by BIOS, PROG to select which ENV_BBUF to read
+    --                   LOADER always writes all 4 buffers in parallel (ignores for writes)
+    -- BOOT_CR0[21]    - STROBE: Data strobe (falling edge triggers LOADER action)
+    --
+    -- Design Decision: Always 4 buffers. No variable buffer count.
+    -- LOADER writes CR1→BBUF0, CR2→BBUF1, CR3→BBUF2, CR4→BBUF3 in parallel.
+    -- Reference: docs/boot/BBUF-ALLOCATION-DRAFT.md
     ----------------------------------------------------------------------------
-    constant LOADER_BUFCNT_HI  : natural := 23;
-    constant LOADER_BUFCNT_LO  : natural := 22;
+    constant BANK_SEL_HI       : natural := 23;
+    constant BANK_SEL_LO       : natural := 22;
     constant LOADER_STROBE_BIT : natural := 21;
+
+    -- Legacy aliases (for backward compatibility during migration)
+    constant LOADER_BUFCNT_HI  : natural := BANK_SEL_HI;
+    constant LOADER_BUFCNT_LO  : natural := BANK_SEL_LO;
 
     ----------------------------------------------------------------------------
     -- BOOT FSM States (6-bit encoding)
