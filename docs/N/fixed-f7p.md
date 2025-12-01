@@ -4,7 +4,7 @@ modified: 2025-12-01 15:41:51
 accessed: 2025-12-01 15:41:39
 type: N
 ---
-# [pct-f7p](docs/N/pct-f7p.md)
+# [fixed-f7p](docs/N/fixed-f7p.md)
 
 # Fixed-Point Percent Indexing
 

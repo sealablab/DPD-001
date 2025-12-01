@@ -1,8 +1,8 @@
 ---
 type: N
 created: 2025-11-30
-modified: 2025-11-30 18:16:34
-accessed: 2025-11-30 18:54:27
+modified: 2025-12-01 15:36:24
+accessed: 2025-12-01 15:55:05
 ---
 
 # [BOOT-ROM-WAVE-TABLE](docs/N/BOOT-ROM-WAVE-TABLE.md)
@@ -10,7 +10,8 @@ The **Boot-ROM WAVE TABLE **  is a universally shared resource.
 The contents of it are described in detail in: 
 # See Also
 ## [BOOT-ROM-WAVE-TABLE-spec](docs/boot/BOOT-ROM-WAVE-TABLE-spec.md)
-## [[BOOT-ROM-WAVE-TABLE-GEN-util]]
+## [B7B-README](B7B-Demo/B7B-README.md)
+
 
 
 ## The Problem
