@@ -1,8 +1,8 @@
 ---
 created: 2025-11-30
 status: DRAFT
-modified: 2025-11-30 18:04:53
-accessed: 2025-11-30 18:04:53
+modified: 2025-11-30 18:19:40
+accessed: 2025-11-30 18:58:20
 ---
 
 # ENV_BBUF Allocation and Access Architecture
@@ -15,8 +15,9 @@ This document describes the allocation, zeroing, and access architecture for the
 
 1. **Single Owner**: `B0_BOOT_TOP` owns all four BRAM arrays
 2. **Centralized Zeroing**: Zeroing occurs during BOOT_P0 → BOOT_P1 transition
-3. **Unified Addressing**: Simple buffer selector + word address scheme
-4. **Access Control**: Write access restricted to LOADER; read access available to all modules
+3. **Global Bank Select**: `BOOT_CR0[23:22]` (BANK_SEL) selects active buffer for reads
+4. **Always 4 Buffers**: LOADER always writes all 4 buffers in parallel — no variable count
+5. **Access Control**: Write access restricted to LOADER; read access available to all modules
 
 ## Buffer Allocation
 
@@ -82,6 +83,67 @@ constant ENV_BBUF_1_BASE : unsigned(11 downto 0) := x"400";  -- 0x400-0x7FF
 constant ENV_BBUF_2_BASE : unsigned(11 downto 0) := x"800";  -- 0x800-0xBFF
 constant ENV_BBUF_3_BASE : unsigned(11 downto 0) := x"C00";  -- 0xC00-0xFFF
 ```
+
+## Global Bank Select (BOOT_CR0[23:22])
+
+> **Authoritative Reference:** [BOOT-CR0.md](BOOT-CR0.md)
+
+The **BANK_SEL** field in `BOOT_CR0[23:22]` provides a **global** buffer selector shared by all modules. This eliminates the need for each module to maintain its own buffer selection logic.
+
+### How It Works
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Global Bank Select Flow                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Python Client                                                   │
+│       │                                                          │
+│       ▼                                                          │
+│  set_control(0, CMD.RUN | (bank << 22))                         │
+│       │                                                          │
+│       ▼                                                          │
+│  BOOT_CR0[23:22] = BANK_SEL ───────────────────────────────────┐│
+│       │                                                         ││
+│       ├──► LOADER: (writes all 4, ignores BANK_SEL for writes) ││
+│       │                                                         ││
+│       ├──► BIOS: reads from ENV_BBUF[BANK_SEL]                 ││
+│       │                                                         ││
+│       └──► PROG: reads from ENV_BBUF[BANK_SEL]                 ││
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### VHDL Integration
+
+```vhdl
+-- In B0_BOOT_TOP: extract BANK_SEL from BOOT_CR0
+signal bank_sel : std_logic_vector(1 downto 0);
+bank_sel <= Control0(BANK_SEL_HI downto BANK_SEL_LO);  -- [23:22]
+
+-- Pass to read interface
+bram_rd_sel <= bank_sel;
+```
+
+### Python Usage
+
+```python
+from py_tools.boot_constants import CMD, BOOT_CR0_BANK_SEL_LO
+
+# Switch to buffer 2 during PROG execution
+bank = 2
+mcc.set_control(0, CMD.RUN | (bank << BOOT_CR0_BANK_SEL_LO))
+
+# Read from the selected buffer via application logic
+data = read_from_active_buffer()
+```
+
+### Why Global?
+
+1. **Unified Access**: All modules see the same "active" buffer
+2. **Dynamic Switching**: Python client can change banks at runtime
+3. **Simplified Hardware**: No per-module buffer selection logic
+4. **Consistent Semantics**: `BANK_SEL` always means "which buffer"
 
 ## Zeroing Logic
 
@@ -268,52 +330,59 @@ with rd_sel select bram_rd_data <=
 
 **Access**: Write-only during `LOAD_ACTIVE` state
 
-**Usage**: 
-- Receives data via Control Registers (CR1-CR4)
-- Writes to all four buffers in parallel at same word offset
-- Uses unified addressing: `bram_wr_addr = {buffer_sel, word_offset}`
+**Design Decision**: LOADER **always writes all 4 buffers** in parallel. There is no variable buffer count — simplifies protocol and hardware.
 
-**Interface Update:**
+**Usage**:
+- Receives data via Control Registers (CR1-CR4)
+- On each strobe falling edge, writes all 4 CRs to all 4 buffers at the same word offset
+- **Does NOT use BANK_SEL** for write addressing — writes are always parallel to all buffers
+
+**Interface:**
 
 ```vhdl
--- L2_BUFF_LOADER port map (updated)
-port map (
-    -- ... existing ports ...
-    -- Write interface (outputs to B0_BOOT_TOP)
-    bram_wr_addr => bram_wr_addr,  -- Unified 12-bit address
-    bram_wr_data => bram_wr_data,  -- 32-bit data
-    bram_wr_we   => bram_wr_we     -- Write enable
-);
+-- L2_BUFF_LOADER outputs (directly to B0_BOOT_TOP BRAM ports)
+signal loader_wr_data_0 : std_logic_vector(31 downto 0);  -- CR1 → ENV_BBUF_0
+signal loader_wr_data_1 : std_logic_vector(31 downto 0);  -- CR2 → ENV_BBUF_1
+signal loader_wr_data_2 : std_logic_vector(31 downto 0);  -- CR3 → ENV_BBUF_2
+signal loader_wr_data_3 : std_logic_vector(31 downto 0);  -- CR4 → ENV_BBUF_3
+signal loader_wr_addr   : std_logic_vector(9 downto 0);   -- Word offset (0-1023)
+signal loader_wr_we     : std_logic;                      -- Write enable
 ```
 
 **Internal Logic (in LOADER):**
 
 ```vhdl
--- LOADER writes to all buffers at same offset
--- Address format: {buffer_sel, offset[9:0]}
-bram_wr_addr <= std_logic_vector(to_unsigned(buffer_sel, 2) & offset);
-bram_wr_data <= CR_data;  -- CR1, CR2, CR3, or CR4
-bram_wr_we <= '1' when state = LOAD_STATE_P1 and strobe_falling = '1' else '0';
+-- LOADER writes all 4 buffers in parallel at same offset
+loader_wr_data_0 <= Control1;  -- CR1
+loader_wr_data_1 <= Control2;  -- CR2
+loader_wr_data_2 <= Control3;  -- CR3
+loader_wr_data_3 <= Control4;  -- CR4
+loader_wr_addr   <= std_logic_vector(offset);  -- 10-bit word offset
+loader_wr_we     <= '1' when state = LOAD_STATE_P1 and strobe_falling = '1' else '0';
 ```
+
+**Note**: If fewer than 4 buffers contain meaningful data, the Python client simply zero-fills the unused CR registers. All 4 buffers are always written.
 
 ### PROG Module
 
 **Access**: Read-only after handoff to `PROG_ACTIVE`
 
 **Usage**:
-- Reads configuration data from ENV_BBUFs
-- Uses unified addressing to access any buffer/word
+- Reads configuration data from the **active buffer** (selected by BANK_SEL)
+- Python client switches banks via `set_control(0, CMD.RUN | (bank << 22))`
+- PROG logic provides word address; BANK_SEL provides buffer selection
 
 **Interface:**
 
 ```vhdl
--- DPD_shim port map (updated)
-port map (
-    -- ... existing ports ...
-    -- BRAM read interface
-    bram_rd_addr => prog_bram_rd_addr,  -- From PROG logic
-    bram_rd_data => prog_bram_rd_data   -- To PROG logic
-);
+-- PROG read interface (in B0_BOOT_TOP)
+-- bank_sel comes from BOOT_CR0[23:22], shared globally
+signal prog_rd_word_addr : std_logic_vector(9 downto 0);  -- From PROG logic
+signal prog_rd_data      : std_logic_vector(31 downto 0); -- To PROG logic
+
+-- Read mux uses global bank_sel
+prog_rd_data <= env_bbuf_array(to_integer(unsigned(bank_sel)))
+                             (to_integer(unsigned(prog_rd_word_addr)));
 ```
 
 ### BIOS Module
@@ -321,19 +390,19 @@ port map (
 **Access**: Read-only during `BIOS_ACTIVE` state
 
 **Usage**:
-- May read ENV_BBUFs for diagnostic purposes
-- Uses unified addressing
+- Reads from the **active buffer** (selected by BANK_SEL)
+- May iterate through buffers by changing BANK_SEL via BOOT_CR0
 
 **Interface:**
 
 ```vhdl
--- B1_BOOT_BIOS port map (updated, optional)
-port map (
-    -- ... existing ports ...
-    -- BRAM read interface (optional, for future use)
-    bram_rd_addr => bios_bram_rd_addr,
-    bram_rd_data => bios_bram_rd_data
-);
+-- BIOS read interface (same pattern as PROG)
+signal bios_rd_word_addr : std_logic_vector(9 downto 0);  -- From BIOS logic
+signal bios_rd_data      : std_logic_vector(31 downto 0); -- To BIOS logic
+
+-- Read mux uses global bank_sel
+bios_rd_data <= env_bbuf_array(to_integer(unsigned(bank_sel)))
+                              (to_integer(unsigned(bios_rd_word_addr)));
 ```
 
 ### BOOT Module
@@ -342,7 +411,7 @@ port map (
 
 **Usage**:
 - May read ENV_BBUFs for boot-time validation
-- Uses unified addressing
+- Uses global BANK_SEL for buffer selection
 
 ## Address Space Summary
 
@@ -358,14 +427,16 @@ port map (
 
 - [ ] Move BRAM arrays from `L2_BUFF_LOADER` to `B0_BOOT_TOP`
 - [ ] Implement zeroing state machine in `B0_BOOT_TOP`
-- [ ] Add unified write interface (12-bit address)
-- [ ] Add unified read interface (12-bit address)
-- [ ] Update `L2_BUFF_LOADER` to use write interface (remove internal BRAMs)
+- [ ] Extract BANK_SEL from BOOT_CR0[23:22] in `B0_BOOT_TOP`
+- [ ] Add parallel write interface (4× 32-bit data + 10-bit address + WE)
+- [ ] Add read interface using global BANK_SEL
+- [ ] Update `L2_BUFF_LOADER` to output 4 parallel data streams (remove internal BRAMs)
 - [ ] Update `DPD_shim` to use read interface (connect PROG access)
-- [ ] Update constants in `forge_common_pkg.vhd` if needed
+- [ ] Update constants in `forge_common_pkg.vhd` (BANK_SEL_HI/LO)
+- [ ] Update `py_tools/boot_constants.py` (BANK_SEL constants)
 - [ ] Test zeroing during BOOT_P0 → BOOT_P1 transition
-- [ ] Test LOADER write access
-- [ ] Test PROG read access
+- [ ] Test LOADER parallel write to all 4 buffers
+- [ ] Test PROG read with dynamic BANK_SEL switching
 
 ## Design Rationale
 
@@ -388,8 +459,23 @@ port map (
 2. **Safety**: Prevents accidental overwrites from other modules
 3. **Protocol Compliance**: Matches blind handshake protocol design
 
+### Why Always 4 Buffers?
+
+1. **Simplicity**: No conditional logic for buffer count in LOADER
+2. **Uniform Protocol**: Always 1024 strobes, always 4 CRs per strobe
+3. **Zero Cost**: Unused buffers simply receive zeros (no extra hardware)
+4. **Future-Proof**: All 4 buffers available if application needs grow
+
+### Why Global BANK_SEL?
+
+1. **Unified Access**: All modules share the same buffer selection mechanism
+2. **Dynamic Switching**: Python client can switch buffers at runtime
+3. **Less Hardware**: Single selector in BOOT_CR0 vs per-module selectors
+4. **Consistent Semantics**: "Which buffer" is always the same question
+
 ## See Also
 
+- [BOOT-CR0.md](BOOT-CR0.md) - **Authoritative** BANK_SEL bit allocation
 - [BOOT-FSM-spec.md](../BOOT-FSM-spec.md) - BOOT FSM specification
 - [LOAD-FSM-spec.md](../LOAD-FSM-spec.md) - LOADER protocol specification
 - [forge_common_pkg.vhd](../../rtl/forge_common_pkg.vhd) - ENV_BBUF constants

@@ -1,8 +1,8 @@
 ---
 created: 2025-11-30
-modified: 2025-11-30 18:31:36
+modified: 2025-11-30 18:34:30
 status: AUTHORITATIVE
-accessed: 2025-11-30 18:26:14
+accessed: 2025-11-30 18:54:56
 ---
 
 # BOOT_CR0 Register Specification
@@ -22,8 +22,8 @@ accessed: 2025-11-30 18:26:14
 ├────────┬────────┬────────┬────────┬────────┬────────┬────────┬────────┤
 │ 31  30 │ 29  28 │ 27  26 │ 25  24 │ 23  22 │ 21  20 │ 19..17 │ 16..0  │
 ├────────┼────────┼────────┼────────┼────────┼────────┼────────┼────────┤
-│  R   U │  N   P │  B   L │  R  RET│ BUFCNT │STB DIV │DIV_SEL │ Rsvd   │
-│  └──RUN gate──┘ │  └─Module Sel─┘ │        │        │        │        │
+│  R   U │  N   P │  B   L │  R  RET│BANK_SEL│STB DIV │DIV_SEL │ Rsvd   │
+│  └──RUN gate──┘ │  └─Module Sel─┘ │(global)│        │        │        │
 └────────┴────────┴────────┴────────┴────────┴────────┴────────┴────────┘
 ```
 
@@ -69,16 +69,35 @@ NOTE: Reset outranks Loader outranks BIOS outranks Program (if multiple bits are
 > [!WARNING] PROG Cannot Return
 > Once control transfers to PROG via `RUNP`, there is no return path. The `RET` bit is ignored in PROG_ACTIVE state.
 
-### LOADER Control [23:21]
-NOTE: While looking at this it occurs to me..
-perhaps we should intentionally expose a 2-bit field inside `BOOT_CR0` and we can use it as the (global) `ENV_BBUF` selector. that way:
-- programs all share the same two-bit selector (almost like a bank select)
-- LOAD/PROG/BIOS/BOOT will inherently be able to share access to the same buffers (this is the intended design)
+### ENV_BBUF Control [23:21] — Global Buffer Access
 
 | Bit(s) | Name | Description |
 |--------|------|-------------|
-| 23:22 | **BUFCNT** | Buffer count: `00`=1, `01`=2, `10`=3, `11`=4 |
-| 21 | **STROBE** | Data strobe (falling edge triggers transfer) |
+| 23:22 | **BANK_SEL** | Global active buffer selector (0-3) |
+| 21 | **STROBE** | LOADER data strobe (falling edge triggers parallel write) |
+
+#### BANK_SEL — Global Buffer Selector
+
+**BANK_SEL** is a **global** 2-bit field shared by all modules (BOOT, BIOS, LOADER, PROG). It selects which of the four ENV_BBUF regions is "active" for read operations.
+
+| BANK_SEL | Active Buffer |
+|----------|---------------|
+| `00` | ENV_BBUF_0 |
+| `01` | ENV_BBUF_1 |
+| `10` | ENV_BBUF_2 |
+| `11` | ENV_BBUF_3 |
+
+**Design Decision:** The system always has exactly **4 buffers**. There is no variable buffer count — LOADER always writes all 4 buffers in parallel.
+
+#### STROBE — LOADER Write Trigger
+
+During LOAD_ACTIVE state, falling edge on STROBE triggers a parallel write:
+- CR1 → ENV_BBUF_0[offset]
+- CR2 → ENV_BBUF_1[offset]
+- CR3 → ENV_BBUF_2[offset]
+- CR4 → ENV_BBUF_3[offset]
+
+If fewer than 4 buffers contain meaningful data, the client simply zero-fills the unused CR registers.
 
 ### Clock Divider [20:17] — (PROPOSED)
 
@@ -155,9 +174,9 @@ constant SEL_RESET_BIT  : natural := 25;  -- R
 -- Return Control
 constant RET_BIT : natural := 24;
 
--- LOADER Control
-constant LOADER_BUFCNT_HI  : natural := 23;
-constant LOADER_BUFCNT_LO  : natural := 22;
+-- ENV_BBUF Control (Global)
+constant BANK_SEL_HI   : natural := 23;
+constant BANK_SEL_LO   : natural := 22;
 constant LOADER_STROBE_BIT : natural := 21;
 ```
 
@@ -179,9 +198,9 @@ BOOT_CR0_SEL_RESET_BIT  = 25
 # Return Control
 BOOT_CR0_RET_BIT = 24
 
-# LOADER Control
-BOOT_CR0_LOADER_BUFCNT_HI  = 23
-BOOT_CR0_LOADER_BUFCNT_LO  = 22
+# ENV_BBUF Control (Global)
+BOOT_CR0_BANK_SEL_HI   = 23
+BOOT_CR0_BANK_SEL_LO   = 22
 BOOT_CR0_LOADER_STROBE_BIT = 21
 ```
 
@@ -196,8 +215,8 @@ function is_run_active(cr0 : std_logic_vector(31 downto 0)) return boolean;
 -- Check if exactly one module select bit is set
 function is_valid_select(cr0 : std_logic_vector(31 downto 0)) return boolean;
 
--- Extract LOADER buffer count (0-3, representing 1-4 buffers)
-function get_loader_bufcnt(cr0 : std_logic_vector(31 downto 0)) return natural;
+-- Extract active buffer bank (0-3)
+function get_bank_sel(cr0 : std_logic_vector(31 downto 0)) return natural;
 ```
 
 ### Python
@@ -207,9 +226,14 @@ def is_run_active(cr0: int) -> bool:
     """Check if all RUN gate bits are set."""
     return (cr0 & BOOT_CR0_RUN_GATE_MASK) == BOOT_CR0_RUN_GATE_MASK
 
-def get_loader_bufcnt(cr0: int) -> int:
-    """Extract LOADER buffer count (0-3)."""
-    return (cr0 >> BOOT_CR0_LOADER_BUFCNT_LO) & 0x3
+def get_bank_sel(cr0: int) -> int:
+    """Extract active buffer bank (0-3)."""
+    return (cr0 >> BOOT_CR0_BANK_SEL_LO) & 0x3
+
+def set_bank_sel(cr0: int, bank: int) -> int:
+    """Set the active buffer bank (0-3), preserving other bits."""
+    mask = 0x3 << BOOT_CR0_BANK_SEL_LO
+    return (cr0 & ~mask) | ((bank & 0x3) << BOOT_CR0_BANK_SEL_LO)
 ```
 
 ## BOOT_CR0 vs AppReg

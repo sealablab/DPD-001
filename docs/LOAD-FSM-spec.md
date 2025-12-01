@@ -55,8 +55,8 @@ When LOADER is active, it uses BOOT_CR0 control bits and CR1-CR4 for data:
 BOOT_CR0[31:29] = RUN gate (must remain set)
 BOOT_CR0[26]    = L (must remain set - LOADER selected)
 BOOT_CR0[24]    = RET (return to BOOT_P1 when asserted)
-BOOT_CR0[23:22] = Buffer count (00=1, 01=2, 10=3, 11=4)
-BOOT_CR0[21]    = Data strobe (falling edge triggers action)
+BOOT_CR0[23:22] = BANK_SEL (ignored by LOADER - used for reads after loading)
+BOOT_CR0[21]    = Data strobe (falling edge triggers parallel write)
 BOOT_CR0[20:0]  = Reserved
 
 CR1 = ENV_BBUF_0: CRC-16 during setup, data word during transfer
@@ -65,14 +65,18 @@ CR3 = ENV_BBUF_2: CRC-16 during setup, data word during transfer
 CR4 = ENV_BBUF_3: CRC-16 during setup, data word during transfer
 ```
 
-### Buffer Count Encoding
+### Always 4 Buffers
 
-| BOOT_CR0[23:22] | Buffers Used | CRs Active |
-|-----------------|--------------|------------|
-| `00` | 1 buffer | CR1 only |
-| `01` | 2 buffers | CR1-CR2 |
-| `10` | 3 buffers | CR1-CR3 |
-| `11` | 4 buffers | CR1-CR4 |
+**Design Decision:** LOADER always writes **all 4 buffers** in parallel. There is no variable buffer count.
+
+| CR | Target Buffer | Notes |
+|----|---------------|-------|
+| CR1 | ENV_BBUF_0 | Always written |
+| CR2 | ENV_BBUF_1 | Always written |
+| CR3 | ENV_BBUF_2 | Always written |
+| CR4 | ENV_BBUF_3 | Always written |
+
+If fewer than 4 buffers contain meaningful data, zero-fill the unused CRs.
 
 ## Protocol: Blind Handshake
 
@@ -94,15 +98,14 @@ Since the Python client cannot receive feedback from the bitstream (except via o
 ┌─────────────────────────────────────────────────────────────────┐
 │ Phase 0: Setup                                                  │
 ├─────────────────────────────────────────────────────────────────┤
-│ 1. Client sets BOOT_CR0[23:22] = buffer_count                   │
-│ 2. Client sets CR1-CR4 = expected CRC-16 values (one per buf)   │
-│ 3. Client sets BOOT_CR0[21] = 1 (strobe HIGH)                   │
-│ 4. Client waits T_STROBE (1ms)                                  │
-│ 5. Client sets BOOT_CR0[21] = 0 (strobe LOW) ← LOADER latches   │
-│ 6. Client waits T_SETUP (10ms)                                  │
+│ 1. Client sets CR1-CR4 = expected CRC-16 values (all 4 buffers) │
+│ 2. Client sets BOOT_CR0[21] = 1 (strobe HIGH)                   │
+│ 3. Client waits T_STROBE (1ms)                                  │
+│ 4. Client sets BOOT_CR0[21] = 0 (strobe LOW) ← LOADER latches   │
+│ 5. Client waits T_SETUP (10ms)                                  │
 │                                                                 │
-│ LOADER: Latches buffer_count and CRC values on falling edge     │
-│ LOADER: Initializes offset = 0, running CRCs = 0xFFFF           │
+│ LOADER: Latches CRC values for all 4 buffers on falling edge    │
+│ LOADER: Initializes offset = 0, running CRCs = 0xFFFF (×4)      │
 │ LOADER: Transitions to LOAD_P1                                  │
 └─────────────────────────────────────────────────────────────────┘
 
@@ -218,7 +221,15 @@ Rising edge detection can suffer from glitches if the client's write isn't atomi
 Writing all 4 buffers in parallel with a shared offset pointer:
 1. Simplifies address generation (single counter)
 2. Reduces protocol complexity (one strobe per offset, not per buffer)
-3. Makes timing predictable (fixed 1024 strobes regardless of buffer count)
+3. Makes timing predictable (always 1024 strobes)
+
+### Why Always 4 Buffers?
+
+The design mandates exactly 4 buffers with no variable count:
+1. **Simpler protocol**: No BUFCNT field to negotiate
+2. **Simpler hardware**: No conditional logic in LOADER
+3. **Zero cost**: Unused buffers receive zeros (no extra hardware)
+4. **Consistent CRC**: Always validate all 4 CRCs
 
 ### Why CRC-16 Not CRC-32?
 
@@ -279,18 +290,23 @@ class BootLoader:
         self.moku = moku
 
     def load_buffers(self, buffers: list[bytes]) -> bool:
-        """Load 1-4 buffers (each 4KB) into ENV_BBUFs."""
+        """Load up to 4 buffers (each 4KB) into ENV_BBUFs.
+
+        Always writes all 4 buffers. If fewer than 4 are provided,
+        remaining buffers are zero-filled.
+        """
         assert 1 <= len(buffers) <= 4
         assert all(len(b) == 4096 for b in buffers)
 
-        # Compute CRCs
-        crcs = [compute_buffer_crc(b) for b in buffers]
-        crcs += [0] * (4 - len(crcs))  # Pad to 4
+        # Pad to 4 buffers with zeros
+        while len(buffers) < 4:
+            buffers.append(bytes(4096))
 
-        # Phase 0: Setup
-        # BOOT_CR0 = CMD_RUNL | (buffer_count << 22)
-        buffer_count = len(buffers) - 1  # 0=1buf, 1=2buf, etc.
-        self.moku.set_control(0, CMD.RUNL | (buffer_count << 22))
+        # Compute CRCs for all 4 buffers
+        crcs = [compute_buffer_crc(b) for b in buffers]
+
+        # Phase 0: Setup - send expected CRCs
+        self.moku.set_control(0, CMD.RUNL)  # No buffer count needed
         self.moku.set_control(1, crcs[0])
         self.moku.set_control(2, crcs[1])
         self.moku.set_control(3, crcs[2])
@@ -300,10 +316,10 @@ class BootLoader:
         self._strobe()
         time.sleep(self.T_SETUP)
 
-        # Phase 1..1024: Data transfer
+        # Phase 1..1024: Data transfer (always all 4 buffers)
         for offset in range(1024):
-            for i, buf in enumerate(buffers):
-                word = int.from_bytes(buf[offset*4:(offset+1)*4], 'big')
+            for i in range(4):
+                word = int.from_bytes(buffers[i][offset*4:(offset+1)*4], 'big')
                 self.moku.set_control(i + 1, word)
             self._strobe()
             time.sleep(self.T_WORD)
