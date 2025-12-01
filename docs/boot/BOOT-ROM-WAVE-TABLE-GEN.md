@@ -1,7 +1,7 @@
 ---
 created: 2025-11-30
-modified: 2025-11-30 18:04:55
-accessed: 2025-11-30 18:04:49
+modified: 2025-11-30 18:05:04
+accessed: 2025-11-30 18:54:28
 ---
 ## [BOOT-ROM-WAVE-TABLE-GEN](docs/boot/BOOT-ROM-WAVE-TABLE-GEN.md)
 the **BOOT-ROM-WAVE-TABLE-GEN** module is a python utility. 

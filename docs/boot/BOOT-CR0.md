@@ -1,8 +1,8 @@
 ---
 created: 2025-11-30
-modified: 2025-11-30 18:34:30
+modified: 2025-11-30 19:02:58
 status: AUTHORITATIVE
-accessed: 2025-11-30 18:54:56
+accessed: 2025-12-01 15:27:23
 ---
 
 # BOOT_CR0 Register Specification

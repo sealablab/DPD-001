@@ -1,8 +1,8 @@
 ---
 type: N
 created: 2025-11-30
-modified: 2025-11-30 18:12:55
-accessed: 2025-11-30 18:12:55
+modified: 2025-11-30 18:16:34
+accessed: 2025-11-30 18:54:27
 ---
 
 # [BOOT-ROM-WAVE-TABLE](docs/N/BOOT-ROM-WAVE-TABLE.md)

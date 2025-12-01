@@ -1,8 +1,8 @@
 ---
 created: 2025-11-30
 status: DRAFT
-modified: 2025-11-30 18:19:40
-accessed: 2025-11-30 18:58:20
+modified: 2025-11-30 19:19:12
+accessed: 2025-12-01 15:14:39
 ---
 
 # ENV_BBUF Allocation and Access Architecture
@@ -459,23 +459,11 @@ bios_rd_data <= env_bbuf_array(to_integer(unsigned(bank_sel)))
 2. **Safety**: Prevents accidental overwrites from other modules
 3. **Protocol Compliance**: Matches blind handshake protocol design
 
-### Why Always 4 Buffers?
-
-1. **Simplicity**: No conditional logic for buffer count in LOADER
-2. **Uniform Protocol**: Always 1024 strobes, always 4 CRs per strobe
-3. **Zero Cost**: Unused buffers simply receive zeros (no extra hardware)
-4. **Future-Proof**: All 4 buffers available if application needs grow
-
-### Why Global BANK_SEL?
-
-1. **Unified Access**: All modules share the same buffer selection mechanism
-2. **Dynamic Switching**: Python client can switch buffers at runtime
-3. **Less Hardware**: Single selector in BOOT_CR0 vs per-module selectors
-4. **Consistent Semantics**: "Which buffer" is always the same question
-
 ## See Also
 
-- [BOOT-CR0.md](BOOT-CR0.md) - **Authoritative** BANK_SEL bit allocation
+- [BOOT-CR0](docs/boot/BOOT-CR0.md) (auth) 
+
+| [BOOT-CR0](docs/N/BOOT-CR0.md) (note)
 - [BOOT-FSM-spec.md](../BOOT-FSM-spec.md) - BOOT FSM specification
 - [LOAD-FSM-spec.md](../LOAD-FSM-spec.md) - LOADER protocol specification
 - [forge_common_pkg.vhd](../../rtl/forge_common_pkg.vhd) - ENV_BBUF constants

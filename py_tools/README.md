@@ -242,7 +242,7 @@ python py_tools/dpd_config.py
 
 - [Network Register Sync](../docs/network-register-sync.md) - Configuration update protocol
 - [Hardware Debug Checklist](../docs/hardware-debug-checklist.md) - Step-by-step hardware debugging
-- [Custom Wrapper](../docs/custom-wrapper.md) - Control register details
+- [Custom Wrapper](docs/N/CustomWrapper.md) - Control register details
 - [DPD-RTL.yaml](../rtl/DPD-RTL.yaml) - Complete register specification
 
 ---
