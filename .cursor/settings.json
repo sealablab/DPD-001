@@ -1,0 +1,9 @@
+{
+  // NOTE: Baseline settings have been moved to .vscode/settings.json
+  // This file is kept for Cursor-specific overrides if needed in the future.
+  //
+  // Cursor reads .vscode/settings.json automatically, so all your editor,
+  // file explorer, language, and terminal settings are there.
+  //
+  // Only add Cursor-specific settings here that don't work in standard VS Code.
+}

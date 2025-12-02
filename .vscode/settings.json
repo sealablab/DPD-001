@@ -1,0 +1,200 @@
+{
+  // Makefile
+  "makefile.configureOnOpen": false,
+
+  // Font Configuration - Matching Obsidian preferences
+  "editor.fontFamily": "'FiraCode Nerd Font Mono', 'SF Mono', Monaco, 'Courier New', monospace",
+  "editor.fontSize": 14,
+  "editor.fontLigatures": true,
+  "editor.fontWeight": "400",
+  "editor.lineHeight": 1.6,
+
+  // Interface Font (for UI elements)
+  "workbench.fontAliasing": "antialiased",
+
+  // Theme - Dark theme matching Obsidian
+  "workbench.colorTheme": "Default Dark+",
+  "workbench.preferredDarkColorTheme": "Default Dark+",
+
+  // Editor Appearance
+  "editor.minimap.enabled": true,
+  "editor.minimap.maxColumn": 120,
+  "editor.rulers": [],
+  "editor.wordWrap": "off",
+  "editor.wordWrapColumn": 0,
+  "editor.renderWhitespace": "selection",
+  "editor.renderLineHighlight": "all",
+  "editor.cursorBlinking": "smooth",
+  "editor.cursorSmoothCaretAnimation": "on",
+  "editor.smoothScrolling": true,
+
+  // Editor Behavior
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "editor.trimAutoWhitespace": true,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+
+  // File Explorer
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "*.vhd": "${capture}.vhd.md, ${capture}.o",
+    "*.py": "${capture}.pyc, ${capture}.pyo, ${capture}__pycache__",
+    "*.md": "${capture}.tmp.*"
+  },
+  "explorer.sortOrder": "type",
+  "explorer.autoReveal": false,
+
+  // Search
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/*.pyo": true,
+    "**/*.so": true,
+    "**/.Python": true,
+    "**/build": true,
+    "**/dist": true,
+    "**/*.egg-info": true,
+    "**/.venv": true,
+    "**/venv": true,
+    "**/ENV": true,
+    "**/*.o": true,
+    "**/*.cf": true,
+    "**/work-obj*.cf": true,
+    "**/sim_build": true,
+    "**/*.vcd": true,
+    "**/*.ghw": true,
+    "**/*.fst": true,
+    "**/results.xml": true,
+    "**/.vscode": true,
+    "**/.idea": true,
+    "**/*.swp": true,
+    "**/*.swo": true,
+    "**/.DS_Store": true,
+    "**/moku_backup_*": true,
+    "**/*.log": true
+  },
+
+  // Files
+  "files.exclude": {
+    "**/.git": true,
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/*.pyo": true,
+    "**/*.so": true,
+    "**/.Python": true,
+    "**/build": true,
+    "**/dist": true,
+    "**/*.egg-info": true,
+    "**/.venv": true,
+    "**/venv": true,
+    "**/ENV": true,
+    "**/*.o": true,
+    "**/*.cf": true,
+    "**/work-obj*.cf": true,
+    "**/sim_build": true,
+    "**/*.vcd": true,
+    "**/*.ghw": true,
+    "**/*.fst": true,
+    "**/results.xml": true,
+    "**/.DS_Store": true,
+    "**/moku_backup_*": true
+  },
+
+  // Watcher Exclude
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/__pycache__/**": true,
+    "**/*.pyc": true,
+    "**/*.o": true,
+    "**/*.cf": true,
+    "**/work-obj*.cf": true,
+    "**/sim_build/**": true,
+    "**/.venv/**": true,
+    "**/venv/**": true
+  },
+
+  // Language-specific settings
+  "[python]": {
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+
+  "[vhdl]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true
+  },
+
+  "[markdown]": {
+    "editor.wordWrap": "on",
+    "editor.quickSuggestions": {
+      "comments": "off",
+      "strings": "off",
+      "other": "off"
+    },
+    "files.trimTrailingWhitespace": false
+  },
+
+  "[javascript]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true
+  },
+
+  "[typescript]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true
+  },
+
+  "[json]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true
+  },
+
+  "[yaml]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true
+  },
+
+  // Terminal
+  "terminal.integrated.fontFamily": "'FiraCode Nerd Font Mono', 'SF Mono', Monaco, monospace",
+  "terminal.integrated.fontSize": 13,
+  "terminal.integrated.fontWeight": "400",
+
+  // Breadcrumbs
+  "breadcrumbs.enabled": true,
+  "breadcrumbs.filePath": "on",
+
+  // Git
+  "git.enabled": true,
+  "git.autofetch": true,
+  "git.confirmSync": false,
+
+  // Editor Features
+  "editor.suggestSelection": "first",
+  "editor.snippetSuggestions": "top",
+  "editor.acceptSuggestionOnCommitCharacter": true,
+  "editor.acceptSuggestionOnEnter": "on",
+  "editor.tabCompletion": "on",
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": "active",
+  "editor.inlineSuggest.enabled": true,
+
+  // Workbench
+  "workbench.editor.enablePreview": false,
+  "workbench.editor.enablePreviewFromQuickOpen": false,
+  "workbench.startupEditor": "none",
+  "workbench.editor.closeOnFileDelete": true,
+  "workbench.editor.highlightModifiedTabs": true,
+
+  // Window
+  "window.titleBarStyle": "custom",
+  "window.zoomLevel": 0
+}

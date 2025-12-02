@@ -45,6 +45,9 @@ results.xml
 
 # IDE
 .vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/README.md
 .idea/
 *.swp
 *.swo
