@@ -1,15 +1,32 @@
   Character maps (AUTHORITATIVE - Clean Power-of-2):
 
-  | Encoding | Map        | Levels | Bits | Fill | Fault |
-  |----------|------------|--------|------|------|-------|
+  | Encoding | Map          | Levels | BpB  | Fill | Fault |
+  |----------|--------------|--------|------|------|-------|
+  | Binary   | (spc)1       | 2      | 1.0  | 1    | x     |
+  | ASCII    | (spc).-=     | 4      | 2.0  | #    | x     |
+  | CP437    | (spc)░▒▓     | 4      | 2.0  | █    | ×     |
   | Unicode  | (spc)▁▂▃▄▅▆▇ | 8      | 3.0  | █    | ×     |
-  | CP437    | (spc)▄       | 2      | 1.0  | █    | ×     |
-  | ASCII    | (spc)-       | 2      | 1.0  | #    | x     |
 
-  Effective resolution (Unicode):
-    1 row  × 8 levels =   8 levels = 3 bits
-    2 rows × 8 levels =  16 levels = 4 bits
-    4 rows × 8 levels =  32 levels = 5 bits
-    8 rows × 8 levels =  64 levels = 6 bits
-   16 rows × 8 levels = 128 levels = 7 bits
+  Effective resolution (rows × levels per block):
+
+    With Unicode (3 BpB):
+      1 row  × 8 levels =   8 levels = 3 bits
+      2 rows × 8 levels =  16 levels = 4 bits
+      4 rows × 8 levels =  32 levels = 5 bits
+      8 rows × 8 levels =  64 levels = 6 bits
+     16 rows × 8 levels = 128 levels = 7 bits
+
+    With ASCII/CP437 (2 BpB):
+      1 row  × 4 levels =   4 levels = 2 bits
+      2 rows × 4 levels =   8 levels = 3 bits
+      4 rows × 4 levels =  16 levels = 4 bits
+      8 rows × 4 levels =  32 levels = 5 bits
+     16 rows × 4 levels =  64 levels = 6 bits
+
+    With Binary (1 BpB):
+      1 row  × 2 levels =   2 levels = 1 bit
+      2 rows × 2 levels =   4 levels = 2 bits
+      4 rows × 2 levels =   8 levels = 3 bits
+      8 rows × 2 levels =  16 levels = 4 bits
+     16 rows × 2 levels =  32 levels = 5 bits
 

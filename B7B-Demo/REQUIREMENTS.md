@@ -1,8 +1,8 @@
 ---
 created: 2025-12-01
-modified: 2025-12-01 17:02:25
+modified: 2025-12-02
 status: DRAFT
-accessed: 2025-12-01 17:03:04
+accessed: 2025-12-02
 ---
 # [REQUIREMENTS](B7B-Demo/REQUIREMENTS.md)
 
@@ -12,15 +12,16 @@ Detailed requirements for the B7B-Demo terminal waveform renderer.
 
 This utility validates the hypothesis that Unicode block characters provide a natural, gracefully-degrading representation for low-resolution sample data. The core insight is that the **3 least-significant bits** of any sample map directly to the 8 Unicode eighth-block characters.
 
-The end goal is **three renderer backends** with graceful degradation:
+The end goal is **four renderer backends** with graceful degradation and clean power-of-2 BpB (Bits per Block):
 
-| Renderer | Encoding | Levels | Bits | Target Environment |
-|----------|----------|--------|------|--------------------|
-| Unicode  | UTF-8    | 9      | 3    | Modern terminals (Phase 1) |
-| CP437    | 8-bit    | 5      | ~2   | DOS/retro terminals |
-| ASCII    | 7-bit    | 8      | 3    | Universal fallback |
+| Renderer | Encoding | Levels | BpB | Target Environment |
+|----------|----------|--------|-----|--------------------|
+| Binary   | 7-bit    | 2      | 1.0 | Ultra-minimal fallback |
+| ASCII    | 7-bit    | 4      | 2.0 | Universal fallback |
+| CP437    | 8-bit    | 4      | 2.0 | DOS/retro terminals |
+| Unicode  | UTF-8    | 8      | 3.0 | Modern terminals |
 
-**Phase 1 focuses exclusively on the Unicode renderer.** CP437 and ASCII are specified here for completeness but implementation is deferred.
+All renderers use clean power-of-2 level counts for predictable vertical scaling.
 
 ---
 
@@ -160,23 +161,41 @@ Each renderer defines a **character map** — an ordered sequence of characters 
 
 ### Summary Table
 
-| Encoding | Char Map | Levels | Bits | Fill Char | Fault Char |
-|----------|----------|--------|------|-----------|------------|
-| Unicode  | ` ▁▂▃▄▅▆▇` | 8 | 3.0 | `█` | `×` (U+00D7) |
-| CP437    | ` ▄` | 2 | 1.0 | `█` | `×` (dec 158) |
-| ASCII    | ` -` | 2 | 1.0 | `#` | `x` (0x78) |
+| Encoding | Char Map | Levels | BpB | Fill Char | Fault Char |
+|----------|----------|--------|-----|-----------|------------|
+| Binary   | ` 1`      | 2      | 1.0 | `1`       | `x` (0x78) |
+| ASCII    | ` .-=`    | 4      | 2.0 | `#`       | `x` (0x78) |
+| CP437    | ` ░▒▓`    | 4      | 2.0 | `█`       | `×` (dec 158) |
+| Unicode  | ` ▁▂▃▄▅▆▇` | 8     | 3.0 | `█`       | `×` (U+00D7) |
 
-**Power-of-2 effective resolution** (Unicode):
+**Power-of-2 effective resolution**:
 ```
-Rows × Levels = Effective Levels = Bits
-   1 ×    8   =      8           = 3 bits
-   2 ×    8   =     16           = 4 bits
-   4 ×    8   =     32           = 5 bits
-   8 ×    8   =     64           = 6 bits
-  16 ×    8   =    128           = 7 bits
+Unicode (3 BpB):
+  Rows × Levels = Effective Levels = Bits
+     1 ×    8   =      8           = 3 bits
+     2 ×    8   =     16           = 4 bits
+     4 ×    8   =     32           = 5 bits
+     8 ×    8   =     64           = 6 bits
+    16 ×    8   =    128           = 7 bits
+
+ASCII/CP437 (2 BpB):
+  Rows × Levels = Effective Levels = Bits
+     1 ×    4   =      4           = 2 bits
+     2 ×    4   =      8           = 3 bits
+     4 ×    4   =     16           = 4 bits
+     8 ×    4   =     32           = 5 bits
+    16 ×    4   =     64           = 6 bits
+
+Binary (1 BpB):
+  Rows × Levels = Effective Levels = Bits
+     1 ×    2   =      2           = 1 bit
+     2 ×    2   =      4           = 2 bits
+     4 ×    2   =      8           = 3 bits
+     8 ×    2   =     16           = 4 bits
+    16 ×    2   =     32           = 5 bits
 ```
 
-**Fault character rationale**: The multiplication sign `×` is visually distinct ("X marks the error") and consistent across Unicode/CP437. ASCII degrades gracefully to lowercase `x`.
+**Fault character rationale**: The multiplication sign `×` is visually distinct ("X marks the error") and consistent across Unicode/CP437. ASCII/Binary degrades gracefully to lowercase `x`.
 
 ---
 
@@ -212,21 +231,23 @@ UNICODE_FILL = "█"         # U+2588 for stacked full rows
 
 **Status**: AUTHORITATIVE
 
-2 levels (1 bit), using space and half-block:
+4 levels (2 bits), using space and shade blocks:
 
 | Index | Char | CP437 Dec | Name |
 |-------|------|-----------|------|
 | 0     | ` `  | 32        | SPACE (empty) |
-| 1     | `▄`  | 220       | LOWER HALF BLOCK |
+| 1     | `░`  | 176       | LIGHT SHADE |
+| 2     | `▒`  | 177       | MEDIUM SHADE |
+| 3     | `▓`  | 178       | DARK SHADE |
 
 ```python
-CP437_MAP = " ▄"    # len=2, index 0-1 (1 bit)
+CP437_MAP = " ░▒▓"  # len=4, index 0-3 (2 bits)
 CP437_FILL = "█"    # dec 219 for stacked full rows
 ```
 
 **Fault character**: `×` (CP437 dec 158 MULTIPLICATION SIGN)
 
-**Rationale**: Simplified to 2 levels (1 bit) for consistent power-of-2 math. Higher resolution achieved through more rows.
+**Rationale**: 4 levels (2 bits) provides better visual gradation than 2 levels while maintaining power-of-2 math. Shade blocks are widely supported in DOS-compatible terminals.
 
 ---
 
@@ -234,21 +255,45 @@ CP437_FILL = "█"    # dec 219 for stacked full rows
 
 **Status**: AUTHORITATIVE
 
-2 levels (1 bit), using space and dash:
+4 levels (2 bits), using space and punctuation:
 
 | Index | Char | Hex  | Name |
 |-------|------|------|------|
 | 0     | ` `  | 0x20 | SPACE (empty) |
-| 1     | `-`  | 0x2D | HYPHEN-MINUS (mid-height) |
+| 1     | `.`  | 0x2E | FULL STOP (light) |
+| 2     | `-`  | 0x2D | HYPHEN-MINUS (medium) |
+| 3     | `=`  | 0x3D | EQUALS SIGN (heavy) |
 
 ```python
-ASCII_MAP = " -"    # len=2, index 0-1 (1 bit)
+ASCII_MAP = " .-="  # len=4, index 0-3 (2 bits)
 ASCII_FILL = "#"    # 0x23 NUMBER SIGN for stacked full rows
 ```
 
 **Fault character**: `x` (0x78 LATIN SMALL LETTER X)
 
-**Rationale**: Simplified to 2 levels (1 bit) for consistent power-of-2 math. The hash `#` provides dense fill for stacked rows.
+**Rationale**: 4 levels (2 bits) provides better visual gradation while using only pure ASCII characters. The sequence `. - =` creates a visual progression from light to heavy.
+
+---
+
+### CM4: Binary Character Map
+
+**Status**: AUTHORITATIVE
+
+2 levels (1 bit), using space and '1':
+
+| Index | Char | Hex  | Name |
+|-------|------|------|------|
+| 0     | ` `  | 0x20 | SPACE (empty/zero) |
+| 1     | `1`  | 0x31 | DIGIT ONE (one/filled) |
+
+```python
+BINARY_MAP = " 1"   # len=2, index 0-1 (1 bit)
+BINARY_FILL = "1"   # '1' for stacked full rows
+```
+
+**Fault character**: `x` (0x78 LATIN SMALL LETTER X)
+
+**Rationale**: Ultra-minimal renderer using only the most basic characters. The use of '0' (space) and '1' drives home the binary nature of this fallback renderer. Useful for debugging and environments with extremely limited character support.
 
 ---
 

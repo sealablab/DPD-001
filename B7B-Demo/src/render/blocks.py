@@ -1,16 +1,20 @@
 """Block character rendering for terminal waveforms.
 
-Implements three renderer backends:
-- Unicode: 8 levels (3 bits) using space + seventh-block characters
-- CP437: 2 levels (1 bit) using space + half-block (DOS compatibility)
-- ASCII: 2 levels (1 bit) using space + dash (universal fallback)
+Implements four renderer backends with clean power-of-2 BpB (Bits per Block):
 
-The Unicode map uses exactly 8 levels for clean power-of-2 math:
-  - 1 row  = 8 levels   = 3 bits
-  - 2 rows = 16 levels  = 4 bits
-  - 4 rows = 32 levels  = 5 bits
-  - 8 rows = 64 levels  = 6 bits
-  - 16 rows = 128 levels = 7 bits
+| Renderer | BpB | Levels | Character Map          |
+|----------|-----|--------|------------------------|
+| Binary   | 1.0 |   2    | space + '1'            |
+| ASCII    | 2.0 |   4    | space + .-=            |
+| CP437    | 2.0 |   4    | space + shade blocks   |
+| Unicode  | 3.0 |   8    | space + eighth-blocks  |
+
+Effective resolution scales with height (rows × levels):
+  - 1 row  × 8 levels =   8 levels = 3 bits (Unicode)
+  - 2 rows × 8 levels =  16 levels = 4 bits
+  - 4 rows × 8 levels =  32 levels = 5 bits
+  - 8 rows × 8 levels =  64 levels = 6 bits
+  - 16 rows × 8 levels = 128 levels = 7 bits
 """
 
 from abc import ABC, abstractmethod
@@ -25,21 +29,26 @@ import numpy as np
 # Character Maps (AUTHORITATIVE - Clean Power-of-2)
 # =============================================================================
 
+# Binary: 2 levels (1 bit) - Universal ultra-fallback
+BINARY_MAP = " 1"
+BINARY_FILL = "1"
+BINARY_FAULT = "x"
+
+# ASCII: 4 levels (2 bits) - Pure ASCII fallback
+ASCII_MAP = " .-="
+ASCII_FILL = "#"
+ASCII_FAULT = "x"
+
+# CP437: 4 levels (2 bits) - DOS shade block compatibility
+CP437_MAP = " ░▒▓"
+CP437_FILL = "█"
+CP437_FAULT = "×"
+
 # Unicode: 8 levels (3 bits exactly)
 # Index 0 = space (empty), indices 1-7 = eighth-blocks
 UNICODE_MAP = " ▁▂▃▄▅▆▇"
 UNICODE_FILL = "█"
 UNICODE_FAULT = "×"
-
-# CP437: 2 levels (1 bit)
-CP437_MAP = " ▄"
-CP437_FILL = "█"
-CP437_FAULT = "×"
-
-# ASCII: 2 levels (1 bit)
-ASCII_MAP = " -"
-ASCII_FILL = "#"
-ASCII_FAULT = "x"
 
 
 # =============================================================================
@@ -186,7 +195,7 @@ class UnicodeRenderer(Renderer):
 
 
 class CP437Renderer(Renderer):
-    """CP437 renderer using half-block characters (2 levels = 1 bit)."""
+    """CP437 renderer using shade blocks (4 levels = 2 bits)."""
 
     @property
     def char_map(self) -> str:
@@ -202,7 +211,7 @@ class CP437Renderer(Renderer):
 
 
 class ASCIIRenderer(Renderer):
-    """ASCII renderer using space and dash (2 levels = 1 bit)."""
+    """ASCII renderer using gradation characters (4 levels = 2 bits)."""
 
     @property
     def char_map(self) -> str:
@@ -215,6 +224,22 @@ class ASCIIRenderer(Renderer):
     @property
     def fault_char(self) -> str:
         return ASCII_FAULT
+
+
+class BinaryRenderer(Renderer):
+    """Binary renderer using '1' characters (2 levels = 1 bit)."""
+
+    @property
+    def char_map(self) -> str:
+        return BINARY_MAP
+
+    @property
+    def fill_char(self) -> str:
+        return BINARY_FILL
+
+    @property
+    def fault_char(self) -> str:
+        return BINARY_FAULT
 
 
 # =============================================================================
