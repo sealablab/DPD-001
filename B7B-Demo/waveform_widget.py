@@ -5,15 +5,19 @@ A bare-bones text widget that renders waveforms using block characters.
 Self-contained with minimal dependencies (numpy only).
 
 Features:
-- Three renderer backends: Unicode, CP437, ASCII
-- Five height presets: 1, 2, 4, 8, 16 blocks (3-7 bits resolution)
+- Four renderer backends with clean power-of-2 BpB:
+  - Binary:  1 BpB (2 levels) - '0' and '1' ultra-fallback
+  - ASCII:   2 BpB (4 levels) - space, dash, dot, equals
+  - CP437:   2 BpB (4 levels) - shade blocks for DOS
+  - Unicode: 3 BpB (8 levels) - eighth-block characters
+- Five height presets: 1, 2, 4, 8, 16 blocks
 - Interactive keyboard controls
 
 Usage:
     python waveform_widget.py
 
 Controls:
-    u/c/a   - Switch renderer (Unicode/CP437/ASCII)
+    b/u/c/a - Switch renderer (Binary/Unicode/CP437/ASCII)
     1-5     - Switch height (1/2/4/8/16 blocks)
     s/t/l/r - Switch waveform (Sine/Triangle/Linear/Random)
     q       - Quit
@@ -34,23 +38,33 @@ import numpy as np
 # =============================================================================
 
 CHAR_MAPS = {
+    "binary": {
+        "map": " 1",          # 2 levels (1 bit): space + '1'
+        "fill": "1",          # '1' for stacked rows
+        "fault": "x",
+        "name": "Binary",
+        "bpb": 1.0,
+    },
+    "ascii": {
+        "map": " .-=",        # 4 levels (2 bits): space + gradations
+        "fill": "#",          # Hash for stacked rows
+        "fault": "x",
+        "name": "ASCII",
+        "bpb": 2.0,
+    },
+    "cp437": {
+        "map": " ░▒▓",        # 4 levels (2 bits): space + shade blocks
+        "fill": "█",          # Full block for stacked rows
+        "fault": "×",
+        "name": "CP437",
+        "bpb": 2.0,
+    },
     "unicode": {
         "map": " ▁▂▃▄▅▆▇",   # 8 levels (3 bits): space + 7 eighth-blocks
         "fill": "█",          # Full block for stacked rows
         "fault": "×",
         "name": "Unicode",
-    },
-    "cp437": {
-        "map": " ▄",          # 2 levels (1 bit): space + half
-        "fill": "█",          # Full block for stacked rows
-        "fault": "×",
-        "name": "CP437",
-    },
-    "ascii": {
-        "map": " -",          # 2 levels (1 bit): space + mid
-        "fill": "#",          # Hash for stacked rows
-        "fault": "x",
-        "name": "ASCII",
+        "bpb": 3.0,
     },
 }
 
@@ -267,7 +281,7 @@ def render_widget(state: WidgetState) -> str:
 
     # Controls
     lines.append(f"{DIM} Controls:{RESET}")
-    lines.append(f"   {BOLD}u/c/a{RESET} - Renderer (Unicode/CP437/ASCII)")
+    lines.append(f"   {BOLD}b/a/c/u{RESET} - Renderer (Binary/ASCII/CP437/Unicode)")
     lines.append(f"   {BOLD}1-5{RESET}   - Height (1/2/4/8/16 rows)")
     lines.append(f"   {BOLD}s/t/l/r{RESET} - Waveform (Sine/Triangle/Linear/Random)")
     lines.append(f"   {BOLD}q{RESET}     - Quit")
@@ -294,12 +308,14 @@ def run_widget():
             # Handle input
             if key == "q" or key == "\x03":  # q or Ctrl+C
                 break
-            elif key == "u":
-                state.renderer = "unicode"
-            elif key == "c":
-                state.renderer = "cp437"
+            elif key == "b":
+                state.renderer = "binary"
             elif key == "a":
                 state.renderer = "ascii"
+            elif key == "c":
+                state.renderer = "cp437"
+            elif key == "u":
+                state.renderer = "unicode"
             elif key in "12345":
                 state.height_preset = int(key)
             elif key in "stlr":
@@ -330,9 +346,10 @@ def print_static(
 
 def print_all_combinations():
     """Print all renderer/height combinations for comparison."""
-    for renderer in ["unicode", "cp437", "ascii"]:
+    for renderer in ["binary", "ascii", "cp437", "unicode"]:
+        config = CHAR_MAPS[renderer]
         print(f"\n{'='*72}")
-        print(f" Renderer: {CHAR_MAPS[renderer]['name']}")
+        print(f" Renderer: {config['name']} ({config['bpb']} BpB, {len(config['map'])} levels)")
         print(f"{'='*72}")
 
         for preset in [1, 2, 3]:  # Show 1, 2, 4 rows for brevity
@@ -363,7 +380,7 @@ def main():
     )
     parser.add_argument(
         "-r", "--renderer",
-        choices=["unicode", "cp437", "ascii"],
+        choices=["binary", "ascii", "cp437", "unicode"],
         default="unicode",
         help="Renderer for static mode"
     )

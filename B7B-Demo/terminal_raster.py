@@ -15,15 +15,15 @@ quantization resolution:
 
   BpB    Levels   Character Set              Encoding
   ───────────────────────────────────────────────────────
-  ~1.5   3        _-`  or  _▄█               ASCII / CP437 (fallback)
+  1.0    2        (spc)1                     Binary (1-bit uber-fallback)
+  2.0    4        (spc).-=  or  (spc)░▒▓     ASCII / CP437
   3.0    8        (spc)▁▂▃▄▅▆▇  + █(fill)    Unicode (clean 3-bit)
 
-The Unicode map uses exactly 8 levels (3 bits) for clean power-of-2 math:
-  - 1 row  = 8 levels   = 3 bits
-  - 2 rows = 16 levels  = 4 bits
-  - 4 rows = 32 levels  = 5 bits
-  - 8 rows = 64 levels  = 6 bits
-  - 16 rows = 128 levels = 7 bits
+Clean power-of-2 math at every level:
+  - Binary:  1 bit  → 2 levels per block
+  - ASCII:   2 bits → 4 levels per block
+  - CP437:   2 bits → 4 levels per block
+  - Unicode: 3 bits → 8 levels per block
 
 Usage:
     canvas = Canvas(width=128, height=128)  # Internal resolution
@@ -49,9 +49,10 @@ import numpy as np
 
 class CharacterSet(Enum):
     """Available character sets with their BpB depth."""
-    ASCII = "ascii"
-    CP437 = "cp437"
-    UNICODE = "unicode"
+    BINARY = "binary"    # 1 BpB (2 levels)
+    ASCII = "ascii"      # 2 BpB (4 levels)
+    CP437 = "cp437"      # 2 BpB (4 levels)
+    UNICODE = "unicode"  # 3 BpB (8 levels)
 
 
 @dataclass(frozen=True)
@@ -80,27 +81,34 @@ class BpBProfile:
         return self.char_map[clamped]
 
 
-# Pre-defined BpB profiles
+# Pre-defined BpB profiles (all clean powers of 2)
 BPB_PROFILES = {
+    CharacterSet.BINARY: BpBProfile(
+        name="Binary",
+        bpb=1.0,
+        char_map=" 1",              # 2 levels (1 bit): space + '1'
+        fill_char="1",              # '1' for stacked rows
+        fault_char="x",
+    ),
     CharacterSet.ASCII: BpBProfile(
         name="ASCII",
-        bpb=1.0,
-        char_map=" -",              # 2 levels (1 bit): space + mid
-        fill_char="#",              # Fill for stacked rows
+        bpb=2.0,
+        char_map=" .-=",            # 4 levels (2 bits): space, light, medium, heavy
+        fill_char="#",              # Hash for stacked rows
         fault_char="x",
     ),
     CharacterSet.CP437: BpBProfile(
         name="CP437",
-        bpb=1.0,
-        char_map=" ▄",              # 2 levels (1 bit): space + half
+        bpb=2.0,
+        char_map=" ░▒▓",            # 4 levels (2 bits): space, light, medium, dark shade
         fill_char="█",              # Full block for stacked rows
         fault_char="×",
     ),
     CharacterSet.UNICODE: BpBProfile(
         name="Unicode",
         bpb=3.0,
-        char_map=" ▁▂▃▄▅▆▇",  # 8 levels (3 bits): space + 7 eighth-blocks
-        fill_char="█",         # Full block for stacked rows
+        char_map=" ▁▂▃▄▅▆▇",        # 8 levels (3 bits): space + 7 eighth-blocks
+        fill_char="█",              # Full block for stacked rows
         fault_char="×",
     ),
 }
@@ -425,8 +433,9 @@ def demo_pipeline():
         (64, 1, CharacterSet.UNICODE, "64×1 Unicode (3 BpB)"),
         (64, 2, CharacterSet.UNICODE, "64×2 Unicode (3 BpB)"),
         (64, 4, CharacterSet.UNICODE, "64×4 Unicode (3 BpB)"),
-        (64, 4, CharacterSet.CP437, "64×4 CP437 (1.5 BpB)"),
-        (64, 4, CharacterSet.ASCII, "64×4 ASCII (1.5 BpB)"),
+        (64, 4, CharacterSet.CP437, "64×4 CP437 (2 BpB)"),
+        (64, 4, CharacterSet.ASCII, "64×4 ASCII (2 BpB)"),
+        (64, 4, CharacterSet.BINARY, "64×4 Binary (1 BpB)"),
         (32, 2, CharacterSet.UNICODE, "32×2 Unicode (downscaled)"),
     ]
 
@@ -472,7 +481,7 @@ def demo_charset_comparison():
     canvas = Canvas(width=64, height=128)
     canvas.plot_sine()
 
-    for charset in [CharacterSet.UNICODE, CharacterSet.CP437, CharacterSet.ASCII]:
+    for charset in [CharacterSet.UNICODE, CharacterSet.CP437, CharacterSet.ASCII, CharacterSet.BINARY]:
         window = RenderWindow(cols=64, rows=4, charset=charset)
         window.rasterize(canvas)
         window.swap()

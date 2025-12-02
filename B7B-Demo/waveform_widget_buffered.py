@@ -26,27 +26,37 @@ import numpy as np
 
 
 # =============================================================================
-# Character Maps (same as original widget)
+# Character Maps (Clean Power-of-2 BpB)
 # =============================================================================
 
 CHAR_MAPS = {
+    "binary": {
+        "map": " 1",          # 2 levels (1 bit): space + '1'
+        "fill": "1",          # '1' for stacked rows
+        "fault": "x",
+        "name": "Binary",
+        "bpb": 1.0,
+    },
+    "ascii": {
+        "map": " .-=",        # 4 levels (2 bits): space + gradations
+        "fill": "#",          # Hash for stacked rows
+        "fault": "x",
+        "name": "ASCII",
+        "bpb": 2.0,
+    },
+    "cp437": {
+        "map": " ░▒▓",        # 4 levels (2 bits): space + shade blocks
+        "fill": "█",          # Full block for stacked rows
+        "fault": "×",
+        "name": "CP437",
+        "bpb": 2.0,
+    },
     "unicode": {
         "map": " ▁▂▃▄▅▆▇",   # 8 levels (3 bits): space + 7 eighth-blocks
         "fill": "█",          # Full block for stacked rows
         "fault": "×",
         "name": "Unicode",
-    },
-    "cp437": {
-        "map": " ▄",          # 2 levels (1 bit): space + half
-        "fill": "█",          # Full block for stacked rows
-        "fault": "×",
-        "name": "CP437",
-    },
-    "ascii": {
-        "map": " -",          # 2 levels (1 bit): space + mid
-        "fill": "#",          # Hash for stacked rows
-        "fault": "x",
-        "name": "ASCII",
+        "bpb": 3.0,
     },
 }
 
@@ -446,14 +456,14 @@ def demo_renderer_switch():
 
     widget = BufferedWaveformWidget(width=48, height=4, renderer="unicode")
 
-    renderers = ["unicode", "cp437", "ascii"]
+    renderers = ["binary", "ascii", "cp437", "unicode"]
 
     for renderer in renderers:
         widget.set_renderer(renderer)
         widget.swap()
 
         config = CHAR_MAPS[renderer]
-        print(f"{BOLD}{config['name']}{RESET} (map: {config['map']})")
+        print(f"{BOLD}{config['name']}{RESET} ({config['bpb']} BpB, map: {config['map']})")
         for row in widget.get_display_rows():
             print(f"  {row}")
         print()
@@ -500,19 +510,21 @@ def interactive_demo():
                 print()
 
             print("-" * 72)
-            print(f" {BOLD}u/c/a{RESET}=renderer  {BOLD}1-5{RESET}=height  "
+            print(f" {BOLD}b/a/c/u{RESET}=renderer  {BOLD}1-5{RESET}=height  "
                   f"{BOLD}n{RESET}=next phase  {BOLD}s{RESET}=swap  {BOLD}q{RESET}=quit")
 
             key = get_char()
 
             if key == 'q' or key == '\x03':
                 break
-            elif key == 'u':
-                widget.set_renderer("unicode")
-            elif key == 'c':
-                widget.set_renderer("cp437")
+            elif key == 'b':
+                widget.set_renderer("binary")
             elif key == 'a':
                 widget.set_renderer("ascii")
+            elif key == 'c':
+                widget.set_renderer("cp437")
+            elif key == 'u':
+                widget.set_renderer("unicode")
             elif key in '12345':
                 heights = {1: 1, 2: 2, 3: 4, 4: 8, 5: 16}
                 widget.resize(height=heights[int(key)])
