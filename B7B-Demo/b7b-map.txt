@@ -1,0 +1,9 @@
+  Character maps locked in:
+
+  | Encoding | Map       | Fill | Fault |
+  |----------|-----------|------|-------|
+  | Unicode  | _▁▂▃▄▅▆▇█ | █    | ×     |
+  | CP437    | _▄█       | █    | ×     |
+  | ASCII    | _-``      | #    | x     |
+
+
