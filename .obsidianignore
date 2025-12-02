@@ -17,8 +17,9 @@ sim_build/
 results.xml
 *_results.xml
 
-# Compiled bitstreams
+# Compiled bitstreams / large files
 *.tar
+*.tar.gz
 
 # Virtual environments
 .venv/
@@ -34,5 +35,3 @@ venv/
 # Logs
 *.log
 
-# Large binaries
-*.pdf
