@@ -1,7 +1,7 @@
 ---
 created: 2025-12-01
-modified: 2025-12-01 15:41:59
-accessed: 2025-12-01 15:41:59
+modified: 2025-12-01 15:42:45
+accessed: 2025-12-01 16:05:29
 type: N
 ---
 
@@ -379,3 +379,7 @@ This property enables:
 |Direct Unicode mapping  |3 LSBs → ⅛-block resolution                    |
 
 The encoding treats the data stream as self-describing: a negative value *is* a fault, and its magnitude *is* the diagnostic context.
+
+
+
+![img](docs/N/BpB-Analog-notes.jpeg)
