@@ -1,12 +1,16 @@
 """Block character rendering for terminal waveforms.
 
 Implements three renderer backends:
-- Unicode: 9 levels using eighth-block characters
-- CP437: 3 levels using half-blocks (DOS compatibility)
-- ASCII: 3 levels using _-` (universal fallback)
+- Unicode: 8 levels (3 bits) using space + seventh-block characters
+- CP437: 2 levels (1 bit) using space + half-block (DOS compatibility)
+- ASCII: 2 levels (1 bit) using space + dash (universal fallback)
 
-The core insight: 3 LSBs map directly to Unicode eighth-blocks.
-Higher bit depths use additional vertical rows.
+The Unicode map uses exactly 8 levels for clean power-of-2 math:
+  - 1 row  = 8 levels   = 3 bits
+  - 2 rows = 16 levels  = 4 bits
+  - 4 rows = 32 levels  = 5 bits
+  - 8 rows = 64 levels  = 6 bits
+  - 16 rows = 128 levels = 7 bits
 """
 
 from abc import ABC, abstractmethod
@@ -18,22 +22,22 @@ import numpy as np
 
 
 # =============================================================================
-# Character Maps (from REQUIREMENTS.md - AUTHORITATIVE)
+# Character Maps (AUTHORITATIVE - Clean Power-of-2)
 # =============================================================================
 
-# Unicode: 9 levels (3 bits + overflow)
-# Index 0 = baseline, indices 1-7 = partial blocks, index 8 = full
-UNICODE_MAP = "_▁▂▃▄▅▆▇█"
+# Unicode: 8 levels (3 bits exactly)
+# Index 0 = space (empty), indices 1-7 = eighth-blocks
+UNICODE_MAP = " ▁▂▃▄▅▆▇"
 UNICODE_FILL = "█"
 UNICODE_FAULT = "×"
 
-# CP437: 3 levels (1.5 bits)
-CP437_MAP = "_▄█"
+# CP437: 2 levels (1 bit)
+CP437_MAP = " ▄"
 CP437_FILL = "█"
 CP437_FAULT = "×"
 
-# ASCII: 3 levels using vertical position metaphor
-ASCII_MAP = "_-`"
+# ASCII: 2 levels (1 bit)
+ASCII_MAP = " -"
 ASCII_FILL = "#"
 ASCII_FAULT = "x"
 
@@ -49,7 +53,7 @@ class Renderer(ABC):
     @property
     @abstractmethod
     def char_map(self) -> str:
-        """Character map for partial blocks (including zero level)."""
+        """Character map for partial blocks (index 0 = empty/space)."""
         pass
 
     @property
@@ -70,16 +74,9 @@ class Renderer(ABC):
         return len(self.char_map)
 
     @property
-    def bits_per_block(self) -> int:
-        """Bits of resolution per vertical block (before overflow)."""
-        # Unicode has 9 levels (0-8), but 8 partial levels = 3 bits
-        # CP437/ASCII have 3 levels = ~1.5 bits
-        if self.levels == 9:
-            return 3
-        elif self.levels == 3:
-            return 1  # Conservative: 2 transitions = 1 bit
-        else:
-            return int(log2(self.levels - 1)) if self.levels > 1 else 0
+    def bits_per_block(self) -> float:
+        """Bits of resolution per vertical block."""
+        return log2(self.levels) if self.levels > 1 else 0
 
     def sample_to_char(self, value: int) -> str:
         """Map a value (0 to levels-1) to a character.
@@ -112,38 +109,19 @@ class Renderer(ABC):
         if is_fault:
             return [self.fault_char] * height
 
-        # Determine how many bits we're using based on height
-        # height = 2^(bits_used - 3) for Unicode
-        # So bits_used = 3 + log2(height)
-        row_bits = int(log2(height)) if height > 1 else 0
-        bits_used = 3 + row_bits
+        # Calculate effective levels for this height
+        levels_per_block = self.levels
+        effective_levels = height * levels_per_block
 
-        # Scale sample to available resolution
-        # For Unicode: value >> (7 - bits_used) gives us the scaled value
-        if bits_used >= 7:
-            scaled = value
+        # Scale 0-127 to 0-(effective_levels-1)
+        if effective_levels > 1:
+            scaled = (value * (effective_levels - 1)) // 127
         else:
-            scaled = value >> (7 - bits_used)
+            scaled = 0
 
-        # For Unicode (9 levels = 3 bits + overflow)
-        if self.levels == 9:
-            # Split into full blocks (upper bits) and partial (lower 3 bits)
-            partial = scaled & 0b111
-            full_count = scaled >> 3
-        else:
-            # For CP437/ASCII (3 levels)
-            # We need to map to our reduced levels
-            # Scale the value to 0-2 range per block
-            levels_per_block = self.levels - 1  # 2 for CP437/ASCII
-            max_scaled = height * levels_per_block
-            # Map 0-127 to 0-max_scaled
-            mapped = (value * max_scaled) // 127
-            partial = mapped % levels_per_block
-            full_count = mapped // levels_per_block
-            # Adjust: if partial is 0 and we have full blocks, show the full char
-            if full_count > 0 and partial == 0:
-                # Show partial as the max level for that block
-                partial = 0  # baseline shows underscore
+        # Split into full blocks and partial
+        full_count = scaled // levels_per_block
+        partial = scaled % levels_per_block
 
         # Build column bottom-to-top
         column = []
@@ -192,7 +170,7 @@ class Renderer(ABC):
 # =============================================================================
 
 class UnicodeRenderer(Renderer):
-    """Unicode renderer using eighth-block characters."""
+    """Unicode renderer using eighth-block characters (8 levels = 3 bits)."""
 
     @property
     def char_map(self) -> str:
@@ -208,7 +186,7 @@ class UnicodeRenderer(Renderer):
 
 
 class CP437Renderer(Renderer):
-    """CP437 renderer using half-block characters."""
+    """CP437 renderer using half-block characters (2 levels = 1 bit)."""
 
     @property
     def char_map(self) -> str:
@@ -224,7 +202,7 @@ class CP437Renderer(Renderer):
 
 
 class ASCIIRenderer(Renderer):
-    """ASCII renderer using _-` characters."""
+    """ASCII renderer using space and dash (2 levels = 1 bit)."""
 
     @property
     def char_map(self) -> str:

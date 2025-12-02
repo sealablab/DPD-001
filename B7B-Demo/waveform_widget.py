@@ -35,20 +35,20 @@ import numpy as np
 
 CHAR_MAPS = {
     "unicode": {
-        "map": "_▁▂▃▄▅▆▇█",  # 9 levels (3 bits + overflow)
-        "fill": "█",
+        "map": " ▁▂▃▄▅▆▇",   # 8 levels (3 bits): space + 7 eighth-blocks
+        "fill": "█",          # Full block for stacked rows
         "fault": "×",
         "name": "Unicode",
     },
     "cp437": {
-        "map": "_▄█",  # 3 levels
-        "fill": "█",
+        "map": " ▄",          # 2 levels (1 bit): space + half
+        "fill": "█",          # Full block for stacked rows
         "fault": "×",
         "name": "CP437",
     },
     "ascii": {
-        "map": "_-`",  # 3 levels
-        "fill": "#",
+        "map": " -",          # 2 levels (1 bit): space + mid
+        "fill": "#",          # Hash for stacked rows
         "fault": "x",
         "name": "ASCII",
     },
@@ -105,47 +105,33 @@ WAVEFORMS = {
 # Rendering Engine
 # =============================================================================
 
-def sample_to_column_unicode(value: int, height: int, char_map: str, fill_char: str) -> List[str]:
-    """Convert a sample to a column for Unicode (9-level) renderer."""
-    # Determine bits used based on height
-    row_bits = int(log2(height)) if height > 1 else 0
-    bits_used = 3 + row_bits
+def sample_to_column(value: int, height: int, char_map: str, fill_char: str) -> List[str]:
+    """Convert a sample to a column of characters.
 
-    # Scale sample to available resolution
-    if bits_used >= 7:
-        scaled = value
+    Works with any character map size. The algorithm:
+    1. Calculate effective levels = height * levels_per_block
+    2. Scale input (0-127) to effective levels
+    3. Split into full blocks + partial level
+    4. Render column bottom-to-top
+
+    Args:
+        value: Sample value 0-127
+        height: Number of vertical character rows
+        char_map: Characters for partial levels (index 0 = empty/space)
+        fill_char: Character for fully filled rows
+    """
+    levels_per_block = len(char_map)
+    effective_levels = height * levels_per_block
+
+    # Scale 0-127 to 0-(effective_levels-1)
+    if effective_levels > 1:
+        scaled = (value * (effective_levels - 1)) // 127
     else:
-        scaled = value >> (7 - bits_used)
+        scaled = 0
 
     # Split into full blocks and partial
-    partial = scaled & 0b111
-    full_count = scaled >> 3
-
-    # Build column bottom-to-top
-    column = []
-    for row in range(height):
-        if row < full_count:
-            column.append(fill_char)
-        elif row == full_count:
-            column.append(char_map[partial])
-        else:
-            column.append(" ")
-
-    return column
-
-
-def sample_to_column_reduced(value: int, height: int, char_map: str, fill_char: str) -> List[str]:
-    """Convert a sample to a column for reduced (3-level) renderers."""
-    levels_per_block = len(char_map) - 1  # 2 for CP437/ASCII
-    max_scaled = height * levels_per_block
-
-    # Map 0-127 to 0-max_scaled
-    mapped = (value * max_scaled) // 127
-    partial = mapped % (levels_per_block + 1)
-    full_count = mapped // (levels_per_block + 1)
-
-    # Clamp partial to valid range
-    partial = min(partial, len(char_map) - 1)
+    full_count = scaled // levels_per_block
+    partial = scaled % levels_per_block
 
     # Build column bottom-to-top
     column = []
@@ -170,15 +156,9 @@ def render_waveform(
     char_map = config["map"]
     fill_char = config["fill"]
 
-    # Choose rendering function based on character map size
-    if len(char_map) == 9:
-        render_fn = sample_to_column_unicode
-    else:
-        render_fn = sample_to_column_reduced
-
     # Generate columns
     columns = [
-        render_fn(int(s), height, char_map, fill_char)
+        sample_to_column(int(s), height, char_map, fill_char)
         for s in samples
     ]
 

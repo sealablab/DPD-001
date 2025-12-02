@@ -154,31 +154,41 @@ Each renderer defines a **character map** — an ordered sequence of characters 
 
 ### Design Principles
 
-1. **Consistent zero-level**: Use `_` (underscore) across all encodings to anchor the baseline
-2. **Fill character**: For multi-row renders, use a dedicated "fill" character for solid rows below the partial top
-3. **Graceful degradation**: Each encoding has both a "full" map and a "minimal" (1.5-bit) fallback
+1. **Clean power-of-2 math**: Unicode uses exactly 8 levels (3 bits) for clean vertical scaling
+2. **Space for zero**: Index 0 is space (empty cell), not underscore
+3. **Separate fill character**: Full blocks (█) are the fill character for stacked rows, NOT part of the char_map
 
 ### Summary Table
 
-| Encoding | Full Map | Minimal Map | Fill Char | Fault Char |
-|----------|----------|-------------|-----------|------------|
-| Unicode  | `_▁▂▃▄▅▆▇█` (9) | `_▄█` (3) | `█` | `×` (U+00D7) |
-| CP437    | `_▄█` (3) | `_▄█` (3) | `█` | `×` (dec 158) |
-| ASCII    | `_-`` ` (3) | `_-`` ` (3) | `#` | `x` (0x78) |
+| Encoding | Char Map | Levels | Bits | Fill Char | Fault Char |
+|----------|----------|--------|------|-----------|------------|
+| Unicode  | ` ▁▂▃▄▅▆▇` | 8 | 3.0 | `█` | `×` (U+00D7) |
+| CP437    | ` ▄` | 2 | 1.0 | `█` | `×` (dec 158) |
+| ASCII    | ` -` | 2 | 1.0 | `#` | `x` (0x78) |
+
+**Power-of-2 effective resolution** (Unicode):
+```
+Rows × Levels = Effective Levels = Bits
+   1 ×    8   =      8           = 3 bits
+   2 ×    8   =     16           = 4 bits
+   4 ×    8   =     32           = 5 bits
+   8 ×    8   =     64           = 6 bits
+  16 ×    8   =    128           = 7 bits
+```
 
 **Fault character rationale**: The multiplication sign `×` is visually distinct ("X marks the error") and consistent across Unicode/CP437. ASCII degrades gracefully to lowercase `x`.
 
 ---
 
-### CM1: Unicode Character Map (Phase 1)
+### CM1: Unicode Character Map
 
 **Status**: AUTHORITATIVE
 
-**Full map** — 9 levels (3 bits + overflow):
+**Full map** — 8 levels (3 bits exactly):
 
 | Index | Char | Codepoint | Name |
 |-------|------|-----------|------|
-| 0     | `_`  | U+005F    | LOW LINE (baseline anchor) |
+| 0     | ` `  | U+0020    | SPACE (empty) |
 | 1     | `▁`  | U+2581    | LOWER ONE EIGHTH BLOCK |
 | 2     | `▂`  | U+2582    | LOWER ONE QUARTER BLOCK |
 | 3     | `▃`  | U+2583    | LOWER THREE EIGHTHS BLOCK |
@@ -186,82 +196,59 @@ Each renderer defines a **character map** — an ordered sequence of characters 
 | 5     | `▅`  | U+2585    | LOWER FIVE EIGHTHS BLOCK |
 | 6     | `▆`  | U+2586    | LOWER THREE QUARTERS BLOCK |
 | 7     | `▇`  | U+2587    | LOWER SEVEN EIGHTHS BLOCK |
-| 8     | `█`  | U+2588    | FULL BLOCK |
 
 ```python
-UNICODE_MAP = "_▁▂▃▄▅▆▇█"  # len=9, index 0-8
-UNICODE_FILL = "█"          # U+2588
-```
-
-**Minimal map** — 3 levels (1.5 bits):
-
-| Index | Char | Codepoint | Name |
-|-------|------|-----------|------|
-| 0     | `_`  | U+005F    | LOW LINE (zero) |
-| 1     | `▄`  | U+2584    | LOWER HALF BLOCK (mid) |
-| 2     | `█`  | U+2588    | FULL BLOCK (full) |
-
-```python
-UNICODE_MINIMAL = "_▄█"  # len=3, index 0-2
+UNICODE_MAP = " ▁▂▃▄▅▆▇"  # len=8, index 0-7 (3 bits)
+UNICODE_FILL = "█"         # U+2588 for stacked full rows
 ```
 
 **Fault character**: `×` (U+00D7 MULTIPLICATION SIGN)
 
-**Note**: Using `_` instead of space for zero-level provides visual consistency across encodings and clearly marks "intentionally empty" vs "no data".
+**Key insight**: Using space (not underscore) for zero-level enables clean 8-level = 3-bit encoding. The full block `█` is separate as the fill character.
 
 ---
 
-### CM2: CP437 Character Map (Phase 2+)
+### CM2: CP437 Character Map
 
 **Status**: AUTHORITATIVE
 
-3 levels (1.5 bits), using half-blocks for clean vertical bar appearance:
+2 levels (1 bit), using space and half-block:
 
 | Index | Char | CP437 Dec | Name |
 |-------|------|-----------|------|
-| 0     | `_`  | 95        | LOW LINE (zero) |
-| 1     | `▄`  | 220       | LOWER HALF BLOCK (mid) |
-| 2     | `█`  | 219       | FULL BLOCK (full) |
+| 0     | ` `  | 32        | SPACE (empty) |
+| 1     | `▄`  | 220       | LOWER HALF BLOCK |
 
 ```python
-CP437_MAP = "_▄█"   # len=3, index 0-2
-CP437_FILL = "█"    # dec 219
+CP437_MAP = " ▄"    # len=2, index 0-1 (1 bit)
+CP437_FILL = "█"    # dec 219 for stacked full rows
 ```
 
 **Fault character**: `×` (CP437 dec 158 MULTIPLICATION SIGN)
 
-**Rationale**: Half-blocks preferred over shading (░▒▓) because:
-- Cleaner visual appearance
-- Better matches the "height" metaphor of bar charts
-- Consistent with Unicode minimal map
+**Rationale**: Simplified to 2 levels (1 bit) for consistent power-of-2 math. Higher resolution achieved through more rows.
 
 ---
 
-### CM3: ASCII Character Map (Phase 2+)
+### CM3: ASCII Character Map
 
 **Status**: AUTHORITATIVE
 
-3 levels (1.5 bits), using vertical position metaphor:
+2 levels (1 bit), using space and dash:
 
-| Index | Char | Hex  | Rationale |
-|-------|------|------|-----------|
-| 0     | `_`  | 0x5F | LOW LINE — sits at baseline (zero) |
-| 1     | `-`  | 0x2D | HYPHEN-MINUS — sits at mid-height |
-| 2     | `` ` `` | 0x60 | GRAVE ACCENT — sits at top of cell |
+| Index | Char | Hex  | Name |
+|-------|------|------|------|
+| 0     | ` `  | 0x20 | SPACE (empty) |
+| 1     | `-`  | 0x2D | HYPHEN-MINUS (mid-height) |
 
 ```python
-ASCII_MAP = "_-`"   # len=3, index 0-2
-ASCII_FILL = "#"    # 0x23 NUMBER SIGN
+ASCII_MAP = " -"    # len=2, index 0-1 (1 bit)
+ASCII_FILL = "#"    # 0x23 NUMBER SIGN for stacked full rows
 ```
 
 **Fault character**: `x` (0x78 LATIN SMALL LETTER X)
 
-**Rationale**: This triplet exploits character positioning:
-- `_` visually anchors to the bottom of the character cell
-- `-` floats at vertical center
-- `` ` `` sits high in the character cell
-
-For multi-row renders, `#` provides dense fill that reads as "solid".
+**Rationale**: Simplified to 2 levels (1 bit) for consistent power-of-2 math. The hash `#` provides dense fill for stacked rows.
 
 ---
 

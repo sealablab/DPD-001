@@ -1,9 +1,15 @@
-  Character maps locked in:
+  Character maps (AUTHORITATIVE - Clean Power-of-2):
 
-  | Encoding | Map       | Fill | Fault |
-  |----------|-----------|------|-------|
-  | Unicode  | _▁▂▃▄▅▆▇█ | █    | ×     |
-  | CP437    | _▄█       | █    | ×     |
-  | ASCII    | _-``      | #    | x     |
+  | Encoding | Map        | Levels | Bits | Fill | Fault |
+  |----------|------------|--------|------|------|-------|
+  | Unicode  | (spc)▁▂▃▄▅▆▇ | 8      | 3.0  | █    | ×     |
+  | CP437    | (spc)▄       | 2      | 1.0  | █    | ×     |
+  | ASCII    | (spc)-       | 2      | 1.0  | #    | x     |
 
+  Effective resolution (Unicode):
+    1 row  × 8 levels =   8 levels = 3 bits
+    2 rows × 8 levels =  16 levels = 4 bits
+    4 rows × 8 levels =  32 levels = 5 bits
+    8 rows × 8 levels =  64 levels = 6 bits
+   16 rows × 8 levels = 128 levels = 7 bits
 

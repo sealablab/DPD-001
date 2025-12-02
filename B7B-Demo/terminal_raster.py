@@ -15,13 +15,15 @@ quantization resolution:
 
   BpB    Levels   Character Set              Encoding
   ───────────────────────────────────────────────────────
-  1.5    3        _-`  or  _▄█               ASCII / CP437
-  3.0    8+1      _▁▂▃▄▅▆▇█                  Unicode
+  ~1.5   3        _-`  or  _▄█               ASCII / CP437 (fallback)
+  3.0    8        (spc)▁▂▃▄▅▆▇  + █(fill)    Unicode (clean 3-bit)
 
-Multiple rows increase effective vertical resolution:
-  - 1 row  @ 3 BpB = 3 bits effective
-  - 4 rows @ 3 BpB = 5 bits effective (4×8 = 32 levels → 5 bits)
-  - 16 rows @ 3 BpB = 7 bits effective (16×8 = 128 levels → 7 bits)
+The Unicode map uses exactly 8 levels (3 bits) for clean power-of-2 math:
+  - 1 row  = 8 levels   = 3 bits
+  - 2 rows = 16 levels  = 4 bits
+  - 4 rows = 32 levels  = 5 bits
+  - 8 rows = 64 levels  = 6 bits
+  - 16 rows = 128 levels = 7 bits
 
 Usage:
     canvas = Canvas(width=128, height=128)  # Internal resolution
@@ -82,23 +84,23 @@ class BpBProfile:
 BPB_PROFILES = {
     CharacterSet.ASCII: BpBProfile(
         name="ASCII",
-        bpb=1.5,
-        char_map="_-`",
-        fill_char="#",
+        bpb=1.0,
+        char_map=" -",              # 2 levels (1 bit): space + mid
+        fill_char="#",              # Fill for stacked rows
         fault_char="x",
     ),
     CharacterSet.CP437: BpBProfile(
         name="CP437",
-        bpb=1.5,
-        char_map="_▄█",
-        fill_char="█",
+        bpb=1.0,
+        char_map=" ▄",              # 2 levels (1 bit): space + half
+        fill_char="█",              # Full block for stacked rows
         fault_char="×",
     ),
     CharacterSet.UNICODE: BpBProfile(
         name="Unicode",
         bpb=3.0,
-        char_map="_▁▂▃▄▅▆▇█",
-        fill_char="█",
+        char_map=" ▁▂▃▄▅▆▇",  # 8 levels (3 bits): space + 7 eighth-blocks
+        fill_char="█",         # Full block for stacked rows
         fault_char="×",
     ),
 }
@@ -259,7 +261,7 @@ class RenderWindow:
     @property
     def effective_levels(self) -> int:
         """Total vertical levels (rows × levels_per_block)."""
-        return self.rows * (self.profile.levels - 1) + 1
+        return self.rows * self.profile.levels
 
     @property
     def effective_bits(self) -> float:
@@ -295,14 +297,11 @@ class RenderWindow:
             quantized = max(0, min(quantized, levels - 1))
 
             # Convert to (full_blocks, partial_level)
-            levels_per_block = profile.levels - 1  # Exclude zero level from count
+            # levels_per_block = number of distinct levels per character cell
+            levels_per_block = profile.levels
 
-            if levels_per_block > 0:
-                full_blocks = quantized // levels_per_block
-                partial = quantized % levels_per_block
-            else:
-                full_blocks = 0
-                partial = 0
+            full_blocks = quantized // levels_per_block
+            partial = quantized % levels_per_block
 
             # Fill column from bottom
             for row in range(self.rows):
