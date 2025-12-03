@@ -332,6 +332,8 @@ class WaveformScreensaver:
 
     def _get_float_for_widget(self, widget: FloatingWaveformWidget) -> Float:
         """Create a Float container for a widget."""
+        # Note: left/top must be int, not Callable (prompt_toolkit 3.x)
+        # We update these values in the animation loop
         return Float(
             content=Window(
                 content=FormattedTextControl(
@@ -340,8 +342,8 @@ class WaveformScreensaver:
                 dont_extend_width=True,
                 dont_extend_height=True,
             ),
-            left=lambda w=widget: w.int_x,
-            top=lambda w=widget: w.int_y,
+            left=widget.int_x,
+            top=widget.int_y,
             transparent=True,
         )
 
@@ -403,14 +405,18 @@ class WaveformScreensaver:
         # Main layout with floating widgets
         from prompt_toolkit.layout.containers import HSplit
 
+        # Store Float references so we can update positions in animation loop
+        self.float1 = self._get_float_for_widget(self.widget1)
+        self.float2 = self._get_float_for_widget(self.widget2)
+
         body = FloatContainer(
             content=HSplit([
                 background,
                 status_window,
             ]),
             floats=[
-                self._get_float_for_widget(self.widget1),
-                self._get_float_for_widget(self.widget2),
+                self.float1,
+                self.float2,
             ],
         )
 
@@ -438,6 +444,13 @@ class WaveformScreensaver:
                 self.widget1.update(SCREEN_WIDTH, SCREEN_HEIGHT - 1, self.paused)
                 self.widget2.update(SCREEN_WIDTH, SCREEN_HEIGHT - 1, self.paused)
                 self.frame_count += 1
+
+                # Sync Float positions with widget positions
+                # (prompt_toolkit 3.x requires static int values for left/top)
+                self.float1.left = self.widget1.int_x
+                self.float1.top = self.widget1.int_y
+                self.float2.left = self.widget2.int_x
+                self.float2.top = self.widget2.int_y
 
             # Invalidate display to trigger redraw
             self.app.invalidate()
