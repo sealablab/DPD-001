@@ -1,0 +1,38 @@
+[project]
+name = "b7b-demo"
+version = "0.1.0"
+description = "BpB (Bits per Block) waveform rendering demos with prompt_toolkit"
+readme = "WAVEFORM_WIDGETS.md"
+requires-python = ">=3.10"
+dependencies = [
+    "prompt_toolkit>=3.0.50",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[project.scripts]
+screensaver = "screensaver:main"
+screensaver-repl = "screensaver_repl:main"
+screensaver-split = "screensaver_split:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = [
+    "screensaver",
+    "screensaver_repl",
+    "screensaver_split",
+    "waveform_widget",
+    "waveform_widget_buffered",
+    "terminal_raster",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
